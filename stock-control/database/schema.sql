@@ -1,0 +1,72 @@
+CREATE DATABASE IF NOT EXISTS stock_control CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE stock_control;
+
+CREATE TABLE IF NOT EXISTS suppliers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    contact VARCHAR(100),
+    email VARCHAR(100),
+    phone VARCHAR(30),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT
+);
+
+CREATE TABLE IF NOT EXISTS products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    description TEXT,
+    category_id INT,
+    supplier_id INT,
+    purchase_price DECIMAL(10,2) DEFAULT 0,
+    sale_price DECIMAL(10,2) DEFAULT 0,
+    stock INT DEFAULT 0,
+    min_stock INT DEFAULT 5,
+    unit VARCHAR(30) DEFAULT 'unidad',
+    active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS stock_movements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    type ENUM('entrada','salida','ajuste') NOT NULL,
+    quantity INT NOT NULL,
+    previous_stock INT NOT NULL,
+    new_stock INT NOT NULL,
+    reason VARCHAR(200),
+    reference VARCHAR(100),
+    user VARCHAR(80) DEFAULT 'admin',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+-- Datos de ejemplo
+INSERT INTO categories (name, description) VALUES
+  ('Electrónica', 'Dispositivos y componentes electrónicos'),
+  ('Herramientas', 'Herramientas manuales y eléctricas'),
+  ('Insumos', 'Materiales de consumo general'),
+  ('Repuestos', 'Piezas y repuestos varios');
+
+INSERT INTO suppliers (name, contact, email, phone) VALUES
+  ('Proveedor Tech S.A.', 'Juan García', 'contacto@provtech.com', '+54 11 4000-0001'),
+  ('Distribuidora Central', 'María López', 'ventas@distcentral.com', '+54 11 4000-0002'),
+  ('Importadora Norte', 'Carlos Ruiz', 'info@impnorte.com', '+54 11 4000-0003');
+
+INSERT INTO products (code, name, description, category_id, supplier_id, purchase_price, sale_price, stock, min_stock, unit) VALUES
+  ('PROD-001', 'Cable HDMI 2m', 'Cable HDMI alta velocidad 2 metros', 1, 1, 500, 950, 25, 10, 'unidad'),
+  ('PROD-002', 'Teclado USB', 'Teclado USB español 104 teclas', 1, 1, 1200, 2200, 8, 10, 'unidad'),
+  ('PROD-003', 'Mouse inalámbrico', 'Mouse inalámbrico 2.4GHz', 1, 2, 900, 1700, 3, 5, 'unidad'),
+  ('PROD-004', 'Destornillador Phillips', 'Set destornilladores Phillips 4 piezas', 2, 3, 300, 600, 15, 8, 'set'),
+  ('PROD-005', 'Cinta adhesiva', 'Cinta adhesiva transparente 48mm x 50m', 3, 2, 80, 150, 2, 20, 'rollo'),
+  ('PROD-006', 'Filtro de aire', 'Filtro de aire universal 10x20cm', 4, 3, 450, 850, 12, 5, 'unidad');
