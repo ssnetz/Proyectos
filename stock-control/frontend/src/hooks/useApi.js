@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: '/api' });
+const api = axios.create({ baseURL: '/stock-control/api' });
 
 export function useProducts() {
   const list = (params) => api.get('/products.php', { params });
