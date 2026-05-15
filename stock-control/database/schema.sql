@@ -87,6 +87,6 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- contraseña: password
-INSERT INTO users (username, email, password, role) VALUES
+INSERT INTO users (username, email, `password`, role) VALUES
   ('admin',    'admin@stock.com',    '$2y$12$bzZBJIhbVmT8OFx7IJ6NaOMwhi/H7kqVewtnoZDJJiHk.eWwVg1bC', 'admin'),
   ('operador', 'operador@stock.com', '$2y$12$GeQrk5QV1WmiCTwYYvDm7OgPS9q1wU5KdT6Q878uCLAeDcBe36z96', 'operador');
