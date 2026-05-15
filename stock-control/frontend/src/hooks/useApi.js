@@ -2,6 +2,29 @@ import axios from 'axios';
 
 const api = axios.create({ baseURL: '/stock-control/api' });
 
+// Attach JWT token from localStorage on every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('sc_token');
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// On 401, clean up token and redirect to /login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('sc_token');
+      // Redirect to login (works even without React Router context)
+      window.location.href = '/stock-control/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export function useProducts() {
   const list = (params) => api.get('/products.php', { params });
   const get   = (id)     => api.get('/products.php', { params: { id } });
@@ -37,4 +60,12 @@ export function useCategories() {
 export function useDashboard() {
   const get = () => api.get('/dashboard.php');
   return { get };
+}
+
+export function useUsers() {
+  const list   = ()           => api.get('/users.php');
+  const create = (data)       => api.post('/users.php', data);
+  const update = (id, data)   => api.put(`/users.php?id=${id}`, data);
+  const remove = (id)         => api.delete(`/users.php?id=${id}`);
+  return { list, create, update, remove };
 }

@@ -5,6 +5,9 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 
+define('JWT_SECRET', 'stock_control_secret_key_2024_cambiar_en_produccion');
+define('JWT_EXPIRY', 8 * 3600); // 8 horas
+
 function getDB(): PDO {
     static $pdo = null;
     if ($pdo === null) {

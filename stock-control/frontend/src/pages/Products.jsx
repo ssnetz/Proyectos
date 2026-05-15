@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useProducts, useCategories, useSuppliers, useMovements } from '../hooks/useApi';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 const emptyProduct = {
@@ -12,6 +13,8 @@ export default function Products() {
   const categoriesApi = useCategories();
   const suppliersApi  = useSuppliers();
   const movementsApi  = useMovements();
+  const { user }      = useAuth();
+  const isAdmin       = user?.role === 'admin';
 
   const [products, setProducts]     = useState([]);
   const [categories, setCategories] = useState([]);
@@ -157,7 +160,7 @@ export default function Products() {
               Solo stock bajo
             </label>
           </div>
-          <button className="btn btn-primary" onClick={openCreate}>+ Nuevo producto</button>
+          {isAdmin && <button className="btn btn-primary" onClick={openCreate}>+ Nuevo producto</button>}
         </div>
 
         {loading ? <div className="spinner" /> : products.length === 0 ? (
@@ -192,8 +195,8 @@ export default function Products() {
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button className="btn btn-ghost btn-sm" title="Movimiento" onClick={() => openMovement(p)}>↕</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}>✏️</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(p.id)}>🗑️</button>
+                        {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}>✏️</button>}
+                        {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(p.id)}>🗑️</button>}
                       </div>
                     </td>
                   </tr>

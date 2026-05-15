@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useSuppliers } from '../hooks/useApi';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 const emptyForm = { name: '', contact: '', email: '', phone: '', address: '' };
 
 export default function Suppliers() {
   const { list, create, update, remove } = useSuppliers();
+  const { user } = useAuth();
+  const isAdmin  = user?.role === 'admin';
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
@@ -68,7 +71,7 @@ export default function Suppliers() {
       <div className="card">
         <div className="table-actions">
           <div />
-          <button className="btn btn-primary" onClick={openCreate}>+ Nuevo proveedor</button>
+          {isAdmin && <button className="btn btn-primary" onClick={openCreate}>+ Nuevo proveedor</button>}
         </div>
 
         {loading ? <div className="spinner" /> : suppliers.length === 0 ? (
@@ -88,10 +91,12 @@ export default function Suppliers() {
                     <td>{s.phone || '—'}</td>
                     <td><span className="badge badge-blue">{s.product_count}</span></td>
                     <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(s)}>✏️</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(s.id)}>🗑️</button>
-                      </div>
+                      {isAdmin && (
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => openEdit(s)}>✏️</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(s.id)}>🗑️</button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

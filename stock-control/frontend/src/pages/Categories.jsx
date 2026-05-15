@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useCategories } from '../hooks/useApi';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 const emptyForm = { name: '', description: '' };
 
 export default function Categories() {
   const { list, create, update, remove } = useCategories();
+  const { user } = useAuth();
+  const isAdmin  = user?.role === 'admin';
   const [categories, setCategories] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState('');
@@ -59,7 +62,7 @@ export default function Categories() {
       <div className="card">
         <div className="table-actions">
           <div />
-          <button className="btn btn-primary" onClick={openCreate}>+ Nueva categoría</button>
+          {isAdmin && <button className="btn btn-primary" onClick={openCreate}>+ Nueva categoría</button>}
         </div>
 
         {loading ? <div className="spinner" /> : categories.length === 0 ? (
@@ -77,10 +80,12 @@ export default function Categories() {
                     <td style={{ color: 'var(--gray-500)' }}>{c.description || '—'}</td>
                     <td><span className="badge badge-blue">{c.product_count}</span></td>
                     <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(c)}>✏️</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(c.id)}>🗑️</button>
-                      </div>
+                      {isAdmin && (
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => openEdit(c)}>✏️</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(c.id)}>🗑️</button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

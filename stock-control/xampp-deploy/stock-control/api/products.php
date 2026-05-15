@@ -10,10 +10,10 @@ $method = getMethod();
 $id = getId();
 
 match($method) {
-    'GET'    => $id ? getProduct($db, $id) : listProducts($db),
-    'POST'   => createProduct($db),
-    'PUT'    => $id ? updateProduct($db, $id) : jsonError('ID requerido', 400),
-    'DELETE' => $id ? deleteProduct($db, $id) : jsonError('ID requerido', 400),
+    'GET'    => (requireAuth() && ($id ? getProduct($db, $id) : listProducts($db))),
+    'POST'   => (requireAdmin() && createProduct($db)),
+    'PUT'    => (requireAdmin() && ($id ? updateProduct($db, $id) : jsonError('ID requerido', 400))),
+    'DELETE' => (requireAdmin() && ($id ? deleteProduct($db, $id) : jsonError('ID requerido', 400))),
     default  => jsonError('Método no permitido', 405),
 };
 

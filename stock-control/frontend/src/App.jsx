@@ -1,29 +1,74 @@
-import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Dashboard  from './pages/Dashboard';
 import Products   from './pages/Products';
 import Movements  from './pages/Movements';
 import Suppliers  from './pages/Suppliers';
 import Categories from './pages/Categories';
+import Users      from './pages/Users';
+import Login      from './pages/Login';
 
-const navItems = [
-  { to: '/',           icon: '📊', label: 'Dashboard' },
-  { to: '/products',   icon: '📦', label: 'Productos' },
-  { to: '/movements',  icon: '↕️',  label: 'Movimientos' },
-  { to: '/suppliers',  icon: '🏭', label: 'Proveedores' },
-  { to: '/categories', icon: '🏷️', label: 'Categorías' },
-];
+// ─── Protected route ────────────────────────────────────────────────────────
+function ProtectedRoute({ children, adminOnly = false }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />;
+  return children;
+}
 
+// ─── Sidebar user section ───────────────────────────────────────────────────
+function SidebarUser() {
+  const { user, logout } = useAuth();
+  if (!user) return null;
+
+  const initials = user.username.slice(0, 2).toUpperCase();
+
+  return (
+    <div className="sidebar-user">
+      <div className="sidebar-user-avatar">{initials}</div>
+      <div className="sidebar-user-info">
+        <span className="sidebar-user-name">{user.username}</span>
+        <span className={`badge ${user.role === 'admin' ? 'badge-purple' : 'badge-gray'}`} style={{ fontSize: '.65rem' }}>
+          {user.role}
+        </span>
+      </div>
+      <button
+        className="btn btn-ghost btn-sm btn-icon"
+        title="Cerrar sesión"
+        onClick={logout}
+        style={{ color: 'var(--gray-400)', borderColor: 'var(--gray-700)', marginLeft: 'auto' }}
+      >
+        ⏻
+      </button>
+    </div>
+  );
+}
+
+// ─── Main layout (with sidebar) ─────────────────────────────────────────────
 const pageTitles = {
   '/':           'Dashboard',
   '/products':   'Productos',
   '/movements':  'Historial de movimientos',
   '/suppliers':  'Proveedores',
   '/categories': 'Categorías',
+  '/users':      'Usuarios',
 };
 
-export default function App() {
+function AppLayout() {
   const { pathname } = useLocation();
+  const { user }     = useAuth();
   const title = pageTitles[pathname] ?? 'Control de Stock';
+  const isAdmin = user?.role === 'admin';
+
+  const navItems = [
+    { to: '/',           icon: '📊', label: 'Dashboard' },
+    { to: '/products',   icon: '📦', label: 'Productos' },
+    { to: '/movements',  icon: '↕️',  label: 'Movimientos' },
+    { to: '/suppliers',  icon: '🏭', label: 'Proveedores' },
+    { to: '/categories', icon: '🏷️', label: 'Categorías' },
+    ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
+  ];
 
   return (
     <div className="layout">
@@ -44,7 +89,8 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer">v1.0 · Control de Stock</div>
+        <SidebarUser />
+        <div className="sidebar-footer">v2.0 · Control de Stock</div>
       </aside>
 
       <div className="main">
@@ -53,14 +99,35 @@ export default function App() {
         </header>
         <main className="page-content">
           <Routes>
-            <Route path="/"           element={<Dashboard />} />
-            <Route path="/products"   element={<Products />} />
-            <Route path="/movements"  element={<Movements />} />
-            <Route path="/suppliers"  element={<Suppliers />} />
-            <Route path="/categories" element={<Categories />} />
+            <Route path="/"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/products"   element={<ProtectedRoute><Products /></ProtectedRoute>} />
+            <Route path="/movements"  element={<ProtectedRoute><Movements /></ProtectedRoute>} />
+            <Route path="/suppliers"  element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
+            <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
+            <Route path="/users"      element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
     </div>
   );
+}
+
+// ─── Root component ──────────────────────────────────────────────────────────
+export default function App() {
+  return (
+    <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<LoginGuard />} />
+        <Route path="/*"     element={<AppLayout />} />
+      </Routes>
+    </AuthProvider>
+  );
+}
+
+// Redirect already-logged-in users away from /login
+function LoginGuard() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
+  if (user) return <Navigate to="/" replace />;
+  return <Login />;
 }

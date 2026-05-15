@@ -70,3 +70,23 @@ INSERT INTO products (code, name, description, category_id, supplier_id, purchas
   ('PROD-004', 'Destornillador Phillips', 'Set destornilladores Phillips 4 piezas', 2, 3, 300, 600, 15, 8, 'set'),
   ('PROD-005', 'Cinta adhesiva', 'Cinta adhesiva transparente 48mm x 50m', 3, 2, 80, 150, 2, 20, 'rollo'),
   ('PROD-006', 'Filtro de aire', 'Filtro de aire universal 10x20cm', 4, 3, 450, 850, 12, 5, 'unidad');
+
+-- ─── Auth: columna user_id en movimientos y tabla de usuarios ───────────────
+
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS user_id INT AFTER user;
+
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100),
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin','operador') DEFAULT 'operador',
+    active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- contraseña: password (hash bcrypt)
+INSERT INTO users (username, email, password, role) VALUES
+  ('admin',    'admin@stock.com',    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin'),
+  ('operador', 'operador@stock.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'operador');

@@ -9,8 +9,8 @@ $db = getDB();
 $method = getMethod();
 
 match($method) {
-    'GET'  => listMovements($db),
-    'POST' => createMovement($db),
+    'GET'  => (requireAuth() && listMovements($db)),
+    'POST' => createMovement($db, requireAuth()),
     default => jsonError('Método no permitido', 405),
 };
 
@@ -40,7 +40,7 @@ function listMovements(PDO $db): void {
     jsonResponse($stmt->fetchAll());
 }
 
-function createMovement(PDO $db): void {
+function createMovement(PDO $db, array $authPayload): void {
     $data = getBody();
     $required = ['product_id', 'type', 'quantity'];
     foreach ($required as $f) {
@@ -79,14 +79,15 @@ function createMovement(PDO $db): void {
         $quantityStored = $type === 'ajuste' ? abs($newStock - $prevStock) : $qty;
         $stmt = $db->prepare(
             "INSERT INTO stock_movements
-             (product_id, type, quantity, previous_stock, new_stock, reason, reference, user)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+             (product_id, type, quantity, previous_stock, new_stock, reason, reference, user, user_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
             $productId, $type, $quantityStored, $prevStock, $newStock,
             $data['reason'] ?? null,
             $data['reference'] ?? null,
-            $data['user'] ?? 'admin',
+            $authPayload['username'],
+            $authPayload['sub'],
         ]);
 
         $db->commit();
