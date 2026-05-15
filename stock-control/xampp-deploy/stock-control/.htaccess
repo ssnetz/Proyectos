@@ -2,6 +2,9 @@
     RewriteEngine On
     RewriteBase /stock-control/
 
+    # Pasar el header Authorization a PHP (XAMPP/Windows lo elimina por defecto)
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
     # Las rutas /api/* las maneja PHP directamente (archivos reales)
     RewriteRule ^api/ - [L]
 

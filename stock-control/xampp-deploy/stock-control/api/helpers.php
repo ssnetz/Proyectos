@@ -75,8 +75,25 @@ function jwtDecode(string $token, string $secret): ?array {
     return $data;
 }
 
+function getAuthHeader(): string {
+    // Apache en Windows (XAMPP) suele eliminar el header Authorization.
+    // Lo recuperamos desde las variables de entorno que pone el .htaccess
+    // o desde apache_request_headers() como último recurso.
+    if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+        return $_SERVER['HTTP_AUTHORIZATION'];
+    }
+    if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    }
+    if (function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        return $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    }
+    return '';
+}
+
 function requireAuth(): array {
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $authHeader = getAuthHeader();
     if (!str_starts_with($authHeader, 'Bearer ')) {
         jsonError('No autorizado', 401);
     }
