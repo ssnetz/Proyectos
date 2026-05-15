@@ -10,10 +10,10 @@ $method = getMethod();
 $id = getId();
 
 match($method) {
-    'GET'    => $id ? getSupplier($db, $id) : listSuppliers($db),
-    'POST'   => createSupplier($db),
-    'PUT'    => $id ? updateSupplier($db, $id) : jsonError('ID requerido', 400),
-    'DELETE' => $id ? deleteSupplier($db, $id) : jsonError('ID requerido', 400),
+    'GET'    => (requireAuth() && ($id ? getSupplier($db, $id) : listSuppliers($db))),
+    'POST'   => (requireAdmin() && createSupplier($db)),
+    'PUT'    => (requireAdmin() && ($id ? updateSupplier($db, $id) : jsonError('ID requerido', 400))),
+    'DELETE' => (requireAdmin() && ($id ? deleteSupplier($db, $id) : jsonError('ID requerido', 400))),
     default  => jsonError('Método no permitido', 405),
 };
 

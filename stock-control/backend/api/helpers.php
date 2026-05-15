@@ -36,3 +36,62 @@ function getId(): ?int {
     $id = $_GET['id'] ?? null;
     return $id !== null ? (int)$id : null;
 }
+
+// ─── JWT puro en PHP sin librerías ──────────────────────────────────────────
+
+function base64url_encode(string $data): string {
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
+function base64url_decode(string $data): string {
+    $remainder = strlen($data) % 4;
+    if ($remainder) {
+        $data .= str_repeat('=', 4 - $remainder);
+    }
+    return base64_decode(strtr($data, '-_', '+/'));
+}
+
+function jwtEncode(array $payload, string $secret): string {
+    $header  = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+    $payload = base64url_encode(json_encode($payload));
+    $sig     = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+    return "$header.$payload.$sig";
+}
+
+function jwtDecode(string $token, string $secret): ?array {
+    $parts = explode('.', $token);
+    if (count($parts) !== 3) return null;
+
+    [$header, $payload, $sig] = $parts;
+    $expected = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+
+    if (!hash_equals($expected, $sig)) return null;
+
+    $data = json_decode(base64url_decode($payload), true);
+    if (!$data) return null;
+
+    if (isset($data['exp']) && $data['exp'] < time()) return null;
+
+    return $data;
+}
+
+function requireAuth(): array {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (!str_starts_with($authHeader, 'Bearer ')) {
+        jsonError('No autorizado', 401);
+    }
+    $token   = substr($authHeader, 7);
+    $payload = jwtDecode($token, JWT_SECRET);
+    if (!$payload) {
+        jsonError('No autorizado', 401);
+    }
+    return $payload;
+}
+
+function requireAdmin(): array {
+    $payload = requireAuth();
+    if (($payload['role'] ?? '') !== 'admin') {
+        jsonError('Sin permisos', 403);
+    }
+    return $payload;
+}
