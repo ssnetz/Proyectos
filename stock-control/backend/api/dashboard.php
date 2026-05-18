@@ -30,7 +30,7 @@ $lowStockCount = $db->query(
          FROM products p
          LEFT JOIN product_stock ps ON p.id = ps.product_id
          WHERE p.active = 1
-         GROUP BY p.id
+         GROUP BY p.id, p.min_stock
          HAVING COALESCE(SUM(ps.quantity), 0) <= p.min_stock
      ) t"
 )->fetchColumn();
@@ -41,7 +41,7 @@ $outOfStock = $db->query(
          FROM products p
          LEFT JOIN product_stock ps ON p.id = ps.product_id
          WHERE p.active = 1
-         GROUP BY p.id
+         GROUP BY p.id, p.min_stock
          HAVING COALESCE(SUM(ps.quantity), 0) = 0
      ) t"
 )->fetchColumn();
@@ -57,7 +57,7 @@ $lowStockProducts = $db->query(
      LEFT JOIN product_stock ps ON p.id = ps.product_id
      WHERE p.active = 1
      GROUP BY p.id, p.code, p.name, p.min_stock, c.name
-     HAVING stock_total <= p.min_stock
+     HAVING COALESCE(SUM(ps.quantity), 0) <= p.min_stock
      ORDER BY stock_total ASC
      LIMIT 10"
 )->fetchAll();

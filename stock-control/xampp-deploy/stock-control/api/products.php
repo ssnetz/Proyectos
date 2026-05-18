@@ -67,7 +67,7 @@ function listProducts(PDO $db): void {
                            p.purchase_price, p.sale_price, p.stock, p.min_stock, p.unit,
                            p.active, p.created_at, p.updated_at, c.name, s.name";
         if ($lowStock) {
-            $sql .= " HAVING stock_total <= p.min_stock";
+            $sql .= " HAVING COALESCE(SUM(ps.quantity), 0) <= p.min_stock";
         }
         $sql .= " ORDER BY p.name";
     }
