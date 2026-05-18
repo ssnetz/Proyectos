@@ -11,6 +11,8 @@
 --   5. Clic en "Continuar" o "Go"
 -- ============================================================
 
+USE stock_control;
+
 -- ── 1. Tabla de ubicaciones ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS locations (
     id          INT AUTO_INCREMENT PRIMARY KEY,

@@ -10,6 +10,8 @@
 --   5. Clic en 'Continuar'
 -- ============================================================
 
+USE stock_control;
+
 -- ── Categorías ─────────────────────────────────────────────
 INSERT IGNORE INTO categories (name, description) VALUES
   ('Insumos',     'Insumos y materiales hospitalarios'),
