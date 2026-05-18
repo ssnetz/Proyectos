@@ -80,7 +80,7 @@ export default function Suppliers() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Nombre</th><th>Contacto</th><th>Email</th><th>Teléfono</th><th>Productos</th><th>Acciones</th></tr>
+                <tr><th>Nombre</th><th>Contacto</th><th>Email</th><th>Teléfono</th><th>Medicamentos</th><th>Acciones</th></tr>
               </thead>
               <tbody>
                 {suppliers.map((s) => (

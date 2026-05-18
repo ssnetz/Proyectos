@@ -32,7 +32,7 @@ export default function Dashboard() {
           <div className="stat-icon blue">📦</div>
           <div>
             <div className="stat-value">{stats.total_products}</div>
-            <div className="stat-label">Productos activos</div>
+            <div className="stat-label">Medicamentos activos</div>
           </div>
         </div>
         <div className="stat-card">
@@ -96,7 +96,7 @@ export default function Dashboard() {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Fecha</th></tr>
+                  <tr><th>Medicamento</th><th>Tipo</th><th>Cant.</th><th>Fecha</th></tr>
                 </thead>
                 <tbody>
                   {recent_movements.map((m, i) => (
@@ -124,7 +124,7 @@ export default function Dashboard() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Stock actual</th><th>Stock mínimo</th><th>Estado</th></tr>
+                <tr><th>Código</th><th>Medicamento</th><th>Categoría</th><th>Stock actual</th><th>Stock mínimo</th><th>Estado</th></tr>
               </thead>
               <tbody>
                 {low_stock_products.map((p) => (

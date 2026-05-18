@@ -74,10 +74,10 @@ export default function Products() {
     try {
       if (modalProduct === 'create') {
         await productsApi.create(form);
-        notify('Producto creado correctamente');
+        notify('Medicamento creado correctamente');
       } else {
         await productsApi.update(modalProduct, form);
-        notify('Producto actualizado');
+        notify('Medicamento actualizado');
       }
       setModalProduct(null);
       await loadProducts();
@@ -89,10 +89,10 @@ export default function Products() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar este producto?')) return;
+    if (!confirm('¿Eliminar este medicamento?')) return;
     try {
       await productsApi.remove(id);
-      notify('Producto eliminado');
+      notify('Medicamento eliminado');
       await loadProducts();
     } catch (e) {
       setError(e.response?.data?.error || 'Error al eliminar');
@@ -146,7 +146,7 @@ export default function Products() {
           <div className="filters">
             <div className="search-input">
               <input
-                className="form-control" placeholder="Buscar producto o código..."
+                className="form-control" placeholder="Buscar medicamento..."
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 style={{ width: 240 }}
               />
@@ -160,11 +160,11 @@ export default function Products() {
               Solo stock bajo
             </label>
           </div>
-          {isAdmin && <button className="btn btn-primary" onClick={openCreate}>+ Nuevo producto</button>}
+          {isAdmin && <button className="btn btn-primary" onClick={openCreate}>+ Nuevo medicamento</button>}
         </div>
 
         {loading ? <div className="spinner" /> : products.length === 0 ? (
-          <div className="empty"><div className="empty-icon">📦</div><p>No hay productos</p></div>
+          <div className="empty"><div className="empty-icon">📦</div><p>No hay medicamentos</p></div>
         ) : (
           <div className="table-wrap">
             <table>
@@ -209,7 +209,7 @@ export default function Products() {
 
       {modalProduct !== null && (
         <Modal
-          title={modalProduct === 'create' ? 'Nuevo producto' : 'Editar producto'}
+          title={modalProduct === 'create' ? 'Nuevo medicamento' : 'Editar medicamento'}
           onClose={() => setModalProduct(null)}
           size="modal-lg"
           footer={

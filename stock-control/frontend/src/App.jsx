@@ -48,7 +48,7 @@ function SidebarUser() {
 // ─── Main layout (with sidebar) ─────────────────────────────────────────────
 const pageTitles = {
   '/':           'Dashboard',
-  '/products':   'Productos',
+  '/products':   'Medicamentos',
   '/movements':  'Historial de movimientos',
   '/suppliers':  'Proveedores',
   '/categories': 'Categorías',
@@ -58,12 +58,12 @@ const pageTitles = {
 function AppLayout() {
   const { pathname } = useLocation();
   const { user }     = useAuth();
-  const title = pageTitles[pathname] ?? 'Control de Stock';
+  const title = pageTitles[pathname] ?? 'Stock Farmacia Dr. Armando Cima';
   const isAdmin = user?.role === 'admin';
 
   const navItems = [
     { to: '/',           icon: '📊', label: 'Dashboard' },
-    { to: '/products',   icon: '📦', label: 'Productos' },
+    { to: '/products',   icon: '💊', label: 'Medicamentos' },
     { to: '/movements',  icon: '↕️',  label: 'Movimientos' },
     { to: '/suppliers',  icon: '🏭', label: 'Proveedores' },
     { to: '/categories', icon: '🏷️', label: 'Categorías' },
@@ -74,7 +74,7 @@ function AppLayout() {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <span>📦</span> Stock Control
+          <span>💊</span> Farmacia Dr. Armando Cima
         </div>
         <nav className="sidebar-nav">
           {navItems.map(({ to, icon, label }) => (
@@ -90,7 +90,7 @@ function AppLayout() {
           ))}
         </nav>
         <SidebarUser />
-        <div className="sidebar-footer">v2.0 · Control de Stock</div>
+        <div className="sidebar-footer">v2.0 · Farmacia Dr. Armando Cima</div>
       </aside>
 
       <div className="main">

@@ -55,7 +55,7 @@ export default function Movements() {
             <table>
               <thead>
                 <tr>
-                  <th>#</th><th>Fecha</th><th>Producto</th><th>Tipo</th>
+                  <th>#</th><th>Fecha</th><th>Medicamento</th><th>Tipo</th>
                   <th>Cantidad</th><th>Stock anterior</th><th>Stock nuevo</th>
                   <th>Motivo</th><th>Referencia</th><th>Usuario</th>
                 </tr>

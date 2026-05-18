@@ -71,7 +71,7 @@ export default function Categories() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Nombre</th><th>Descripción</th><th>Productos</th><th>Acciones</th></tr>
+                <tr><th>Nombre</th><th>Descripción</th><th>Medicamentos</th><th>Acciones</th></tr>
               </thead>
               <tbody>
                 {categories.map((c) => (
