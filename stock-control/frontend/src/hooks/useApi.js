@@ -2,7 +2,6 @@ import axios from 'axios';
 
 const api = axios.create({ baseURL: '/stock-control/api' });
 
-// Attach JWT token from localStorage on every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('sc_token');
   if (token) {
@@ -12,13 +11,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401, clean up token and redirect to /login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('sc_token');
-      // Redirect to login (works even without React Router context)
       window.location.href = '/stock-control/login';
     }
     return Promise.reject(error);
@@ -26,11 +23,11 @@ api.interceptors.response.use(
 );
 
 export function useProducts() {
-  const list = (params) => api.get('/products.php', { params });
-  const get   = (id)     => api.get('/products.php', { params: { id } });
-  const create = (data)  => api.post('/products.php', data);
-  const update = (id, data) => api.put(`/products.php?id=${id}`, data);
-  const remove = (id)    => api.delete(`/products.php?id=${id}`);
+  const list   = (params)     => api.get('/products.php', { params });
+  const get    = (id)         => api.get('/products.php', { params: { id } });
+  const create = (data)       => api.post('/products.php', data);
+  const update = (id, data)   => api.put(`/products.php?id=${id}`, data);
+  const remove = (id)         => api.delete(`/products.php?id=${id}`);
   return { list, get, create, update, remove };
 }
 
@@ -38,6 +35,15 @@ export function useMovements() {
   const list   = (params) => api.get('/movements.php', { params });
   const create = (data)   => api.post('/movements.php', data);
   return { list, create };
+}
+
+export function useLocations() {
+  const list   = (params)     => api.get('/locations.php', { params });
+  const get    = (id)         => api.get('/locations.php', { params: { id } });
+  const create = (data)       => api.post('/locations.php', data);
+  const update = (id, data)   => api.put(`/locations.php?id=${id}`, data);
+  const remove = (id)         => api.delete(`/locations.php?id=${id}`);
+  return { list, get, create, update, remove };
 }
 
 export function useSuppliers() {
@@ -50,10 +56,10 @@ export function useSuppliers() {
 }
 
 export function useCategories() {
-  const list   = ()         => api.get('/categories.php');
-  const create = (data)     => api.post('/categories.php', data);
-  const update = (id, data) => api.put(`/categories.php?id=${id}`, data);
-  const remove = (id)       => api.delete(`/categories.php?id=${id}`);
+  const list   = ()           => api.get('/categories.php');
+  const create = (data)       => api.post('/categories.php', data);
+  const update = (id, data)   => api.put(`/categories.php?id=${id}`, data);
+  const remove = (id)         => api.delete(`/categories.php?id=${id}`);
   return { list, create, update, remove };
 }
 

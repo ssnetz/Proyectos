@@ -4,11 +4,13 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 
+const typeIcon = { farmacia: '🏥', guardia: '🚨', dispensario: '🏘' };
+
 export default function Dashboard() {
   const { get } = useDashboard();
-  const [data, setData] = useState(null);
+  const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error,   setError]   = useState('');
 
   useEffect(() => {
     get()
@@ -18,28 +20,29 @@ export default function Dashboard() {
   }, []);
 
   if (loading) return <div className="spinner" />;
-  if (error) return <div className="alert alert-danger">{error}</div>;
+  if (error)   return <div className="alert alert-danger">{error}</div>;
 
-  const { stats, low_stock_products, recent_movements, movements_by_day } = data;
+  const { stats, stock_by_location, low_stock_products, recent_movements, movements_by_day } = data;
 
-  const formatCurrency = (v) =>
+  const fmt = (v) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v);
 
   return (
     <div>
+      {/* ── Estadísticas globales ── */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon blue">📦</div>
+          <div className="stat-icon blue">💊</div>
           <div>
             <div className="stat-value">{stats.total_products}</div>
-            <div className="stat-label">Productos activos</div>
+            <div className="stat-label">Medicamentos activos</div>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon red">⚠️</div>
           <div>
             <div className="stat-value">{stats.low_stock_count}</div>
-            <div className="stat-label">Stock bajo</div>
+            <div className="stat-label">Stock bajo (total)</div>
           </div>
         </div>
         <div className="stat-card">
@@ -52,20 +55,65 @@ export default function Dashboard() {
         <div className="stat-card">
           <div className="stat-icon green">💰</div>
           <div>
-            <div className="stat-value" style={{ fontSize: '1.2rem' }}>{formatCurrency(stats.stock_value)}</div>
+            <div className="stat-value" style={{ fontSize: '1.2rem' }}>{fmt(stats.stock_value)}</div>
             <div className="stat-label">Valor del stock</div>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon blue">🏭</div>
+          <div className="stat-icon blue">🏥</div>
           <div>
-            <div className="stat-value">{stats.total_suppliers}</div>
-            <div className="stat-label">Proveedores</div>
+            <div className="stat-value">{stats.total_locations}</div>
+            <div className="stat-label">Ubicaciones activas</div>
           </div>
         </div>
       </div>
 
+      {/* ── Stock por ubicación ── */}
+      {stock_by_location?.length > 0 && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-header">
+            <span className="card-title">Stock por sector</span>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Sector</th>
+                  <th>Tipo</th>
+                  <th style={{ textAlign: 'right' }}>Medicamentos</th>
+                  <th style={{ textAlign: 'right' }}>Unidades totales</th>
+                  <th style={{ textAlign: 'right' }}>Alertas stock bajo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stock_by_location.map((loc) => (
+                  <tr key={loc.id}>
+                    <td>
+                      <strong>{typeIcon[loc.type] ?? '📍'} {loc.name}</strong>
+                    </td>
+                    <td>
+                      <span className={`badge ${{ farmacia: 'badge-blue', guardia: 'badge-red', dispensario: 'badge-green' }[loc.type] ?? 'badge-gray'}`}>
+                        {({ farmacia: 'Farmacia', guardia: 'Guardia', dispensario: 'Dispensario' })[loc.type] ?? loc.type}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>{loc.product_count}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{loc.total_units}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      {loc.low_stock_count > 0
+                        ? <span className="badge badge-yellow">{loc.low_stock_count}</span>
+                        : <span style={{ color: 'var(--gray-600)' }}>—</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="grid-2" style={{ marginBottom: 20 }}>
+        {/* ── Gráfico ── */}
         <div className="card">
           <div className="card-header">
             <span className="card-title">Movimientos últimos 7 días</span>
@@ -79,13 +127,15 @@ export default function Dashboard() {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="entradas" fill="#16a34a" name="Entradas" radius={[3,3,0,0]} />
-                <Bar dataKey="salidas"  fill="#dc2626" name="Salidas"  radius={[3,3,0,0]} />
+                <Bar dataKey="entradas"       fill="#16a34a" name="Entradas"       radius={[3,3,0,0]} />
+                <Bar dataKey="salidas"        fill="#dc2626" name="Salidas"        radius={[3,3,0,0]} />
+                <Bar dataKey="transferencias" fill="#2563eb" name="Transferencias" radius={[3,3,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
         </div>
 
+        {/* ── Últimos movimientos ── */}
         <div className="card">
           <div className="card-header">
             <span className="card-title">Últimos movimientos</span>
@@ -96,7 +146,7 @@ export default function Dashboard() {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Fecha</th></tr>
+                  <tr><th>Medicamento</th><th>Tipo</th><th>Cant.</th><th>Sector</th><th>Fecha</th></tr>
                 </thead>
                 <tbody>
                   {recent_movements.map((m, i) => (
@@ -104,6 +154,12 @@ export default function Dashboard() {
                       <td>{m.product_name}</td>
                       <td><span className={`mov-${m.type}`}>{m.type}</span></td>
                       <td>{m.quantity}</td>
+                      <td style={{ fontSize: '.8rem', color: 'var(--gray-400)' }}>
+                        {m.type === 'transferencia'
+                          ? `${m.location_name} → ${m.to_location_name}`
+                          : (m.location_name || '—')
+                        }
+                      </td>
                       <td style={{ color: 'var(--gray-400)', fontSize: '.8rem' }}>
                         {new Date(m.created_at).toLocaleDateString('es-AR')}
                       </td>
@@ -116,15 +172,21 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* ── Alertas stock bajo ── */}
       {low_stock_products.length > 0 && (
         <div className="card">
           <div className="card-header">
-            <span className="card-title">⚠️ Alertas de stock bajo</span>
+            <span className="card-title">⚠️ Alertas de stock bajo (consolidado)</span>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Stock actual</th><th>Stock mínimo</th><th>Estado</th></tr>
+                <tr>
+                  <th>Código</th><th>Medicamento</th><th>Categoría</th>
+                  <th style={{ textAlign: 'right' }}>Stock total</th>
+                  <th style={{ textAlign: 'right' }}>Mínimo</th>
+                  <th>Estado</th>
+                </tr>
               </thead>
               <tbody>
                 {low_stock_products.map((p) => (
@@ -132,10 +194,14 @@ export default function Dashboard() {
                     <td><code>{p.code}</code></td>
                     <td>{p.name}</td>
                     <td>{p.category_name || '—'}</td>
-                    <td><strong style={{ color: p.stock === 0 ? 'var(--danger)' : 'var(--warning)' }}>{p.stock}</strong></td>
-                    <td>{p.min_stock}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <strong style={{ color: p.stock_total === 0 ? 'var(--danger)' : 'var(--warning)' }}>
+                        {p.stock_total}
+                      </strong>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>{p.min_stock}</td>
                     <td>
-                      {p.stock === 0
+                      {p.stock_total === 0
                         ? <span className="badge badge-red">Sin stock</span>
                         : <span className="badge badge-yellow">Stock bajo</span>
                       }

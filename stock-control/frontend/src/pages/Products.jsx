@@ -1,51 +1,65 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useProducts, useCategories, useSuppliers, useMovements } from '../hooks/useApi';
+import { useProducts, useCategories, useSuppliers, useMovements, useLocations } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 const emptyProduct = {
   code: '', name: '', description: '', category_id: '', supplier_id: '',
-  purchase_price: '', sale_price: '', stock: '', min_stock: '5', unit: 'unidad',
+  purchase_price: '', sale_price: '', stock: '', min_stock: '5', unit: 'comp',
+  location_id: '1',
 };
+
+const emptyMov = { type: 'entrada', quantity: '', reason: '', reference: '', location_id: '', to_location_id: '' };
 
 export default function Products() {
   const productsApi   = useProducts();
   const categoriesApi = useCategories();
   const suppliersApi  = useSuppliers();
   const movementsApi  = useMovements();
+  const locationsApi  = useLocations();
   const { user }      = useAuth();
   const isAdmin       = user?.role === 'admin';
 
-  const [products, setProducts]     = useState([]);
+  const [products,   setProducts]   = useState([]);
   const [categories, setCategories] = useState([]);
-  const [suppliers, setSuppliers]   = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState('');
-  const [success, setSuccess]       = useState('');
+  const [suppliers,  setSuppliers]  = useState([]);
+  const [locations,  setLocations]  = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState('');
+  const [success,    setSuccess]    = useState('');
 
-  const [search, setSearch]         = useState('');
-  const [filterCat, setFilterCat]   = useState('');
-  const [showLow, setShowLow]       = useState(false);
+  const [search,     setSearch]     = useState('');
+  const [filterCat,  setFilterCat]  = useState('');
+  const [filterLoc,  setFilterLoc]  = useState('');
+  const [showLow,    setShowLow]    = useState(false);
+  const [expanded,   setExpanded]   = useState(null); // product id con detalle desplegado
 
-  const [modalProduct, setModalProduct] = useState(null);
+  const [modalProduct,  setModalProduct]  = useState(null);
   const [modalMovement, setModalMovement] = useState(null);
-  const [form, setForm]             = useState(emptyProduct);
-  const [movForm, setMovForm]       = useState({ type: 'entrada', quantity: '', reason: '', reference: '' });
-  const [saving, setSaving]         = useState(false);
+  const [form,    setForm]    = useState(emptyProduct);
+  const [movForm, setMovForm] = useState(emptyMov);
+  const [saving,  setSaving]  = useState(false);
 
   const loadProducts = useCallback(() => {
     const params = {};
-    if (search) params.search = search;
-    if (filterCat) params.category = filterCat;
-    if (showLow) params.low_stock = '1';
+    if (search)    params.search      = search;
+    if (filterCat) params.category    = filterCat;
+    if (filterLoc) params.location_id = filterLoc;
+    if (showLow)   params.low_stock   = '1';
     return productsApi.list(params).then((r) => setProducts(r.data));
-  }, [search, filterCat, showLow]);
+  }, [search, filterCat, filterLoc, showLow]);
 
   useEffect(() => {
-    Promise.all([loadProducts(), categoriesApi.list(), suppliersApi.list()])
-      .then(([, cats, sups]) => {
+    Promise.all([
+      loadProducts(),
+      categoriesApi.list(),
+      suppliersApi.list(),
+      locationsApi.list(),
+    ])
+      .then(([, cats, sups, locs]) => {
         setCategories(cats.data);
         setSuppliers(sups.data);
+        setLocations(locs.data);
       })
       .catch(() => setError('Error cargando datos'))
       .finally(() => setLoading(false));
@@ -53,17 +67,21 @@ export default function Products() {
 
   useEffect(() => {
     if (!loading) loadProducts().catch(() => {});
-  }, [search, filterCat, showLow]);
+  }, [search, filterCat, filterLoc, showLow]);
 
   const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); };
 
-  const openCreate = () => { setForm(emptyProduct); setModalProduct('create'); };
-  const openEdit   = (p) => {
+  const openCreate = () => {
+    setForm({ ...emptyProduct, location_id: locations[0]?.id?.toString() || '1' });
+    setModalProduct('create');
+  };
+  const openEdit = (p) => {
     setForm({
       code: p.code, name: p.name, description: p.description || '',
       category_id: p.category_id || '', supplier_id: p.supplier_id || '',
       purchase_price: p.purchase_price, sale_price: p.sale_price,
-      stock: p.stock, min_stock: p.min_stock, unit: p.unit,
+      stock: p.stock_total ?? p.stock, min_stock: p.min_stock, unit: p.unit,
+      location_id: '1',
     });
     setModalProduct(p.id);
   };
@@ -74,10 +92,10 @@ export default function Products() {
     try {
       if (modalProduct === 'create') {
         await productsApi.create(form);
-        notify('Producto creado correctamente');
+        notify('Medicamento creado correctamente');
       } else {
         await productsApi.update(modalProduct, form);
-        notify('Producto actualizado');
+        notify('Medicamento actualizado');
       }
       setModalProduct(null);
       await loadProducts();
@@ -89,10 +107,10 @@ export default function Products() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar este producto?')) return;
+    if (!confirm('¿Eliminar este medicamento?')) return;
     try {
       await productsApi.remove(id);
-      notify('Producto eliminado');
+      notify('Medicamento eliminado');
       await loadProducts();
     } catch (e) {
       setError(e.response?.data?.error || 'Error al eliminar');
@@ -101,7 +119,7 @@ export default function Products() {
 
   const openMovement = (p) => {
     setModalMovement(p);
-    setMovForm({ type: 'entrada', quantity: '', reason: '', reference: '' });
+    setMovForm({ ...emptyMov, location_id: locations[0]?.id?.toString() || '1' });
   };
 
   const handleMovement = async () => {
@@ -119,22 +137,29 @@ export default function Products() {
     }
   };
 
+  const stockTotal = (p) => p.stock_total ?? p.stock ?? 0;
+
   const stockBadge = (p) => {
-    if (p.stock === 0) return <span className="badge badge-red">Sin stock</span>;
-    if (p.stock <= p.min_stock) return <span className="badge badge-yellow">Stock bajo</span>;
+    const s = stockTotal(p);
+    if (s === 0) return <span className="badge badge-red">Sin stock</span>;
+    if (s <= p.min_stock) return <span className="badge badge-yellow">Stock bajo</span>;
     return <span className="badge badge-green">OK</span>;
   };
 
   const stockPct = (p) => {
     if (p.min_stock === 0) return 100;
-    return Math.min(100, Math.round((p.stock / (p.min_stock * 2)) * 100));
+    return Math.min(100, Math.round((stockTotal(p) / (p.min_stock * 2)) * 100));
   };
 
   const stockClass = (p) => {
-    if (p.stock === 0) return 'out';
-    if (p.stock <= p.min_stock) return 'low';
+    const s = stockTotal(p);
+    if (s === 0) return 'out';
+    if (s <= p.min_stock) return 'low';
     return 'ok';
   };
+
+  const locLabel = (type) =>
+    ({ farmacia: '🏥 Farmacia', guardia: '🚨 Guardia', dispensario: '🏘 Dispensario' }[type] ?? type);
 
   return (
     <div>
@@ -146,7 +171,7 @@ export default function Products() {
           <div className="filters">
             <div className="search-input">
               <input
-                className="form-control" placeholder="Buscar producto o código..."
+                className="form-control" placeholder="Buscar medicamento o código..."
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 style={{ width: 240 }}
               />
@@ -155,51 +180,93 @@ export default function Products() {
               <option value="">Todas las categorías</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+            <select className="form-control" style={{ width: 180 }} value={filterLoc} onChange={(e) => setFilterLoc(e.target.value)}>
+              <option value="">Todas las ubicaciones</option>
+              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '.875rem', cursor: 'pointer' }}>
               <input type="checkbox" checked={showLow} onChange={(e) => setShowLow(e.target.checked)} />
               Solo stock bajo
             </label>
           </div>
-          {isAdmin && <button className="btn btn-primary" onClick={openCreate}>+ Nuevo producto</button>}
+          {isAdmin && <button className="btn btn-primary" onClick={openCreate}>+ Nuevo medicamento</button>}
         </div>
 
         {loading ? <div className="spinner" /> : products.length === 0 ? (
-          <div className="empty"><div className="empty-icon">📦</div><p>No hay productos</p></div>
+          <div className="empty"><div className="empty-icon">💊</div><p>No hay medicamentos</p></div>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Código</th><th>Nombre</th><th>Categoría</th><th>Proveedor</th>
-                  <th>Precio venta</th><th>Stock</th><th>Estado</th><th>Acciones</th>
+                  <th>Código</th>
+                  <th>Medicamento</th>
+                  <th>Categoría</th>
+                  <th>{filterLoc ? 'Stock (ubicación)' : 'Stock total'}</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {products.map((p) => (
-                  <tr key={p.id}>
-                    <td><code style={{ fontSize: '.8rem' }}>{p.code}</code></td>
-                    <td><strong>{p.name}</strong>{p.unit && <span style={{ color: 'var(--gray-400)', marginLeft: 4, fontSize: '.8rem' }}>/ {p.unit}</span>}</td>
-                    <td>{p.category_name || <span style={{ color: 'var(--gray-400)' }}>—</span>}</td>
-                    <td>{p.supplier_name || <span style={{ color: 'var(--gray-400)' }}>—</span>}</td>
-                    <td>${Number(p.sale_price).toLocaleString('es-AR')}</td>
-                    <td>
-                      <div className="stock-bar">
-                        <span style={{ fontSize: '.875rem', fontWeight: 600 }}>{p.stock}</span>
-                        <div className="stock-bar-track">
-                          <div className={`stock-bar-fill ${stockClass(p)}`} style={{ width: `${stockPct(p)}%` }} />
+                  <>
+                    <tr key={p.id}>
+                      <td><code style={{ fontSize: '.8rem' }}>{p.code}</code></td>
+                      <td>
+                        <strong>{p.name}</strong>
+                        {p.unit && <span style={{ color: 'var(--gray-400)', marginLeft: 4, fontSize: '.8rem' }}>/ {p.unit}</span>}
+                      </td>
+                      <td>{p.category_name || <span style={{ color: 'var(--gray-400)' }}>—</span>}</td>
+                      <td>
+                        <div className="stock-bar">
+                          <span style={{ fontSize: '.875rem', fontWeight: 600 }}>{stockTotal(p)}</span>
+                          <div className="stock-bar-track">
+                            <div className={`stock-bar-fill ${stockClass(p)}`} style={{ width: `${stockPct(p)}%` }} />
+                          </div>
+                          <span style={{ fontSize: '.7rem', color: 'var(--gray-400)' }}>mín. {p.min_stock}</span>
+                          {!filterLoc && p.stock_locations?.length > 0 && (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              style={{ fontSize: '.7rem', padding: '1px 6px' }}
+                              title="Ver por ubicación"
+                              onClick={() => setExpanded(expanded === p.id ? null : p.id)}
+                            >
+                              {expanded === p.id ? '▲' : '▼'}
+                            </button>
+                          )}
                         </div>
-                        <span style={{ fontSize: '.7rem', color: 'var(--gray-400)' }}>mín. {p.min_stock}</span>
-                      </div>
-                    </td>
-                    <td>{stockBadge(p)}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-ghost btn-sm" title="Movimiento" onClick={() => openMovement(p)}>↕</button>
-                        {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}>✏️</button>}
-                        {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(p.id)}>🗑️</button>}
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                      <td>{stockBadge(p)}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="btn btn-ghost btn-sm" title="Movimiento" onClick={() => openMovement(p)}>↕</button>
+                          {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}>✏️</button>}
+                          {isAdmin && <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(p.id)}>🗑️</button>}
+                        </div>
+                      </td>
+                    </tr>
+                    {expanded === p.id && p.stock_locations?.length > 0 && (
+                      <tr key={`${p.id}-detail`}>
+                        <td colSpan={6} style={{ background: 'var(--gray-900)', padding: '8px 16px' }}>
+                          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                            {p.stock_locations.map((sl) => (
+                              <div key={sl.location_id} style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                padding: '4px 12px', borderRadius: 6,
+                                background: 'var(--gray-800)', fontSize: '.8rem'
+                              }}>
+                                <span>{locLabel(sl.location_type)}</span>
+                                <strong style={{ color: sl.quantity <= sl.min_stock ? 'var(--warning)' : 'var(--success)' }}>
+                                  {sl.quantity}
+                                </strong>
+                                <span style={{ color: 'var(--gray-500)' }}>{sl.location_name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
               </tbody>
             </table>
@@ -207,9 +274,10 @@ export default function Products() {
         )}
       </div>
 
+      {/* Modal crear/editar medicamento */}
       {modalProduct !== null && (
         <Modal
-          title={modalProduct === 'create' ? 'Nuevo producto' : 'Editar producto'}
+          title={modalProduct === 'create' ? 'Nuevo medicamento' : 'Editar medicamento'}
           onClose={() => setModalProduct(null)}
           size="modal-lg"
           footer={
@@ -258,20 +326,28 @@ export default function Products() {
               <input type="number" className="form-control" value={form.purchase_price} onChange={(e) => setForm({ ...form, purchase_price: e.target.value })} />
             </div>
             <div className="form-group">
-              <label className="form-label">Precio venta *</label>
+              <label className="form-label">Precio venta</label>
               <input type="number" className="form-control" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} />
             </div>
             <div className="form-group">
               <label className="form-label">Unidad</label>
-              <input className="form-control" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+              <input className="form-control" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="comp, ml, g..." />
             </div>
           </div>
           <div className="form-row">
             {modalProduct === 'create' && (
-              <div className="form-group">
-                <label className="form-label">Stock inicial</label>
-                <input type="number" className="form-control" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
-              </div>
+              <>
+                <div className="form-group">
+                  <label className="form-label">Stock inicial</label>
+                  <input type="number" className="form-control" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Ubicación inicial</label>
+                  <select className="form-control" value={form.location_id} onChange={(e) => setForm({ ...form, location_id: e.target.value })}>
+                    {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+              </>
             )}
             <div className="form-group">
               <label className="form-label">Stock mínimo</label>
@@ -281,6 +357,7 @@ export default function Products() {
         </Modal>
       )}
 
+      {/* Modal de movimiento */}
       {modalMovement && (
         <Modal
           title={`Movimiento: ${modalMovement.name}`}
@@ -296,26 +373,75 @@ export default function Products() {
         >
           {error && <div className="alert alert-danger">{error}</div>}
           <p style={{ marginBottom: 16, color: 'var(--gray-500)', fontSize: '.875rem' }}>
-            Stock actual: <strong>{modalMovement.stock}</strong> {modalMovement.unit}
+            Stock total consolidado: <strong>{stockTotal(modalMovement)}</strong> {modalMovement.unit}
           </p>
+
           <div className="form-group">
             <label className="form-label">Tipo de movimiento</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {['entrada', 'salida', 'ajuste'].map((t) => (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { key: 'entrada',       label: '⬆ Entrada' },
+                { key: 'salida',        label: '⬇ Salida' },
+                { key: 'transferencia', label: '↔ Transferencia' },
+                { key: 'ajuste',        label: '⚙ Ajuste' },
+              ].map(({ key, label }) => (
                 <button
-                  key={t} type="button"
-                  className={`btn ${movForm.type === t ? 'btn-primary' : 'btn-ghost'}`}
-                  onClick={() => setMovForm({ ...movForm, type: t })}
-                  style={{ textTransform: 'capitalize', flex: 1 }}
+                  key={key} type="button"
+                  className={`btn ${movForm.type === key ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setMovForm({ ...movForm, type: key })}
+                  style={{ flex: 1, minWidth: 100 }}
                 >
-                  {t === 'entrada' ? '⬆ Entrada' : t === 'salida' ? '⬇ Salida' : '⚙ Ajuste'}
+                  {label}
                 </button>
               ))}
             </div>
           </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">
+                {movForm.type === 'transferencia' ? 'Origen' : 'Ubicación'}
+              </label>
+              <select
+                className="form-control"
+                value={movForm.location_id}
+                onChange={(e) => setMovForm({ ...movForm, location_id: e.target.value })}
+              >
+                <option value="">— Seleccionar —</option>
+                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+              {movForm.location_id && modalMovement.stock_locations && (
+                <small style={{ color: 'var(--gray-400)' }}>
+                  Stock en esta ubicación: {
+                    modalMovement.stock_locations.find(
+                      (sl) => sl.location_id === parseInt(movForm.location_id)
+                    )?.quantity ?? 0
+                  } {modalMovement.unit}
+                </small>
+              )}
+            </div>
+
+            {movForm.type === 'transferencia' && (
+              <div className="form-group">
+                <label className="form-label">Destino</label>
+                <select
+                  className="form-control"
+                  value={movForm.to_location_id}
+                  onChange={(e) => setMovForm({ ...movForm, to_location_id: e.target.value })}
+                >
+                  <option value="">— Seleccionar —</option>
+                  {locations
+                    .filter((l) => l.id !== parseInt(movForm.location_id))
+                    .map((l) => <option key={l.id} value={l.id}>{l.name}</option>)
+                  }
+                </select>
+              </div>
+            )}
+          </div>
+
           <div className="form-group">
             <label className="form-label">
-              {movForm.type === 'ajuste' ? 'Nuevo stock total' : 'Cantidad'}
+              {movForm.type === 'ajuste' ? 'Nuevo stock total en ubicación' : 'Cantidad'}
             </label>
             <input
               type="number" className="form-control" min="1"
@@ -323,13 +449,24 @@ export default function Products() {
               onChange={(e) => setMovForm({ ...movForm, quantity: e.target.value })}
             />
           </div>
+
           <div className="form-group">
             <label className="form-label">Motivo</label>
-            <input className="form-control" placeholder="Ej: Compra proveedor, Venta, Inventario..." value={movForm.reason} onChange={(e) => setMovForm({ ...movForm, reason: e.target.value })} />
+            <input
+              className="form-control"
+              placeholder="Ej: Compra, Dispensación, Inventario..."
+              value={movForm.reason}
+              onChange={(e) => setMovForm({ ...movForm, reason: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Referencia / Nro. documento</label>
-            <input className="form-control" placeholder="Factura, remito, etc." value={movForm.reference} onChange={(e) => setMovForm({ ...movForm, reference: e.target.value })} />
+            <input
+              className="form-control"
+              placeholder="Remito, factura, receta, etc."
+              value={movForm.reference}
+              onChange={(e) => setMovForm({ ...movForm, reference: e.target.value })}
+            />
           </div>
         </Modal>
       )}

@@ -5,10 +5,10 @@ import Products   from './pages/Products';
 import Movements  from './pages/Movements';
 import Suppliers  from './pages/Suppliers';
 import Categories from './pages/Categories';
+import Locations  from './pages/Locations';
 import Users      from './pages/Users';
 import Login      from './pages/Login';
 
-// ─── Protected route ────────────────────────────────────────────────────────
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
@@ -17,13 +17,10 @@ function ProtectedRoute({ children, adminOnly = false }) {
   return children;
 }
 
-// ─── Sidebar user section ───────────────────────────────────────────────────
 function SidebarUser() {
   const { user, logout } = useAuth();
   if (!user) return null;
-
   const initials = user.username.slice(0, 2).toUpperCase();
-
   return (
     <div className="sidebar-user">
       <div className="sidebar-user-avatar">{initials}</div>
@@ -45,26 +42,27 @@ function SidebarUser() {
   );
 }
 
-// ─── Main layout (with sidebar) ─────────────────────────────────────────────
 const pageTitles = {
   '/':           'Dashboard',
-  '/products':   'Productos',
+  '/products':   'Medicamentos',
   '/movements':  'Historial de movimientos',
   '/suppliers':  'Proveedores',
   '/categories': 'Categorías',
+  '/locations':  'Ubicaciones',
   '/users':      'Usuarios',
 };
 
 function AppLayout() {
   const { pathname } = useLocation();
   const { user }     = useAuth();
-  const title = pageTitles[pathname] ?? 'Control de Stock';
+  const title   = pageTitles[pathname] ?? 'Farmacia Hospital Cima';
   const isAdmin = user?.role === 'admin';
 
   const navItems = [
     { to: '/',           icon: '📊', label: 'Dashboard' },
-    { to: '/products',   icon: '📦', label: 'Productos' },
+    { to: '/products',   icon: '💊', label: 'Medicamentos' },
     { to: '/movements',  icon: '↕️',  label: 'Movimientos' },
+    { to: '/locations',  icon: '🏥', label: 'Ubicaciones' },
     { to: '/suppliers',  icon: '🏭', label: 'Proveedores' },
     { to: '/categories', icon: '🏷️', label: 'Categorías' },
     ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
@@ -74,7 +72,7 @@ function AppLayout() {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <span>📦</span> Stock Control
+          <span>🏥</span> Farmacia Cima
         </div>
         <nav className="sidebar-nav">
           {navItems.map(({ to, icon, label }) => (
@@ -90,7 +88,7 @@ function AppLayout() {
           ))}
         </nav>
         <SidebarUser />
-        <div className="sidebar-footer">v2.0 · Control de Stock</div>
+        <div className="sidebar-footer">v3.0 · Hospital Dr. Armando Cima</div>
       </aside>
 
       <div className="main">
@@ -102,6 +100,7 @@ function AppLayout() {
             <Route path="/"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/products"   element={<ProtectedRoute><Products /></ProtectedRoute>} />
             <Route path="/movements"  element={<ProtectedRoute><Movements /></ProtectedRoute>} />
+            <Route path="/locations"  element={<ProtectedRoute><Locations /></ProtectedRoute>} />
             <Route path="/suppliers"  element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
             <Route path="/users"      element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
@@ -112,7 +111,6 @@ function AppLayout() {
   );
 }
 
-// ─── Root component ──────────────────────────────────────────────────────────
 export default function App() {
   return (
     <AuthProvider>
@@ -124,7 +122,6 @@ export default function App() {
   );
 }
 
-// Redirect already-logged-in users away from /login
 function LoginGuard() {
   const { user, loading } = useAuth();
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;

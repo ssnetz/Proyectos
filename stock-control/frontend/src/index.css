@@ -170,9 +170,10 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
 
 /* Movement type colors */
-.mov-entrada { color: var(--success); font-weight: 600; }
-.mov-salida  { color: var(--danger); font-weight: 600; }
-.mov-ajuste  { color: var(--primary); font-weight: 600; }
+.mov-entrada       { color: var(--success);  font-weight: 600; }
+.mov-salida        { color: var(--danger);   font-weight: 600; }
+.mov-ajuste        { color: var(--gray-400); font-weight: 600; }
+.mov-transferencia { color: #7c3aed;         font-weight: 600; }
 
 /* Pagination / actions row */
 .table-actions { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
