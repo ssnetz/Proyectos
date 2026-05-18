@@ -8,6 +8,8 @@ requireAuth();
 
 $db = getDB();
 
+try {
+
 // ─── Estadísticas globales ───────────────────────────────────────────────────
 
 $totalProducts  = $db->query("SELECT COUNT(*) FROM products WHERE active = 1")->fetchColumn();
@@ -116,3 +118,7 @@ jsonResponse([
     'recent_movements'   => $recentMovements,
     'movements_by_day'   => $movementsByDay,
 ]);
+
+} catch (Exception $e) {
+    jsonError('Error en dashboard: ' . $e->getMessage(), 500);
+}

@@ -21,6 +21,7 @@ export default function Dashboard() {
 
   if (loading) return <div className="spinner" />;
   if (error)   return <div className="alert alert-danger">{error}</div>;
+  if (!data?.stats) return <div className="alert alert-danger">Error al cargar el dashboard. Revisá que la base de datos esté activa y los archivos PHP actualizados.</div>;
 
   const { stats, stock_by_location, low_stock_products, recent_movements, movements_by_day } = data;
 
