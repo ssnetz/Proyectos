@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS product_stock (
     quantity    INT DEFAULT 0,
     min_stock   INT DEFAULT 5,
     UNIQUE KEY  uk_product_location (product_id, location_id),
-    FOREIGN KEY (product_id)  REFERENCES products(id)  ON DELETE CASCADE,
-    FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE
+    INDEX idx_product_id  (product_id),
+    INDEX idx_location_id (location_id)
 );
 
 -- Migrar stock actual de cada producto a Farmacia Central
