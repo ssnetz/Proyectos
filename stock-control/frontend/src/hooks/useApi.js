@@ -19,7 +19,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('sc_token');
       // Redirect to login (works even without React Router context)
-      window.location.href = '/stock-control/login';
+      window.location.hash = '/login';
     }
     return Promise.reject(error);
   }
