@@ -1,5 +1,5 @@
 <?php
-// Endpoint: /api/movements — registra y consulta movimientos de stock por lote
+// Endpoint: /api/movements — movimientos de stock con campos compatibles con el frontend
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
 
@@ -10,35 +10,41 @@ $db = getDB();
 $method = getMethod();
 
 match($method) {
-    'GET'  => (requireAuth() && listMovimientos($db)),
-    'POST' => createMovimiento($db, requireAuth()),
+    'GET'  => (requireAuth() && listMovements($db)),
+    'POST' => createMovement($db, requireAuth()),
     default => jsonError('Método no permitido', 405),
 };
 
-function listMovimientos(PDO $db): void {
-    $medicamentoId = $_GET['medicamento_id'] ?? null;
-    $stockId       = $_GET['stock_id']       ?? null;
-    $tipo          = $_GET['type']            ?? '';
-    $limit         = min((int)($_GET['limit'] ?? 50), 200);
+function listMovements(PDO $db): void {
+    $productId = $_GET['product_id'] ?? null;
+    $type      = $_GET['type']       ?? '';
+    $limit     = min((int)($_GET['limit'] ?? 50), 200);
 
-    $sql = "SELECT mv.*, m.nombre_comercial, m.nombre_generico, sl.lote, sl.ubicacion
+    $sql = "SELECT
+                mv.id,
+                mv.id_medicamento                                AS product_id,
+                m.nombre_comercial                               AS product_name,
+                CONCAT('MED-', LPAD(m.id_medicamento, 3, '0'))  AS product_code,
+                mv.tipo                                          AS type,
+                mv.cantidad                                      AS quantity,
+                mv.stock_anterior                                AS previous_stock,
+                mv.stock_nuevo                                   AS new_stock,
+                mv.motivo                                        AS reason,
+                mv.referencia                                    AS reference,
+                mv.usuario                                       AS user,
+                mv.created_at
             FROM movimientos_stock mv
-            JOIN medicamentos m  ON mv.id_medicamento = m.id_medicamento
-            JOIN stock_lotes  sl ON mv.id_stock = sl.id_stock
+            JOIN medicamentos m ON mv.id_medicamento = m.id_medicamento
             WHERE 1=1";
     $params = [];
 
-    if ($medicamentoId) {
+    if ($productId) {
         $sql .= " AND mv.id_medicamento = ?";
-        $params[] = $medicamentoId;
+        $params[] = $productId;
     }
-    if ($stockId) {
-        $sql .= " AND mv.id_stock = ?";
-        $params[] = $stockId;
-    }
-    if ($tipo !== '') {
+    if ($type !== '') {
         $sql .= " AND mv.tipo = ?";
-        $params[] = $tipo;
+        $params[] = $type;
     }
 
     $sql .= " ORDER BY mv.created_at DESC LIMIT $limit";
@@ -47,35 +53,64 @@ function listMovimientos(PDO $db): void {
     jsonResponse($stmt->fetchAll());
 }
 
-function createMovimiento(PDO $db, array $authPayload): void {
+function createMovement(PDO $db, array $authPayload): void {
     $data = getBody();
-    $required = ['stock_id', 'tipo', 'cantidad'];
+    $required = ['product_id', 'type', 'quantity'];
     foreach ($required as $f) {
         if (empty($data[$f])) jsonError("Campo requerido: $f");
     }
 
-    $idStock = (int)$data['stock_id'];
-    $tipo    = $data['tipo'];
-    $cantidad = (int)$data['cantidad'];
+    $idMed  = (int)$data['product_id'];
+    $tipo   = $data['type'];
+    $cantidad = (int)$data['quantity'];
 
     if ($cantidad <= 0) jsonError('La cantidad debe ser mayor a 0');
     if (!in_array($tipo, ['entrada', 'salida', 'ajuste'])) jsonError('Tipo de movimiento inválido');
 
-    $stmt = $db->prepare(
-        "SELECT sl.cantidad_existente, sl.id_medicamento
-         FROM stock_lotes sl
-         JOIN medicamentos m ON sl.id_medicamento = m.id_medicamento
-         WHERE sl.id_stock = ? AND m.activo = 1"
-    );
-    $stmt->execute([$idStock]);
-    $lote = $stmt->fetch();
-    if (!$lote) jsonError('Lote no encontrado', 404);
+    // Verificar que el medicamento existe
+    $stmt = $db->prepare("SELECT id_medicamento FROM medicamentos WHERE id_medicamento = ? AND activo = 1");
+    $stmt->execute([$idMed]);
+    if (!$stmt->fetch()) jsonError('Medicamento no encontrado', 404);
 
-    $anterior     = (int)$lote['cantidad_existente'];
-    $idMedicamento = (int)$lote['id_medicamento'];
+    // Buscar el lote apropiado para el movimiento
+    if ($tipo === 'salida') {
+        // Para salidas: usar el lote con más stock disponible
+        $stmt = $db->prepare(
+            "SELECT id_stock, cantidad_existente FROM stock_lotes
+             WHERE id_medicamento = ? AND cantidad_existente > 0
+             ORDER BY fecha_caducidad ASC, cantidad_existente DESC
+             LIMIT 1"
+        );
+    } else {
+        // Para entradas/ajustes: usar el lote más reciente
+        $stmt = $db->prepare(
+            "SELECT id_stock, cantidad_existente FROM stock_lotes
+             WHERE id_medicamento = ?
+             ORDER BY id_stock DESC
+             LIMIT 1"
+        );
+    }
+    $stmt->execute([$idMed]);
+    $lote = $stmt->fetch();
+
+    // Si no hay lote, crear uno automáticamente (solo para entradas)
+    if (!$lote) {
+        if ($tipo === 'salida') jsonError('Sin stock disponible para este medicamento');
+        $stmt = $db->prepare(
+            "INSERT INTO stock_lotes
+             (id_medicamento, lote, fecha_caducidad, cantidad_existente, stock_minimo)
+             VALUES (?, 'AUTO', '2099-12-31', 0, 5)"
+        );
+        $stmt->execute([$idMed]);
+        $idStock  = (int)$db->lastInsertId();
+        $anterior = 0;
+    } else {
+        $idStock  = (int)$lote['id_stock'];
+        $anterior = (int)$lote['cantidad_existente'];
+    }
 
     if ($tipo === 'salida' && $cantidad > $anterior) {
-        jsonError("Stock insuficiente en el lote. Disponible: $anterior");
+        jsonError("Stock insuficiente. Disponible: $anterior");
     }
 
     $nuevo = match($tipo) {
@@ -89,23 +124,23 @@ function createMovimiento(PDO $db, array $authPayload): void {
         $stmt = $db->prepare("UPDATE stock_lotes SET cantidad_existente = ?, updated_at = NOW() WHERE id_stock = ?");
         $stmt->execute([$nuevo, $idStock]);
 
-        $cantidadAlmacenada = $tipo === 'ajuste' ? abs($nuevo - $anterior) : $cantidad;
+        $cantGuardada = $tipo === 'ajuste' ? abs($nuevo - $anterior) : $cantidad;
         $stmt = $db->prepare(
             "INSERT INTO movimientos_stock
-             (id_stock, id_medicamento, tipo, cantidad, stock_anterior, stock_nuevo, motivo, referencia, usuario, user_id)
+             (id_stock, id_medicamento, tipo, cantidad, stock_anterior, stock_nuevo,
+              motivo, referencia, usuario, user_id)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
-            $idStock, $idMedicamento, $tipo, $cantidadAlmacenada,
-            $anterior, $nuevo,
-            $data['motivo']     ?? null,
-            $data['referencia'] ?? null,
+            $idStock, $idMed, $tipo, $cantGuardada, $anterior, $nuevo,
+            $data['reason']    ?? null,
+            $data['reference'] ?? null,
             $authPayload['username'],
             $authPayload['sub'],
         ]);
 
         $db->commit();
-        jsonResponse(['message' => 'Movimiento registrado', 'stock_nuevo' => $nuevo], 201);
+        jsonResponse(['message' => 'Movimiento registrado', 'new_stock' => $nuevo], 201);
     } catch (Exception $e) {
         $db->rollBack();
         jsonError('Error al registrar movimiento: ' . $e->getMessage(), 500);

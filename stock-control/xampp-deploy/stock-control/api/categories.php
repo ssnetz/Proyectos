@@ -1,5 +1,5 @@
 <?php
-// Endpoint: /api/categories — gestiona categorías terapéuticas
+// Endpoint: /api/categories — categorías terapéuticas con campos compatibles con el frontend
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
 
@@ -11,16 +11,19 @@ $method = getMethod();
 $id = getId();
 
 match($method) {
-    'GET'    => (requireAuth() && listCategorias($db)),
-    'POST'   => (requireAdmin() && createCategoria($db)),
-    'PUT'    => (requireAdmin() && ($id ? updateCategoria($db, $id) : jsonError('ID requerido', 400))),
-    'DELETE' => (requireAdmin() && ($id ? deleteCategoria($db, $id) : jsonError('ID requerido', 400))),
+    'GET'    => (requireAuth() && listCategories($db)),
+    'POST'   => (requireAdmin() && createCategory($db)),
+    'PUT'    => (requireAdmin() && ($id ? updateCategory($db, $id) : jsonError('ID requerido', 400))),
+    'DELETE' => (requireAdmin() && ($id ? deleteCategory($db, $id) : jsonError('ID requerido', 400))),
     default  => jsonError('Método no permitido', 405),
-};
+];
 
-function listCategorias(PDO $db): void {
+function listCategories(PDO $db): void {
     $stmt = $db->query(
-        "SELECT ct.*, COUNT(m.id_medicamento) AS medicamentos_count
+        "SELECT ct.id,
+                ct.nombre      AS name,
+                ct.descripcion AS description,
+                COUNT(m.id_medicamento) AS product_count
          FROM categorias_terapeuticas ct
          LEFT JOIN medicamentos m ON ct.id = m.id_categoria AND m.activo = 1
          GROUP BY ct.id
@@ -29,23 +32,23 @@ function listCategorias(PDO $db): void {
     jsonResponse($stmt->fetchAll());
 }
 
-function createCategoria(PDO $db): void {
+function createCategory(PDO $db): void {
     $data = getBody();
-    if (empty($data['nombre'])) jsonError('El nombre es requerido');
+    if (empty($data['name'])) jsonError('El nombre es requerido');
     $stmt = $db->prepare("INSERT INTO categorias_terapeuticas (nombre, descripcion) VALUES (?, ?)");
-    $stmt->execute([$data['nombre'], $data['descripcion'] ?? null]);
+    $stmt->execute([$data['name'], $data['description'] ?? null]);
     jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Categoría creada'], 201);
 }
 
-function updateCategoria(PDO $db, int $id): void {
+function updateCategory(PDO $db, int $id): void {
     $data = getBody();
-    if (empty($data['nombre'])) jsonError('El nombre es requerido');
+    if (empty($data['name'])) jsonError('El nombre es requerido');
     $stmt = $db->prepare("UPDATE categorias_terapeuticas SET nombre=?, descripcion=? WHERE id=?");
-    $stmt->execute([$data['nombre'], $data['descripcion'] ?? null, $id]);
+    $stmt->execute([$data['name'], $data['description'] ?? null, $id]);
     jsonResponse(['message' => 'Categoría actualizada']);
 }
 
-function deleteCategoria(PDO $db, int $id): void {
+function deleteCategory(PDO $db, int $id): void {
     $check = $db->prepare("SELECT COUNT(*) FROM medicamentos WHERE id_categoria = ? AND activo = 1");
     $check->execute([$id]);
     if ($check->fetchColumn() > 0) {
