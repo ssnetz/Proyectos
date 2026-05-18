@@ -16,7 +16,7 @@ match($method) {
     'PUT'    => (requireAdmin() && ($id ? updateCategory($db, $id) : jsonError('ID requerido', 400))),
     'DELETE' => (requireAdmin() && ($id ? deleteCategory($db, $id) : jsonError('ID requerido', 400))),
     default  => jsonError('Método no permitido', 405),
-];
+};
 
 function listCategories(PDO $db): void {
     $stmt = $db->query(

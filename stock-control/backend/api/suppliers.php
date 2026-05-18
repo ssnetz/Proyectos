@@ -16,7 +16,7 @@ match($method) {
     'PUT'    => (requireAdmin() && ($id ? updateSupplier($db, $id) : jsonError('ID requerido', 400))),
     'DELETE' => (requireAdmin() && ($id ? deleteSupplier($db, $id) : jsonError('ID requerido', 400))),
     default  => jsonError('Método no permitido', 405),
-];
+};
 
 function listSuppliers(PDO $db): void {
     $stmt = $db->query(
