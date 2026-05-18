@@ -6,6 +6,7 @@ import Movements  from './pages/Movements';
 import Suppliers  from './pages/Suppliers';
 import Categories from './pages/Categories';
 import Locations  from './pages/Locations';
+import Inventory  from './pages/Inventory';
 import Users      from './pages/Users';
 import Login      from './pages/Login';
 
@@ -46,9 +47,10 @@ const pageTitles = {
   '/':           'Dashboard',
   '/products':   'Medicamentos',
   '/movements':  'Historial de movimientos',
+  '/inventory':  'Carga de inventario',
+  '/locations':  'Ubicaciones',
   '/suppliers':  'Proveedores',
   '/categories': 'Categorías',
-  '/locations':  'Ubicaciones',
   '/users':      'Usuarios',
 };
 
@@ -62,6 +64,7 @@ function AppLayout() {
     { to: '/',           icon: '📊', label: 'Dashboard' },
     { to: '/products',   icon: '💊', label: 'Medicamentos' },
     { to: '/movements',  icon: '↕️',  label: 'Movimientos' },
+    { to: '/inventory',  icon: '📋', label: 'Inventario' },
     { to: '/locations',  icon: '🏥', label: 'Ubicaciones' },
     { to: '/suppliers',  icon: '🏭', label: 'Proveedores' },
     { to: '/categories', icon: '🏷️', label: 'Categorías' },
@@ -100,6 +103,7 @@ function AppLayout() {
             <Route path="/"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/products"   element={<ProtectedRoute><Products /></ProtectedRoute>} />
             <Route path="/movements"  element={<ProtectedRoute><Movements /></ProtectedRoute>} />
+            <Route path="/inventory"  element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
             <Route path="/locations"  element={<ProtectedRoute><Locations /></ProtectedRoute>} />
             <Route path="/suppliers"  element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />

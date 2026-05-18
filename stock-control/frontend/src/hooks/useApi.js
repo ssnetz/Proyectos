@@ -68,6 +68,12 @@ export function useDashboard() {
   return { get };
 }
 
+export function useInventory() {
+  const list = (params) => api.get('/inventory.php', { params });
+  const save = (data)   => api.post('/inventory.php', data);
+  return { list, save };
+}
+
 export function useUsers() {
   const list   = ()           => api.get('/users.php');
   const create = (data)       => api.post('/users.php', data);
