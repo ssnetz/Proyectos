@@ -1,4 +1,5 @@
 <?php
+// Endpoint: /api/products — gestiona el catálogo de medicamentos
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
 
@@ -10,124 +11,125 @@ $method = getMethod();
 $id = getId();
 
 match($method) {
-    'GET'    => (requireAuth() && ($id ? getProduct($db, $id) : listProducts($db))),
-    'POST'   => (requireAdmin() && createProduct($db)),
-    'PUT'    => (requireAdmin() && ($id ? updateProduct($db, $id) : jsonError('ID requerido', 400))),
-    'DELETE' => (requireAdmin() && ($id ? deleteProduct($db, $id) : jsonError('ID requerido', 400))),
+    'GET'    => (requireAuth() && ($id ? getMedicamento($db, $id) : listMedicamentos($db))),
+    'POST'   => (requireAdmin() && createMedicamento($db)),
+    'PUT'    => (requireAdmin() && ($id ? updateMedicamento($db, $id) : jsonError('ID requerido', 400))),
+    'DELETE' => (requireAdmin() && ($id ? deleteMedicamento($db, $id) : jsonError('ID requerido', 400))),
     default  => jsonError('Método no permitido', 405),
 };
 
-function listProducts(PDO $db): void {
-    $search = $_GET['search'] ?? '';
+function listMedicamentos(PDO $db): void {
+    $search   = $_GET['search']   ?? '';
     $category = $_GET['category'] ?? '';
     $lowStock = isset($_GET['low_stock']);
+    $controlado  = $_GET['controlado']  ?? '';
+    $refrigerado = $_GET['refrigerado'] ?? '';
 
-    $sql = "SELECT p.*, c.name AS category_name, s.name AS supplier_name
-            FROM products p
-            LEFT JOIN categories c ON p.category_id = c.id
-            LEFT JOIN suppliers s ON p.supplier_id = s.id
-            WHERE p.active = 1";
+    $sql = "SELECT m.*,
+                   ct.nombre AS categoria_nombre,
+                   COALESCE(SUM(sl.cantidad_existente), 0)       AS stock_total,
+                   MIN(sl.fecha_caducidad)                        AS proxima_caducidad,
+                   MIN(sl.precio_venta)                           AS precio_venta
+            FROM medicamentos m
+            LEFT JOIN categorias_terapeuticas ct ON m.id_categoria = ct.id
+            LEFT JOIN stock_lotes sl ON m.id_medicamento = sl.id_medicamento
+            WHERE m.activo = 1";
     $params = [];
 
     if ($search !== '') {
-        $sql .= " AND (p.name LIKE ? OR p.code LIKE ?)";
+        $sql .= " AND (m.nombre_comercial LIKE ? OR m.nombre_generico LIKE ?)";
         $params[] = "%$search%";
         $params[] = "%$search%";
     }
     if ($category !== '') {
-        $sql .= " AND p.category_id = ?";
+        $sql .= " AND m.id_categoria = ?";
         $params[] = $category;
     }
-    if ($lowStock) {
-        $sql .= " AND p.stock <= p.min_stock";
+    if ($controlado !== '') {
+        $sql .= " AND m.controlado = ?";
+        $params[] = (int)$controlado;
+    }
+    if ($refrigerado !== '') {
+        $sql .= " AND m.refrigerado = ?";
+        $params[] = (int)$refrigerado;
     }
 
-    $sql .= " ORDER BY p.name";
+    $sql .= " GROUP BY m.id_medicamento";
+
+    if ($lowStock) {
+        $sql .= " HAVING stock_total <= (SELECT MIN(stock_minimo) FROM stock_lotes WHERE id_medicamento = m.id_medicamento)";
+    }
+
+    $sql .= " ORDER BY m.nombre_comercial";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     jsonResponse($stmt->fetchAll());
 }
 
-function getProduct(PDO $db, int $id): void {
+function getMedicamento(PDO $db, int $id): void {
     $stmt = $db->prepare(
-        "SELECT p.*, c.name AS category_name, s.name AS supplier_name
-         FROM products p
-         LEFT JOIN categories c ON p.category_id = c.id
-         LEFT JOIN suppliers s ON p.supplier_id = s.id
-         WHERE p.id = ?"
+        "SELECT m.*, ct.nombre AS categoria_nombre
+         FROM medicamentos m
+         LEFT JOIN categorias_terapeuticas ct ON m.id_categoria = ct.id
+         WHERE m.id_medicamento = ?"
     );
     $stmt->execute([$id]);
-    $product = $stmt->fetch();
-    if (!$product) jsonError('Producto no encontrado', 404);
-    jsonResponse($product);
+    $med = $stmt->fetch();
+    if (!$med) jsonError('Medicamento no encontrado', 404);
+    jsonResponse($med);
 }
 
-function createProduct(PDO $db): void {
+function createMedicamento(PDO $db): void {
     $data = getBody();
-    $required = ['code', 'name', 'sale_price'];
+    $required = ['nombre_comercial', 'nombre_generico'];
     foreach ($required as $field) {
         if (empty($data[$field])) jsonError("Campo requerido: $field");
     }
 
     $stmt = $db->prepare(
-        "INSERT INTO products (code, name, description, category_id, supplier_id,
-         purchase_price, sale_price, stock, min_stock, unit)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO medicamentos
+         (nombre_comercial, nombre_generico, presentacion, laboratorio, id_categoria,
+          controlado, refrigerado, fraccionable)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     );
     $stmt->execute([
-        $data['code'],
-        $data['name'],
-        $data['description'] ?? null,
-        $data['category_id'] ?? null,
-        $data['supplier_id'] ?? null,
-        $data['purchase_price'] ?? 0,
-        $data['sale_price'],
-        $data['stock'] ?? 0,
-        $data['min_stock'] ?? 5,
-        $data['unit'] ?? 'unidad',
+        $data['nombre_comercial'],
+        $data['nombre_generico'],
+        $data['presentacion']  ?? null,
+        $data['laboratorio']   ?? null,
+        $data['id_categoria']  ?? null,
+        (int)($data['controlado']  ?? 0),
+        (int)($data['refrigerado'] ?? 0),
+        (int)($data['fraccionable'] ?? 0),
     ]);
 
-    $id = (int)$db->lastInsertId();
-    if (($data['stock'] ?? 0) > 0) {
-        registerMovement($db, $id, 'entrada', (int)$data['stock'], 0, 'Stock inicial');
-    }
-
-    jsonResponse(['id' => $id, 'message' => 'Producto creado'], 201);
+    jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Medicamento creado'], 201);
 }
 
-function updateProduct(PDO $db, int $id): void {
+function updateMedicamento(PDO $db, int $id): void {
     $data = getBody();
     $stmt = $db->prepare(
-        "UPDATE products SET code=?, name=?, description=?, category_id=?, supplier_id=?,
-         purchase_price=?, sale_price=?, min_stock=?, unit=?, updated_at=NOW()
-         WHERE id=?"
+        "UPDATE medicamentos SET
+         nombre_comercial=?, nombre_generico=?, presentacion=?, laboratorio=?,
+         id_categoria=?, controlado=?, refrigerado=?, fraccionable=?, updated_at=NOW()
+         WHERE id_medicamento=?"
     );
     $stmt->execute([
-        $data['code'],
-        $data['name'],
-        $data['description'] ?? null,
-        $data['category_id'] ?? null,
-        $data['supplier_id'] ?? null,
-        $data['purchase_price'] ?? 0,
-        $data['sale_price'],
-        $data['min_stock'] ?? 5,
-        $data['unit'] ?? 'unidad',
+        $data['nombre_comercial'],
+        $data['nombre_generico'],
+        $data['presentacion']  ?? null,
+        $data['laboratorio']   ?? null,
+        $data['id_categoria']  ?? null,
+        (int)($data['controlado']  ?? 0),
+        (int)($data['refrigerado'] ?? 0),
+        (int)($data['fraccionable'] ?? 0),
         $id,
     ]);
-    jsonResponse(['message' => 'Producto actualizado']);
+    jsonResponse(['message' => 'Medicamento actualizado']);
 }
 
-function deleteProduct(PDO $db, int $id): void {
-    $stmt = $db->prepare("UPDATE products SET active = 0 WHERE id = ?");
+function deleteMedicamento(PDO $db, int $id): void {
+    $stmt = $db->prepare("UPDATE medicamentos SET activo = 0 WHERE id_medicamento = ?");
     $stmt->execute([$id]);
-    jsonResponse(['message' => 'Producto eliminado']);
-}
-
-function registerMovement(PDO $db, int $productId, string $type, int $qty, int $prev, string $reason): void {
-    $new = $type === 'salida' ? $prev - $qty : $prev + $qty;
-    $stmt = $db->prepare(
-        "INSERT INTO stock_movements (product_id, type, quantity, previous_stock, new_stock, reason)
-         VALUES (?, ?, ?, ?, ?, ?)"
-    );
-    $stmt->execute([$productId, $type, $qty, $prev, $new, $reason]);
+    jsonResponse(['message' => 'Medicamento desactivado']);
 }
