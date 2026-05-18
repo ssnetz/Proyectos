@@ -1,4 +1,5 @@
 <?php
+// Endpoint: /api/suppliers — gestiona proveedores (droguerías / distribuidoras)
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
 
@@ -10,75 +11,76 @@ $method = getMethod();
 $id = getId();
 
 match($method) {
-    'GET'    => (requireAuth() && ($id ? getSupplier($db, $id) : listSuppliers($db))),
-    'POST'   => (requireAdmin() && createSupplier($db)),
-    'PUT'    => (requireAdmin() && ($id ? updateSupplier($db, $id) : jsonError('ID requerido', 400))),
-    'DELETE' => (requireAdmin() && ($id ? deleteSupplier($db, $id) : jsonError('ID requerido', 400))),
+    'GET'    => (requireAuth() && ($id ? getProveedor($db, $id) : listProveedores($db))),
+    'POST'   => (requireAdmin() && createProveedor($db)),
+    'PUT'    => (requireAdmin() && ($id ? updateProveedor($db, $id) : jsonError('ID requerido', 400))),
+    'DELETE' => (requireAdmin() && ($id ? deleteProveedor($db, $id) : jsonError('ID requerido', 400))),
     default  => jsonError('Método no permitido', 405),
 };
 
-function listSuppliers(PDO $db): void {
+function listProveedores(PDO $db): void {
     $stmt = $db->query(
-        "SELECT s.*, COUNT(p.id) AS product_count
-         FROM suppliers s
-         LEFT JOIN products p ON s.id = p.supplier_id AND p.active = 1
-         GROUP BY s.id ORDER BY s.name"
+        "SELECT p.*, COUNT(DISTINCT sl.id_medicamento) AS medicamentos_asociados
+         FROM proveedores p
+         LEFT JOIN stock_lotes sl ON p.id_proveedor = sl.id_proveedor
+         GROUP BY p.id_proveedor
+         ORDER BY p.razon_social"
     );
     jsonResponse($stmt->fetchAll());
 }
 
-function getSupplier(PDO $db, int $id): void {
-    $stmt = $db->prepare("SELECT * FROM suppliers WHERE id = ?");
+function getProveedor(PDO $db, int $id): void {
+    $stmt = $db->prepare("SELECT * FROM proveedores WHERE id_proveedor = ?");
     $stmt->execute([$id]);
-    $s = $stmt->fetch();
-    if (!$s) jsonError('Proveedor no encontrado', 404);
-    jsonResponse($s);
+    $p = $stmt->fetch();
+    if (!$p) jsonError('Proveedor no encontrado', 404);
+    jsonResponse($p);
 }
 
-function createSupplier(PDO $db): void {
+function createProveedor(PDO $db): void {
     $data = getBody();
-    if (empty($data['name'])) jsonError('El nombre es requerido');
+    if (empty($data['razon_social'])) jsonError('La razón social es requerida');
 
     $stmt = $db->prepare(
-        "INSERT INTO suppliers (name, contact, email, phone, address)
+        "INSERT INTO proveedores (razon_social, contacto, email, telefono, direccion)
          VALUES (?, ?, ?, ?, ?)"
     );
     $stmt->execute([
-        $data['name'],
-        $data['contact'] ?? null,
-        $data['email'] ?? null,
-        $data['phone'] ?? null,
-        $data['address'] ?? null,
+        $data['razon_social'],
+        $data['contacto']  ?? null,
+        $data['email']     ?? null,
+        $data['telefono']  ?? null,
+        $data['direccion'] ?? null,
     ]);
     jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Proveedor creado'], 201);
 }
 
-function updateSupplier(PDO $db, int $id): void {
+function updateProveedor(PDO $db, int $id): void {
     $data = getBody();
-    if (empty($data['name'])) jsonError('El nombre es requerido');
+    if (empty($data['razon_social'])) jsonError('La razón social es requerida');
 
     $stmt = $db->prepare(
-        "UPDATE suppliers SET name=?, contact=?, email=?, phone=?, address=?, updated_at=NOW()
-         WHERE id=?"
+        "UPDATE proveedores SET razon_social=?, contacto=?, email=?, telefono=?, direccion=?, updated_at=NOW()
+         WHERE id_proveedor=?"
     );
     $stmt->execute([
-        $data['name'],
-        $data['contact'] ?? null,
-        $data['email'] ?? null,
-        $data['phone'] ?? null,
-        $data['address'] ?? null,
+        $data['razon_social'],
+        $data['contacto']  ?? null,
+        $data['email']     ?? null,
+        $data['telefono']  ?? null,
+        $data['direccion'] ?? null,
         $id,
     ]);
     jsonResponse(['message' => 'Proveedor actualizado']);
 }
 
-function deleteSupplier(PDO $db, int $id): void {
-    $check = $db->prepare("SELECT COUNT(*) FROM products WHERE supplier_id = ? AND active = 1");
+function deleteProveedor(PDO $db, int $id): void {
+    $check = $db->prepare("SELECT COUNT(*) FROM stock_lotes WHERE id_proveedor = ?");
     $check->execute([$id]);
     if ($check->fetchColumn() > 0) {
-        jsonError('No se puede eliminar: tiene productos asociados', 409);
+        jsonError('No se puede eliminar: tiene lotes de stock asociados', 409);
     }
-    $stmt = $db->prepare("DELETE FROM suppliers WHERE id = ?");
+    $stmt = $db->prepare("DELETE FROM proveedores WHERE id_proveedor = ?");
     $stmt->execute([$id]);
     jsonResponse(['message' => 'Proveedor eliminado']);
 }

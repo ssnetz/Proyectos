@@ -1,4 +1,5 @@
 <?php
+// Endpoint: /api/categories — gestiona categorías terapéuticas
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
 
@@ -10,46 +11,47 @@ $method = getMethod();
 $id = getId();
 
 match($method) {
-    'GET'    => (requireAuth() && listCategories($db)),
-    'POST'   => (requireAdmin() && createCategory($db)),
-    'PUT'    => (requireAdmin() && ($id ? updateCategory($db, $id) : jsonError('ID requerido', 400))),
-    'DELETE' => (requireAdmin() && ($id ? deleteCategory($db, $id) : jsonError('ID requerido', 400))),
+    'GET'    => (requireAuth() && listCategorias($db)),
+    'POST'   => (requireAdmin() && createCategoria($db)),
+    'PUT'    => (requireAdmin() && ($id ? updateCategoria($db, $id) : jsonError('ID requerido', 400))),
+    'DELETE' => (requireAdmin() && ($id ? deleteCategoria($db, $id) : jsonError('ID requerido', 400))),
     default  => jsonError('Método no permitido', 405),
 };
 
-function listCategories(PDO $db): void {
+function listCategorias(PDO $db): void {
     $stmt = $db->query(
-        "SELECT c.*, COUNT(p.id) AS product_count
-         FROM categories c
-         LEFT JOIN products p ON c.id = p.category_id AND p.active = 1
-         GROUP BY c.id ORDER BY c.name"
+        "SELECT ct.*, COUNT(m.id_medicamento) AS medicamentos_count
+         FROM categorias_terapeuticas ct
+         LEFT JOIN medicamentos m ON ct.id = m.id_categoria AND m.activo = 1
+         GROUP BY ct.id
+         ORDER BY ct.nombre"
     );
     jsonResponse($stmt->fetchAll());
 }
 
-function createCategory(PDO $db): void {
+function createCategoria(PDO $db): void {
     $data = getBody();
-    if (empty($data['name'])) jsonError('El nombre es requerido');
-    $stmt = $db->prepare("INSERT INTO categories (name, description) VALUES (?, ?)");
-    $stmt->execute([$data['name'], $data['description'] ?? null]);
+    if (empty($data['nombre'])) jsonError('El nombre es requerido');
+    $stmt = $db->prepare("INSERT INTO categorias_terapeuticas (nombre, descripcion) VALUES (?, ?)");
+    $stmt->execute([$data['nombre'], $data['descripcion'] ?? null]);
     jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Categoría creada'], 201);
 }
 
-function updateCategory(PDO $db, int $id): void {
+function updateCategoria(PDO $db, int $id): void {
     $data = getBody();
-    if (empty($data['name'])) jsonError('El nombre es requerido');
-    $stmt = $db->prepare("UPDATE categories SET name=?, description=? WHERE id=?");
-    $stmt->execute([$data['name'], $data['description'] ?? null, $id]);
+    if (empty($data['nombre'])) jsonError('El nombre es requerido');
+    $stmt = $db->prepare("UPDATE categorias_terapeuticas SET nombre=?, descripcion=? WHERE id=?");
+    $stmt->execute([$data['nombre'], $data['descripcion'] ?? null, $id]);
     jsonResponse(['message' => 'Categoría actualizada']);
 }
 
-function deleteCategory(PDO $db, int $id): void {
-    $check = $db->prepare("SELECT COUNT(*) FROM products WHERE category_id = ? AND active = 1");
+function deleteCategoria(PDO $db, int $id): void {
+    $check = $db->prepare("SELECT COUNT(*) FROM medicamentos WHERE id_categoria = ? AND activo = 1");
     $check->execute([$id]);
     if ($check->fetchColumn() > 0) {
-        jsonError('No se puede eliminar: tiene productos asociados', 409);
+        jsonError('No se puede eliminar: tiene medicamentos asociados', 409);
     }
-    $stmt = $db->prepare("DELETE FROM categories WHERE id = ?");
+    $stmt = $db->prepare("DELETE FROM categorias_terapeuticas WHERE id = ?");
     $stmt->execute([$id]);
     jsonResponse(['message' => 'Categoría eliminada']);
 }

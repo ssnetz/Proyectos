@@ -8,51 +8,109 @@ requireAuth();
 
 $db = getDB();
 
-$totalProducts = $db->query("SELECT COUNT(*) FROM products WHERE active = 1")->fetchColumn();
-$lowStockCount = $db->query("SELECT COUNT(*) FROM products WHERE active = 1 AND stock <= min_stock")->fetchColumn();
-$outOfStock    = $db->query("SELECT COUNT(*) FROM products WHERE active = 1 AND stock = 0")->fetchColumn();
-$totalSuppliers = $db->query("SELECT COUNT(*) FROM suppliers")->fetchColumn();
-
-$stockValue = $db->query(
-    "SELECT COALESCE(SUM(stock * purchase_price), 0) FROM products WHERE active = 1"
+$totalMedicamentos = $db->query(
+    "SELECT COUNT(*) FROM medicamentos WHERE activo = 1"
 )->fetchColumn();
 
-$lowStockProducts = $db->query(
-    "SELECT p.id, p.code, p.name, p.stock, p.min_stock, c.name AS category_name
-     FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     WHERE p.active = 1 AND p.stock <= p.min_stock
-     ORDER BY p.stock ASC
+$lotesbajoStock = $db->query(
+    "SELECT COUNT(*) FROM stock_lotes sl
+     JOIN medicamentos m ON sl.id_medicamento = m.id_medicamento
+     WHERE m.activo = 1 AND sl.cantidad_existente <= sl.stock_minimo AND sl.cantidad_existente > 0"
+)->fetchColumn();
+
+$lotesSinStock = $db->query(
+    "SELECT COUNT(*) FROM stock_lotes sl
+     JOIN medicamentos m ON sl.id_medicamento = m.id_medicamento
+     WHERE m.activo = 1 AND sl.cantidad_existente = 0"
+)->fetchColumn();
+
+$lotesVencidos = $db->query(
+    "SELECT COUNT(*) FROM stock_lotes sl
+     JOIN medicamentos m ON sl.id_medicamento = m.id_medicamento
+     WHERE m.activo = 1 AND sl.fecha_caducidad < CURDATE()"
+)->fetchColumn();
+
+$lotesPorVencer = $db->query(
+    "SELECT COUNT(*) FROM stock_lotes sl
+     JOIN medicamentos m ON sl.id_medicamento = m.id_medicamento
+     WHERE m.activo = 1 AND sl.fecha_caducidad BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 90 DAY)"
+)->fetchColumn();
+
+$refrigeradosActivos = $db->query(
+    "SELECT COUNT(*) FROM medicamentos WHERE activo = 1 AND refrigerado = 1"
+)->fetchColumn();
+
+$controladosActivos = $db->query(
+    "SELECT COUNT(*) FROM medicamentos WHERE activo = 1 AND controlado = 1"
+)->fetchColumn();
+
+$totalProveedores = $db->query("SELECT COUNT(*) FROM proveedores")->fetchColumn();
+
+$valorStock = $db->query(
+    "SELECT COALESCE(SUM(sl.cantidad_existente * sl.precio_costo), 0)
+     FROM stock_lotes sl
+     JOIN medicamentos m ON sl.id_medicamento = m.id_medicamento
+     WHERE m.activo = 1"
+)->fetchColumn();
+
+$lotesBajoStockDetalle = $db->query(
+    "SELECT sl.id_stock, sl.lote, sl.cantidad_existente, sl.stock_minimo, sl.fecha_caducidad,
+            m.nombre_comercial, m.nombre_generico, m.refrigerado, m.controlado,
+            ct.nombre AS categoria_nombre
+     FROM stock_lotes sl
+     JOIN medicamentos m ON sl.id_medicamento = m.id_medicamento
+     LEFT JOIN categorias_terapeuticas ct ON m.id_categoria = ct.id
+     WHERE m.activo = 1 AND sl.cantidad_existente <= sl.stock_minimo
+     ORDER BY sl.cantidad_existente ASC
      LIMIT 10"
 )->fetchAll();
 
-$recentMovements = $db->query(
-    "SELECT m.type, m.quantity, m.created_at, p.name AS product_name
-     FROM stock_movements m
-     JOIN products p ON m.product_id = p.id
-     ORDER BY m.created_at DESC
+$proximosCaducidad = $db->query(
+    "SELECT sl.id_stock, sl.lote, sl.fecha_caducidad, sl.cantidad_existente, sl.ubicacion,
+            m.nombre_comercial, m.nombre_generico, m.refrigerado
+     FROM stock_lotes sl
+     JOIN medicamentos m ON sl.id_medicamento = m.id_medicamento
+     WHERE m.activo = 1
+       AND sl.fecha_caducidad BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 90 DAY)
+       AND sl.cantidad_existente > 0
+     ORDER BY sl.fecha_caducidad ASC
+     LIMIT 10"
+)->fetchAll();
+
+$movimientosRecientes = $db->query(
+    "SELECT mv.tipo, mv.cantidad, mv.created_at, mv.motivo,
+            m.nombre_comercial, sl.lote
+     FROM movimientos_stock mv
+     JOIN medicamentos m  ON mv.id_medicamento = m.id_medicamento
+     JOIN stock_lotes  sl ON mv.id_stock = sl.id_stock
+     ORDER BY mv.created_at DESC
      LIMIT 8"
 )->fetchAll();
 
-$movementsByDay = $db->query(
-    "SELECT DATE(created_at) AS day,
-            SUM(CASE WHEN type='entrada' THEN quantity ELSE 0 END) AS entradas,
-            SUM(CASE WHEN type='salida' THEN quantity ELSE 0 END) AS salidas
-     FROM stock_movements
+$movimientosPorDia = $db->query(
+    "SELECT DATE(created_at) AS dia,
+            SUM(CASE WHEN tipo='entrada' THEN cantidad ELSE 0 END) AS entradas,
+            SUM(CASE WHEN tipo='salida'  THEN cantidad ELSE 0 END) AS salidas
+     FROM movimientos_stock
      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
      GROUP BY DATE(created_at)
-     ORDER BY day"
+     ORDER BY dia"
 )->fetchAll();
 
 jsonResponse([
     'stats' => [
-        'total_products'  => (int)$totalProducts,
-        'low_stock_count' => (int)$lowStockCount,
-        'out_of_stock'    => (int)$outOfStock,
-        'total_suppliers' => (int)$totalSuppliers,
-        'stock_value'     => (float)$stockValue,
+        'total_medicamentos'   => (int)$totalMedicamentos,
+        'lotes_bajo_stock'     => (int)$lotesbajoStock,
+        'lotes_sin_stock'      => (int)$lotesSinStock,
+        'lotes_vencidos'       => (int)$lotesVencidos,
+        'lotes_por_vencer'     => (int)$lotesPorVencer,
+        'refrigerados_activos' => (int)$refrigeradosActivos,
+        'controlados_activos'  => (int)$controladosActivos,
+        'total_proveedores'    => (int)$totalProveedores,
+        'valor_stock'          => (float)$valorStock,
     ],
-    'low_stock_products' => $lowStockProducts,
-    'recent_movements'   => $recentMovements,
-    'movements_by_day'   => $movementsByDay,
+    'lotes_bajo_stock'      => $lotesBajoStockDetalle,
+    'proximos_caducidad'    => $proximosCaducidad,
+    'movimientos_recientes' => $movimientosRecientes,
+    'movimientos_por_dia'   => $movimientosPorDia,
 ]);
