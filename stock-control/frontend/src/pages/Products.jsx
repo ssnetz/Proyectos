@@ -204,7 +204,7 @@ export default function Products() {
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <select className="form-control" style={{ width: 180 }} value={filterLoc} onChange={(e) => setFilterLoc(e.target.value)}>
-              <option value="">Todas las ubicaciones</option>
+              <option value="">Todas las dependencias</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '.875rem', cursor: 'pointer' }}>
@@ -225,7 +225,7 @@ export default function Products() {
                   <th>Código</th>
                   <th>Medicamento</th>
                   <th>Categoría</th>
-                  <th>{filterLoc ? 'Stock (ubicación)' : 'Stock total'}</th>
+                  <th>{filterLoc ? 'Stock (dependencia)' : 'Stock total'}</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -251,7 +251,7 @@ export default function Products() {
                             <button
                               className="btn btn-ghost btn-sm"
                               style={{ fontSize: '.7rem', padding: '1px 6px' }}
-                              title="Ver lotes y ubicaciones"
+                              title="Ver lotes y dependencias"
                               onClick={() => toggleExpanded(p.id)}
                             >
                               {expanded === p.id ? '▲' : '▼'}
@@ -297,7 +297,7 @@ export default function Products() {
                                   <tr style={{ color: 'var(--gray-400)' }}>
                                     <th style={{ textAlign: 'left', padding: '2px 8px', fontWeight: 600 }}>Lote</th>
                                     <th style={{ textAlign: 'left', padding: '2px 8px', fontWeight: 600 }}>Vencimiento</th>
-                                    <th style={{ textAlign: 'left', padding: '2px 8px', fontWeight: 600 }}>Ubicación</th>
+                                    <th style={{ textAlign: 'left', padding: '2px 8px', fontWeight: 600 }}>Dependencia</th>
                                     <th style={{ textAlign: 'right', padding: '2px 8px', fontWeight: 600 }}>Cant.</th>
                                     <th style={{ textAlign: 'left', padding: '2px 8px', fontWeight: 600 }}>Estado</th>
                                   </tr>
@@ -420,7 +420,7 @@ export default function Products() {
                   <input type="number" className="form-control" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Ubicación inicial</label>
+                  <label className="form-label">Dependencia inicial</label>
                   <select className="form-control" value={form.location_id} onChange={(e) => setForm({ ...form, location_id: e.target.value })}>
                     {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
@@ -500,7 +500,7 @@ export default function Products() {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">
-                {movForm.type === 'transferencia' ? 'Origen' : 'Ubicación'}
+                {movForm.type === 'transferencia' ? 'Origen' : 'Dependencia'}
               </label>
               <select
                 className="form-control"
@@ -512,7 +512,7 @@ export default function Products() {
               </select>
               {movForm.location_id && modalMovement.stock_locations && (
                 <small style={{ color: 'var(--gray-400)' }}>
-                  Stock en esta ubicación: {
+                  Stock en esta dependencia: {
                     modalMovement.stock_locations.find(
                       (sl) => sl.location_id === parseInt(movForm.location_id)
                     )?.quantity ?? 0
@@ -541,7 +541,7 @@ export default function Products() {
 
           <div className="form-group">
             <label className="form-label">
-              {movForm.type === 'ajuste' ? 'Nuevo stock total en ubicación' : 'Cantidad'}
+              {movForm.type === 'ajuste' ? 'Nuevo stock total en dependencia' : 'Cantidad'}
             </label>
             <input
               type="number" className="form-control" min="1"
