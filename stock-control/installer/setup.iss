@@ -2,6 +2,7 @@
 #define AppVersion   "3.0"
 #define AppPublisher "Municipalidad de Cosquin"
 #define AppURL       "http://localhost/stock-control/"
+#define SourceDir    "C:\xampp\htdocs\stock-control"
 
 [Setup]
 AppId={{F3A7B2C1-D4E5-4F60-9ABC-123456789ABC}
@@ -32,7 +33,7 @@ spanish.WelcomeLabel1=Bienvenido al instalador de%n{#AppName}
 spanish.WelcomeLabel2=Este asistente instalará la aplicación en tu equipo.%n%nAntes de continuar, asegurate de que XAMPP esté instalado y que Apache y MySQL estén corriendo.%n%nSi es una actualización, elegí "Solo actualizar archivos" para conservar los datos existentes.
 
 [Files]
-Source: "files\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "schema.sql"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
