@@ -75,8 +75,9 @@ export function useInventory() {
 }
 
 export function useLots() {
-  const list = (params) => api.get('/lots.php', { params });
-  return { list };
+  const list   = (params) => api.get('/lots.php', { params });
+  const create = (data)   => api.post('/lots.php', data);
+  return { list, create };
 }
 
 export function useUsers() {

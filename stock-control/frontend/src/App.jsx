@@ -7,6 +7,7 @@ import Suppliers  from './pages/Suppliers';
 import Categories from './pages/Categories';
 import Locations  from './pages/Locations';
 import Inventory  from './pages/Inventory';
+import Lots       from './pages/Lots';
 import Users      from './pages/Users';
 import Reports    from './pages/Reports';
 import Login      from './pages/Login';
@@ -49,6 +50,7 @@ const pageTitles = {
   '/products':   'Medicamentos',
   '/movements':  'Historial de movimientos',
   '/inventory':  'Carga de inventario',
+  '/lots':       'Carga de Lotes',
   '/locations':  'Dependencias',
   '/suppliers':  'Proveedores',
   '/categories': 'Categorías',
@@ -67,6 +69,7 @@ function AppLayout() {
     { to: '/products',   icon: '💊', label: 'Medicamentos' },
     { to: '/movements',  icon: '↕️',  label: 'Movimientos' },
     { to: '/inventory',  icon: '📋', label: 'Inventario' },
+    { to: '/lots',       icon: '📦', label: 'Lotes' },
     { to: '/locations',  icon: '🏥', label: 'Dependencias' },
     { to: '/suppliers',  icon: '🏭', label: 'Proveedores' },
     { to: '/categories', icon: '🏷️', label: 'Categorías' },
@@ -114,6 +117,7 @@ function AppLayout() {
             <Route path="/products"   element={<ProtectedRoute><Products /></ProtectedRoute>} />
             <Route path="/movements"  element={<ProtectedRoute><Movements /></ProtectedRoute>} />
             <Route path="/inventory"  element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+            <Route path="/lots"       element={<ProtectedRoute><Lots /></ProtectedRoute>} />
             <Route path="/locations"  element={<ProtectedRoute><Locations /></ProtectedRoute>} />
             <Route path="/suppliers"  element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />

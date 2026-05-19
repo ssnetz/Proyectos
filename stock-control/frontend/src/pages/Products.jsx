@@ -12,7 +12,6 @@ const emptyProduct = {
 const emptyMov = {
   type: 'entrada', quantity: '', reason: '', reference: '',
   location_id: '', to_location_id: '',
-  lot_number: '', expiration_date: '',
 };
 
 export default function Products() {
@@ -468,28 +467,6 @@ export default function Products() {
           <p style={{ marginBottom: 12, color: 'var(--gray-500)', fontSize: '.875rem' }}>
             Stock total consolidado: <strong>{stockTotal(modalMovement)}</strong> {modalMovement.unit}
           </p>
-
-          {/* Lote y vencimiento — siempre visible */}
-          <div className="form-row" style={{ background: 'var(--primary-light)', padding: '10px 12px', borderRadius: 8, border: '1px solid #bfdbfe', marginBottom: 16 }}>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Nro. de lote <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>(opcional)</span></label>
-              <input
-                className="form-control"
-                placeholder="Ej: LT-2024-001"
-                value={movForm.lot_number}
-                onChange={(e) => setMovForm({ ...movForm, lot_number: e.target.value })}
-              />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Fecha de vencimiento <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>(opcional)</span></label>
-              <input
-                type="date"
-                className="form-control"
-                value={movForm.expiration_date}
-                onChange={(e) => setMovForm({ ...movForm, expiration_date: e.target.value })}
-              />
-            </div>
-          </div>
 
           <div className="form-group">
             <label className="form-label">Tipo de movimiento</label>
