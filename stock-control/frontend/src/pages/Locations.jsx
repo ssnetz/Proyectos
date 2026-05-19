@@ -81,7 +81,7 @@ export default function Locations() {
             </span>
           </div>
           {isAdmin && (
-            <button className="btn btn-primary" onClick={openCreate}>+ Nueva ubicación</button>
+            <button className="btn btn-primary" onClick={openCreate}>+ Nueva dependencia</button>
           )}
         </div>
 
