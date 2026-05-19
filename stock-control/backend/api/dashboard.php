@@ -104,17 +104,53 @@ $movementsByDay = $db->query(
      ORDER BY day"
 )->fetchAll();
 
+// ─── Vencimientos próximos ───────────────────────────────────────────────────
+
+$expiringSoon = $db->query(
+    "SELECT COUNT(*) FROM product_lots
+     WHERE quantity > 0
+       AND expiration_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)"
+)->fetchColumn();
+
+$expiringWarning = $db->query(
+    "SELECT COUNT(*) FROM product_lots
+     WHERE quantity > 0
+       AND expiration_date BETWEEN DATE_ADD(CURDATE(), INTERVAL 31 DAY) AND DATE_ADD(CURDATE(), INTERVAL 90 DAY)"
+)->fetchColumn();
+
+$expiredCount = $db->query(
+    "SELECT COUNT(*) FROM product_lots
+     WHERE quantity > 0 AND expiration_date < CURDATE()"
+)->fetchColumn();
+
+$expiringProducts = $db->query(
+    "SELECT p.code, p.name, l.name AS location_name,
+            pl.lot_number, pl.expiration_date, pl.quantity,
+            DATEDIFF(pl.expiration_date, CURDATE()) AS days_until_expiry
+     FROM product_lots pl
+     JOIN products  p ON pl.product_id  = p.id
+     JOIN locations l ON pl.location_id = l.id
+     WHERE pl.quantity > 0
+       AND pl.expiration_date <= DATE_ADD(CURDATE(), INTERVAL 90 DAY)
+     ORDER BY pl.expiration_date ASC
+     LIMIT 10"
+)->fetchAll();
+
 jsonResponse([
     'stats' => [
-        'total_products'  => (int)$totalProducts,
-        'total_suppliers' => (int)$totalSuppliers,
-        'total_locations' => (int)$totalLocations,
-        'low_stock_count' => (int)$lowStockCount,
-        'out_of_stock'    => (int)$outOfStock,
-        'stock_value'     => (float)$stockValue,
+        'total_products'   => (int)$totalProducts,
+        'total_suppliers'  => (int)$totalSuppliers,
+        'total_locations'  => (int)$totalLocations,
+        'low_stock_count'  => (int)$lowStockCount,
+        'out_of_stock'     => (int)$outOfStock,
+        'stock_value'      => (float)$stockValue,
+        'expiring_soon'    => (int)$expiringSoon,
+        'expiring_warning' => (int)$expiringWarning,
+        'expired_count'    => (int)$expiredCount,
     ],
     'stock_by_location'  => $stockByLocation,
     'low_stock_products' => $lowStockProducts,
+    'expiring_products'  => $expiringProducts,
     'recent_movements'   => $recentMovements,
     'movements_by_day'   => $movementsByDay,
 ]);

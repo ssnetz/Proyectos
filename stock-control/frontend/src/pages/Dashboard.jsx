@@ -23,7 +23,7 @@ export default function Dashboard() {
   if (error)   return <div className="alert alert-danger">{error}</div>;
   if (!data?.stats) return <div className="alert alert-danger">Error al cargar el dashboard. Revisá que la base de datos esté activa y los archivos PHP actualizados.</div>;
 
-  const { stats, stock_by_location, low_stock_products, recent_movements, movements_by_day } = data;
+  const { stats, stock_by_location, low_stock_products, expiring_products, recent_movements, movements_by_day } = data;
 
   const fmt = (v) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v);
@@ -67,6 +67,33 @@ export default function Dashboard() {
             <div className="stat-label">Ubicaciones activas</div>
           </div>
         </div>
+        {stats.expired_count > 0 && (
+          <div className="stat-card" style={{ border: '2px solid var(--danger)', background: '#fef2f2' }}>
+            <div className="stat-icon red">💀</div>
+            <div>
+              <div className="stat-value" style={{ color: 'var(--danger)' }}>{stats.expired_count}</div>
+              <div className="stat-label">Lotes vencidos</div>
+            </div>
+          </div>
+        )}
+        {stats.expiring_soon > 0 && (
+          <div className="stat-card" style={{ border: '2px solid var(--danger)', background: '#fef2f2' }}>
+            <div className="stat-icon red">🗓️</div>
+            <div>
+              <div className="stat-value" style={{ color: 'var(--danger)' }}>{stats.expiring_soon}</div>
+              <div className="stat-label">Vencen en 30 días</div>
+            </div>
+          </div>
+        )}
+        {stats.expiring_warning > 0 && (
+          <div className="stat-card" style={{ border: '2px solid var(--warning)', background: '#fffbeb' }}>
+            <div className="stat-icon yellow">⏳</div>
+            <div>
+              <div className="stat-value" style={{ color: 'var(--warning)' }}>{stats.expiring_warning}</div>
+              <div className="stat-label">Vencen en 31–90 días</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Stock por ubicación ── */}
@@ -172,6 +199,52 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* ── Alertas de vencimiento ── */}
+      {expiring_products?.length > 0 && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-header">
+            <span className="card-title">🗓️ Medicamentos próximos a vencer (90 días)</span>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Medicamento</th>
+                  <th>Lote</th>
+                  <th>Ubicación</th>
+                  <th style={{ textAlign: 'right' }}>Cant.</th>
+                  <th>Vencimiento</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expiring_products.map((lot, i) => {
+                  const days = parseInt(lot.days_until_expiry);
+                  const color  = days < 0 ? 'var(--danger)' : days <= 30 ? 'var(--danger)' : 'var(--warning)';
+                  const badge  = days < 0
+                    ? <span className="badge badge-red">VENCIDO</span>
+                    : days === 0
+                      ? <span className="badge badge-red">Vence hoy</span>
+                      : days <= 30
+                        ? <span className="badge badge-red">{days} días</span>
+                        : <span className="badge badge-yellow">{days} días</span>;
+                  return (
+                    <tr key={i}>
+                      <td><strong>{lot.name}</strong> <code style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>{lot.code}</code></td>
+                      <td style={{ fontSize: '.85rem' }}>{lot.lot_number || <span style={{ color: 'var(--gray-400)' }}>—</span>}</td>
+                      <td style={{ fontSize: '.85rem', color: 'var(--gray-500)' }}>{lot.location_name}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{lot.quantity}</td>
+                      <td style={{ fontWeight: 600, color }}>{new Date(lot.expiration_date + 'T00:00:00').toLocaleDateString('es-AR')}</td>
+                      <td>{badge}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* ── Alertas stock bajo ── */}
       {low_stock_products.length > 0 && (
