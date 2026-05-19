@@ -1,11 +1,10 @@
 #define AppName      "Control de Stock - Farmacia Hospital Cima"
 #define AppVersion   "3.0"
-#define AppID        "{F3A7B2C1-D4E5-4F60-9ABC-123456789ABC}"
-#define AppPublisher "Municipalidad de Cosquín"
+#define AppPublisher "Municipalidad de Cosquin"
 #define AppURL       "http://localhost/stock-control/"
 
 [Setup]
-AppId={#AppID}
+AppId={{F3A7B2C1-D4E5-4F60-9ABC-123456789ABC}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} v{#AppVersion}
