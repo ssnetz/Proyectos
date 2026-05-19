@@ -74,6 +74,11 @@ export function useInventory() {
   return { list, save };
 }
 
+export function useLots() {
+  const list = (params) => api.get('/lots.php', { params });
+  return { list };
+}
+
 export function useUsers() {
   const list   = ()           => api.get('/users.php');
   const create = (data)       => api.post('/users.php', data);

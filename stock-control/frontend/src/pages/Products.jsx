@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useProducts, useCategories, useSuppliers, useMovements, useLocations } from '../hooks/useApi';
+import { useProducts, useCategories, useSuppliers, useMovements, useLocations, useLots } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
@@ -9,7 +9,11 @@ const emptyProduct = {
   location_id: '1',
 };
 
-const emptyMov = { type: 'entrada', quantity: '', reason: '', reference: '', location_id: '', to_location_id: '' };
+const emptyMov = {
+  type: 'entrada', quantity: '', reason: '', reference: '',
+  location_id: '', to_location_id: '',
+  lot_number: '', expiration_date: '',
+};
 
 export default function Products() {
   const productsApi   = useProducts();
@@ -17,6 +21,7 @@ export default function Products() {
   const suppliersApi  = useSuppliers();
   const movementsApi  = useMovements();
   const locationsApi  = useLocations();
+  const lotsApi       = useLots();
   const { user }      = useAuth();
   const isAdmin       = user?.role === 'admin';
 
@@ -32,7 +37,8 @@ export default function Products() {
   const [filterCat,  setFilterCat]  = useState('');
   const [filterLoc,  setFilterLoc]  = useState('');
   const [showLow,    setShowLow]    = useState(false);
-  const [expanded,   setExpanded]   = useState(null); // product id con detalle desplegado
+  const [expanded,   setExpanded]   = useState(null);
+  const [lotsMap,    setLotsMap]    = useState({});
 
   const [modalProduct,  setModalProduct]  = useState(null);
   const [modalMovement, setModalMovement] = useState(null);
@@ -122,14 +128,31 @@ export default function Products() {
     setMovForm({ ...emptyMov, location_id: locations[0]?.id?.toString() || '1' });
   };
 
+  const toggleExpanded = (productId) => {
+    const next = expanded === productId ? null : productId;
+    setExpanded(next);
+    if (next && !lotsMap[next]) {
+      lotsApi.list({ product_id: next })
+        .then((r) => setLotsMap((prev) => ({ ...prev, [next]: r.data })))
+        .catch(() => {});
+    }
+  };
+
   const handleMovement = async () => {
     setSaving(true);
     setError('');
     try {
-      await movementsApi.create({ ...movForm, product_id: modalMovement.id });
+      const productId = modalMovement.id;
+      await movementsApi.create({ ...movForm, product_id: productId });
       notify('Movimiento registrado');
       setModalMovement(null);
       await loadProducts();
+      // Refrescar lotes si ese producto está expandido
+      if (expanded === productId) {
+        lotsApi.list({ product_id: productId })
+          .then((r) => setLotsMap((prev) => ({ ...prev, [productId]: r.data })))
+          .catch(() => {});
+      }
     } catch (e) {
       setError(e.response?.data?.error || 'Error al registrar movimiento');
     } finally {
@@ -224,12 +247,12 @@ export default function Products() {
                             <div className={`stock-bar-fill ${stockClass(p)}`} style={{ width: `${stockPct(p)}%` }} />
                           </div>
                           <span style={{ fontSize: '.7rem', color: 'var(--gray-400)' }}>mín. {p.min_stock}</span>
-                          {!filterLoc && p.stock_locations?.length > 0 && (
+                          {!filterLoc && (
                             <button
                               className="btn btn-ghost btn-sm"
                               style={{ fontSize: '.7rem', padding: '1px 6px' }}
-                              title="Ver por ubicación"
-                              onClick={() => setExpanded(expanded === p.id ? null : p.id)}
+                              title="Ver lotes y ubicaciones"
+                              onClick={() => toggleExpanded(p.id)}
                             >
                               {expanded === p.id ? '▲' : '▼'}
                             </button>
@@ -245,24 +268,79 @@ export default function Products() {
                         </div>
                       </td>
                     </tr>
-                    {expanded === p.id && p.stock_locations?.length > 0 && (
+                    {expanded === p.id && (
                       <tr key={`${p.id}-detail`}>
-                        <td colSpan={6} style={{ background: 'var(--gray-900)', padding: '8px 16px' }}>
-                          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                            {p.stock_locations.map((sl) => (
-                              <div key={sl.location_id} style={{
-                                display: 'flex', alignItems: 'center', gap: 8,
-                                padding: '4px 12px', borderRadius: 6,
-                                background: 'var(--gray-800)', fontSize: '.8rem'
-                              }}>
-                                <span>{locLabel(sl.location_type)}</span>
-                                <strong style={{ color: sl.quantity <= sl.min_stock ? 'var(--warning)' : 'var(--success)' }}>
-                                  {sl.quantity}
-                                </strong>
-                                <span style={{ color: 'var(--gray-500)' }}>{sl.location_name}</span>
-                              </div>
-                            ))}
-                          </div>
+                        <td colSpan={6} style={{ background: 'var(--gray-900)', padding: '10px 16px' }}>
+                          {/* Stock por ubicación */}
+                          {p.stock_locations?.length > 0 && (
+                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+                              {p.stock_locations.map((sl) => (
+                                <div key={sl.location_id} style={{
+                                  display: 'flex', alignItems: 'center', gap: 6,
+                                  padding: '3px 10px', borderRadius: 6,
+                                  background: 'var(--gray-800)', fontSize: '.8rem'
+                                }}>
+                                  <span>{locLabel(sl.location_type)}</span>
+                                  <strong style={{ color: sl.quantity <= sl.min_stock ? 'var(--warning)' : 'var(--success)' }}>
+                                    {sl.quantity}
+                                  </strong>
+                                  <span style={{ color: 'var(--gray-500)' }}>{sl.location_name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {/* Lotes */}
+                          {lotsMap[p.id]?.length > 0 && (
+                            <div style={{ overflowX: 'auto' }}>
+                              <table style={{ width: '100%', fontSize: '.78rem', borderCollapse: 'collapse' }}>
+                                <thead>
+                                  <tr style={{ color: 'var(--gray-400)' }}>
+                                    <th style={{ textAlign: 'left', padding: '2px 8px', fontWeight: 600 }}>Lote</th>
+                                    <th style={{ textAlign: 'left', padding: '2px 8px', fontWeight: 600 }}>Vencimiento</th>
+                                    <th style={{ textAlign: 'left', padding: '2px 8px', fontWeight: 600 }}>Ubicación</th>
+                                    <th style={{ textAlign: 'right', padding: '2px 8px', fontWeight: 600 }}>Cant.</th>
+                                    <th style={{ textAlign: 'left', padding: '2px 8px', fontWeight: 600 }}>Estado</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {lotsMap[p.id].map((lot) => {
+                                    const days = lot.days_until_expiry !== null ? parseInt(lot.days_until_expiry) : null;
+                                    const lotColor = days === null ? 'var(--gray-400)'
+                                      : days < 0   ? 'var(--danger)'
+                                      : days <= 30 ? 'var(--danger)'
+                                      : days <= 90 ? 'var(--warning)'
+                                      : 'var(--success)';
+                                    const lotLabel = days === null ? '—'
+                                      : days < 0   ? 'VENCIDO'
+                                      : days === 0 ? 'Vence hoy'
+                                      : days <= 30 ? `${days}d ⚠️`
+                                      : days <= 90 ? `${days}d`
+                                      : `${days}d`;
+                                    return (
+                                      <tr key={lot.id} style={{ borderTop: '1px solid var(--gray-800)' }}>
+                                        <td style={{ padding: '3px 8px', color: 'var(--gray-200)' }}>
+                                          {lot.lot_number || <span style={{ color: 'var(--gray-600)' }}>Sin lote</span>}
+                                        </td>
+                                        <td style={{ padding: '3px 8px', fontWeight: 600, color: lotColor }}>
+                                          {lot.expiration_date
+                                            ? new Date(lot.expiration_date + 'T00:00:00').toLocaleDateString('es-AR')
+                                            : <span style={{ color: 'var(--gray-600)' }}>—</span>}
+                                        </td>
+                                        <td style={{ padding: '3px 8px', color: 'var(--gray-400)' }}>{lot.location_name}</td>
+                                        <td style={{ padding: '3px 8px', textAlign: 'right', color: 'var(--gray-200)' }}>{lot.quantity}</td>
+                                        <td style={{ padding: '3px 8px', color: lotColor, fontWeight: days !== null && days <= 90 ? 600 : 400 }}>
+                                          {lotLabel}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                          {lotsMap[p.id]?.length === 0 && (
+                            <span style={{ fontSize: '.78rem', color: 'var(--gray-600)' }}>Sin lotes registrados</span>
+                          )}
                         </td>
                       </tr>
                     )}
@@ -449,6 +527,29 @@ export default function Products() {
               onChange={(e) => setMovForm({ ...movForm, quantity: e.target.value })}
             />
           </div>
+
+          {movForm.type === 'entrada' && (
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Nro. de lote</label>
+                <input
+                  className="form-control"
+                  placeholder="Ej: LT-2024-001"
+                  value={movForm.lot_number}
+                  onChange={(e) => setMovForm({ ...movForm, lot_number: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Fecha de vencimiento</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={movForm.expiration_date}
+                  onChange={(e) => setMovForm({ ...movForm, expiration_date: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label">Motivo</label>

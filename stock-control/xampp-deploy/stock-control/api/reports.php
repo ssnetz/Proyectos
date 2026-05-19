@@ -15,6 +15,7 @@ try {
         case 'stock_por_sector':  reportStockPorSector($db);   break;
         case 'stock_bajo':        reportStockBajo($db);        break;
         case 'movimientos':       reportMovimientos($db);      break;
+        case 'proximos_a_vencer': reportProximosAVencer($db); break;
         default: jsonError('Tipo de reporte inválido', 400);
     }
 } catch (Exception $e) {
@@ -165,6 +166,52 @@ function reportMovimientos(PDO $db): void {
         'title'     => "Movimientos del $fromFmt al $toFmt",
         'generated' => date('d/m/Y H:i'),
         'columns'   => ['Fecha', 'Código', 'Medicamento', 'Tipo', 'Cant.', 'Anterior', 'Nuevo', 'Origen', 'Destino', 'Motivo', 'Usuario'],
+        'rows'      => $stmt->fetchAll(PDO::FETCH_NUM),
+    ]);
+}
+
+// ── 5. Próximos a vencer ──────────────────────────────────────────────────────
+function reportProximosAVencer(PDO $db): void {
+    $from       = $_GET['from']        ?? date('Y-m-d');
+    $to         = $_GET['to']          ?? date('Y-m-d', strtotime('+90 days'));
+    $locationId = $_GET['location_id'] ?? '';
+    $categoryId = $_GET['category_id'] ?? '';
+
+    $sql = "SELECT p.code, p.name, c.name AS categoria,
+                   l.name AS ubicacion,
+                   pl.lot_number AS lote,
+                   DATE_FORMAT(pl.expiration_date,'%d/%m/%Y') AS vencimiento,
+                   pl.quantity AS cantidad,
+                   DATEDIFF(pl.expiration_date, CURDATE()) AS dias_restantes
+            FROM product_lots pl
+            JOIN products  p ON pl.product_id  = p.id
+            JOIN locations l ON pl.location_id = l.id
+            LEFT JOIN categories c ON p.category_id = c.id
+            WHERE p.active = 1 AND l.active = 1
+              AND pl.quantity > 0
+              AND pl.expiration_date BETWEEN ? AND ?";
+    $params = [$from, $to];
+
+    if ($locationId) {
+        $sql .= " AND pl.location_id = ?";
+        $params[] = $locationId;
+    }
+    if ($categoryId) {
+        $sql .= " AND p.category_id = ?";
+        $params[] = $categoryId;
+    }
+
+    $sql .= " ORDER BY pl.expiration_date ASC, p.name";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+
+    $fromFmt = date('d/m/Y', strtotime($from));
+    $toFmt   = date('d/m/Y', strtotime($to));
+
+    jsonResponse([
+        'title'     => "Medicamentos próximos a vencer: $fromFmt – $toFmt",
+        'generated' => date('d/m/Y H:i'),
+        'columns'   => ['Código', 'Medicamento', 'Categoría', 'Ubicación', 'Lote', 'Vencimiento', 'Cant.', 'Días restantes'],
         'rows'      => $stmt->fetchAll(PDO::FETCH_NUM),
     ]);
 }

@@ -12,10 +12,11 @@ api.interceptors.request.use((config) => {
 });
 
 const REPORTS = [
-  { key: 'stock_consolidado', label: 'Stock Consolidado',       icon: '📦', desc: 'Stock total de todos los medicamentos e insumos.' },
-  { key: 'stock_por_sector',  label: 'Stock por Sector',        icon: '🏥', desc: 'Desglose de stock por farmacia, guardia y dispensarios.' },
-  { key: 'stock_bajo',        label: 'Stock Bajo',              icon: '⚠️', desc: 'Medicamentos con stock total igual o por debajo del mínimo.' },
-  { key: 'movimientos',       label: 'Historial de Movimientos', icon: '↕️', desc: 'Entradas, salidas y transferencias en un período.' },
+  { key: 'stock_consolidado',  label: 'Stock Consolidado',        icon: '📦', desc: 'Stock total de todos los medicamentos e insumos.' },
+  { key: 'stock_por_sector',   label: 'Stock por Sector',         icon: '🏥', desc: 'Desglose de stock por farmacia, guardia y dispensarios.' },
+  { key: 'stock_bajo',         label: 'Stock Bajo',               icon: '⚠️', desc: 'Medicamentos con stock total igual o por debajo del mínimo.' },
+  { key: 'movimientos',        label: 'Historial de Movimientos', icon: '↕️', desc: 'Entradas, salidas y transferencias en un período.' },
+  { key: 'proximos_a_vencer',  label: 'Próximos a Vencer',        icon: '🗓️', desc: 'Lotes con fecha de vencimiento en el rango seleccionado.' },
 ];
 
 const TYPE_COLORS = {
@@ -50,7 +51,10 @@ export default function Reports() {
     const p = { type: reportType };
     if (locationId) p.location_id = locationId;
     if (categoryId) p.category_id = categoryId;
-    if (reportType === 'movimientos') { p.from = dateFrom; p.to = dateTo; }
+    if (reportType === 'movimientos' || reportType === 'proximos_a_vencer') {
+      p.from = dateFrom;
+      p.to   = dateTo;
+    }
     return p;
   };
 
@@ -137,6 +141,13 @@ export default function Reports() {
           if (parseInt(data.cell.raw) === 0) data.cell.styles.textColor = [220, 38, 38];
           else if (parseInt(data.cell.raw) <= parseInt(data.row.raw[5])) data.cell.styles.textColor = [202, 138, 4];
         }
+        // Próximos a vencer: Vencimiento (col 5) y Días restantes (col 7)
+        if (reportType === 'proximos_a_vencer' && data.section === 'body' && (data.column.index === 5 || data.column.index === 7)) {
+          const days = parseInt(data.row.raw[7]);
+          const color = days < 0 ? [220, 38, 38] : days <= 30 ? [220, 38, 38] : days <= 90 ? [202, 138, 4] : [22, 163, 74];
+          data.cell.styles.textColor = color;
+          data.cell.styles.fontStyle = 'bold';
+        }
       },
     });
 
@@ -211,7 +222,14 @@ export default function Reports() {
               key={r.key}
               className={`btn ${reportType === r.key ? 'btn-primary' : 'btn-ghost'}`}
               style={{ flex: '1 1 180px' }}
-              onClick={() => { setReportType(r.key); setReportData(null); }}
+              onClick={() => {
+                setReportType(r.key);
+                setReportData(null);
+                if (r.key === 'proximos_a_vencer') {
+                  setDateFrom(new Date().toISOString().slice(0, 10));
+                  setDateTo(new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10));
+                }
+              }}
             >
               {r.icon} {r.label}
             </button>
@@ -226,7 +244,8 @@ export default function Reports() {
 
         {/* ── Filtros ── */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          {reportType !== 'stock_por_sector' && reportType !== 'stock_bajo' && (
+          {/* Ubicación: no aplica a stock_por_sector ni stock_bajo */}
+          {reportType !== 'stock_por_sector' && reportType !== 'stock_bajo' && reportType !== 'movimientos' && (
             <div className="form-group" style={{ margin: 0, flex: '0 0 200px' }}>
               <label className="form-label" style={{ marginBottom: 4 }}>Ubicación</label>
               <select className="form-control" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
@@ -235,6 +254,7 @@ export default function Reports() {
               </select>
             </div>
           )}
+          {/* Categoría: no aplica a movimientos */}
           {reportType !== 'movimientos' && (
             <div className="form-group" style={{ margin: 0, flex: '0 0 200px' }}>
               <label className="form-label" style={{ marginBottom: 4 }}>Categoría</label>
@@ -244,14 +264,19 @@ export default function Reports() {
               </select>
             </div>
           )}
-          {reportType === 'movimientos' && (
+          {/* Rango de fechas: movimientos y próximos a vencer */}
+          {(reportType === 'movimientos' || reportType === 'proximos_a_vencer') && (
             <>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ marginBottom: 4 }}>Desde</label>
+                <label className="form-label" style={{ marginBottom: 4 }}>
+                  {reportType === 'proximos_a_vencer' ? 'Vence desde' : 'Desde'}
+                </label>
                 <input type="date" className="form-control" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
               </div>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ marginBottom: 4 }}>Hasta</label>
+                <label className="form-label" style={{ marginBottom: 4 }}>
+                  {reportType === 'proximos_a_vencer' ? 'Vence hasta' : 'Hasta'}
+                </label>
                 <input type="date" className="form-control" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
               </div>
               <div className="form-group" style={{ margin: 0, flex: '0 0 200px' }}>
@@ -310,6 +335,14 @@ export default function Reports() {
                         if (['stock_consolidado','stock_por_sector'].includes(reportType) && ci === 4) {
                           if (parseInt(cell) === 0) style = { ...style, color: 'var(--danger)', fontWeight: 600 };
                           else if (parseInt(cell) <= parseInt(row[5])) style = { ...style, color: 'var(--warning)', fontWeight: 600 };
+                        }
+                        // Próximos a vencer: columna Vencimiento (5) y Días restantes (7)
+                        if (reportType === 'proximos_a_vencer') {
+                          const days = parseInt(row[7]);
+                          if (ci === 5 || ci === 7) {
+                            const c = days < 0 ? 'var(--danger)' : days <= 30 ? 'var(--danger)' : days <= 90 ? 'var(--warning)' : 'var(--success)';
+                            style = { ...style, color: c, fontWeight: 600 };
+                          }
                         }
                         return <td key={ci} style={style}>{cell}</td>;
                       })}

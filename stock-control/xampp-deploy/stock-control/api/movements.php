@@ -122,6 +122,20 @@ function createMovement(PDO $db, array $authPayload): void {
             $authPayload['sub'],
         ]);
 
+        // Registrar lote si es entrada y se proveyó lote o fecha de vencimiento
+        if ($type === 'entrada') {
+            $lotNumber  = trim($data['lot_number']       ?? '');
+            $expDate    = trim($data['expiration_date']  ?? '');
+            if ($lotNumber !== '' || $expDate !== '') {
+                registerLot(
+                    $db, $productId, $locationId,
+                    $lotNumber ?: null,
+                    $expDate   ?: null,
+                    $qty
+                );
+            }
+        }
+
         // Sincronizar total en products.stock
         syncTotalStock($db, $productId);
 
@@ -221,4 +235,27 @@ function syncTotalStock(PDO $db, int $productId): void {
          )
          WHERE p.id = ?"
     )->execute([$productId]);
+}
+
+function registerLot(PDO $db, int $productId, int $locationId, ?string $lotNumber, ?string $expDate, int $qty): void {
+    if ($lotNumber !== null) {
+        // Si ya existe ese número de lote en esa ubicación, sumar cantidad
+        $stmt = $db->prepare(
+            "SELECT id FROM product_lots
+             WHERE product_id = ? AND location_id = ? AND lot_number = ?"
+        );
+        $stmt->execute([$productId, $locationId, $lotNumber]);
+        $existing = $stmt->fetchColumn();
+        if ($existing) {
+            $db->prepare(
+                "UPDATE product_lots SET quantity = quantity + ?, expiration_date = COALESCE(?, expiration_date), updated_at = NOW()
+                 WHERE id = ?"
+            )->execute([$qty, $expDate, $existing]);
+            return;
+        }
+    }
+    $db->prepare(
+        "INSERT INTO product_lots (product_id, location_id, lot_number, expiration_date, quantity)
+         VALUES (?, ?, ?, ?, ?)"
+    )->execute([$productId, $locationId, $lotNumber, $expDate ?: null, $qty]);
 }
