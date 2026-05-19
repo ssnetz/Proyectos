@@ -5,8 +5,8 @@ import Modal from '../components/Modal';
 
 const emptyForm = { name: '', type: 'dispensario', address: '' };
 
-const typeLabel = { farmacia: 'Farmacia', guardia: 'Guardia', dispensario: 'Dispensario' };
-const typeBadge = { farmacia: 'badge-blue', guardia: 'badge-red', dispensario: 'badge-green' };
+const typeLabel = { farmacia: 'Farmacia', guardia: 'Guardia', dispensario: 'Dispensario', odontologia: 'Odontología', vacutanorio: 'Vacutanorio', laboratorio: 'Laboratorio', otros: 'Otros' };
+const typeBadge = { farmacia: 'badge-blue', guardia: 'badge-red', dispensario: 'badge-green', odontologia: 'badge-purple', vacutanorio: 'badge-yellow', laboratorio: 'badge-orange', otros: 'badge-gray' };
 
 export default function Locations() {
   const locApi  = useLocations();
@@ -168,6 +168,10 @@ export default function Locations() {
               <option value="farmacia">Farmacia</option>
               <option value="guardia">Guardia</option>
               <option value="dispensario">Dispensario</option>
+              <option value="odontologia">Odontología</option>
+              <option value="vacutanorio">Vacutanorio</option>
+              <option value="laboratorio">Laboratorio</option>
+              <option value="otros">Otros</option>
             </select>
           </div>
           <div className="form-group">
