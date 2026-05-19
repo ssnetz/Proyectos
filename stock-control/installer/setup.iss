@@ -1,92 +1,92 @@
-#define AppName "Control de Stock"
-#define AppVersion "2.0"
-#define AppID "{F3A7B2C1-D4E5-4F60-9ABC-123456789ABC}"
+#define AppName      "Control de Stock - Farmacia Hospital Cima"
+#define AppVersion   "3.0"
+#define AppID        "{F3A7B2C1-D4E5-4F60-9ABC-123456789ABC}"
+#define AppPublisher "Municipalidad de Cosquín"
+#define AppURL       "http://localhost/stock-control/"
 
 [Setup]
 AppId={#AppID}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} v{#AppVersion}
-AppPublisher=Mi Empresa
+AppPublisher={#AppPublisher}
+AppPublisherURL={#AppURL}
 DefaultDirName=C:\xampp\htdocs\stock-control
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
-OutputBaseFilename=stock-control-setup-v2
+OutputBaseFilename=stock-control-setup-v3
 OutputDir=output
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
 DisableDirPage=no
-SetupIconFile=
 UninstallDisplayName={#AppName}
+MinVersion=6.1
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Messages]
 spanish.BeveledLabel={#AppName} v{#AppVersion}
+spanish.WelcomeLabel1=Bienvenido al instalador de%n{#AppName}
+spanish.WelcomeLabel2=Este asistente instalará la aplicación en tu equipo.%n%nAntes de continuar, asegurate de que XAMPP esté instalado y que Apache y MySQL estén corriendo.%n%nSi es una actualización, elegí "Solo actualizar archivos" para conservar los datos existentes.
 
 [Files]
-; Archivos de la aplicación
 Source: "files\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Schema SQL (se copia a carpeta temporal y se borra al terminar)
 Source: "schema.sql"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
-Name: "{group}\Abrir {#AppName}"; Filename: "{win}\explorer.exe"; Parameters: "http://localhost/stock-control/"; IconFilename: "{win}\explorer.exe"
+Name: "{group}\Abrir {#AppName}"; Filename: "{win}\explorer.exe"; Parameters: "{#AppURL}"; IconFilename: "{win}\explorer.exe"
+Name: "{group}\Panel XAMPP"; Filename: "{code:GetXamppDir}\xampp-control.exe"
 Name: "{group}\Desinstalar {#AppName}"; Filename: "{uninstallexe}"
 
 [Run]
-; Importar base de datos solo si el usuario lo eligió
+; ── Crear base de datos ──────────────────────────────────────────────────────
 Filename: "{code:GetMysqlExe}"; \
   Parameters: "-u root {code:GetPassParam} -e ""CREATE DATABASE IF NOT EXISTS stock_control CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"""; \
   StatusMsg: "Creando base de datos..."; \
   Flags: runhidden waituntilterminated; \
   Check: ShouldImportDB
 
+; ── Importar tablas y datos completos ───────────────────────────────────────
 Filename: "{code:GetMysqlExe}"; \
   Parameters: "-u root {code:GetPassParam} stock_control < ""{tmp}\schema.sql"""; \
-  StatusMsg: "Importando tablas y datos..."; \
+  StatusMsg: "Importando datos (medicamentos, usuarios, dependencias)..."; \
   Flags: runhidden waituntilterminated; \
   Check: ShouldImportDB
 
-; Abrir el navegador al finalizar
-Filename: "{code:GetBrowserExe}"; \
-  Parameters: "http://localhost/stock-control/"; \
+; ── Abrir navegador al finalizar ─────────────────────────────────────────────
+Filename: "{#AppURL}"; \
   Description: "Abrir {#AppName} en el navegador ahora"; \
   Flags: postinstall shellexec skipifsilent nowait
 
 [Code]
 
 var
-  // Páginas personalizadas
-  XamppPage:    TInputDirWizardPage;
-  DBPage:       TInputQueryWizardPage;
-  OptionsPage:  TInputOptionWizardPage;
+  XamppPage:   TInputDirWizardPage;
+  DBPage:      TInputQueryWizardPage;
+  OptionsPage: TInputOptionWizardPage;
+  XamppDir:    String;
+  DBPassword:  String;
+  ImportDB:    Boolean;
 
-  // Valores detectados/ingresados
-  XamppDir:     String;
-  DBPassword:   String;
-  ImportDB:     Boolean;
-
-// ─── Detectar XAMPP automáticamente ─────────────────────────────────────────
+// ── Detectar XAMPP automáticamente ──────────────────────────────────────────
 
 function DetectXampp: String;
 var
   Paths: TArrayOfString;
   i: Integer;
 begin
-  SetArrayLength(Paths, 6);
+  SetArrayLength(Paths, 5);
   Paths[0] := 'C:\xampp';
   Paths[1] := 'C:\XAMPP';
   Paths[2] := 'D:\xampp';
-  Paths[3] := 'C:\xampp\mysql\bin\mysql.exe';
-  Paths[4] := 'E:\xampp';
-  Paths[5] := ExpandConstant('{pf}\xampp');
+  Paths[3] := 'E:\xampp';
+  Paths[4] := ExpandConstant('{pf}\xampp');
 
-  for i := 0 to 2 do begin
-    if DirExists(Paths[i]) then begin
+  for i := 0 to GetArrayLength(Paths) - 1 do begin
+    if DirExists(Paths[i]) and FileExists(Paths[i] + '\mysql\bin\mysql.exe') then begin
       Result := Paths[i];
       Exit;
     end;
@@ -94,11 +94,16 @@ begin
   Result := 'C:\xampp';
 end;
 
-// ─── Getters para los parámetros de los comandos ────────────────────────────
+// ── Getters para comandos ────────────────────────────────────────────────────
 
 function GetMysqlExe(Param: String): String;
 begin
   Result := XamppDir + '\mysql\bin\mysql.exe';
+end;
+
+function GetXamppDir(Param: String): String;
+begin
+  Result := XamppDir;
 end;
 
 function GetPassParam(Param: String): String;
@@ -109,29 +114,24 @@ begin
     Result := '-p' + DBPassword;
 end;
 
-function GetBrowserExe(Param: String): String;
-begin
-  Result := 'http://localhost/stock-control/';
-end;
-
 function ShouldImportDB: Boolean;
 begin
   Result := ImportDB;
 end;
 
-// ─── Inicialización: crear páginas personalizadas ───────────────────────────
+// ── Crear páginas personalizadas ─────────────────────────────────────────────
 
 procedure InitializeWizard;
 begin
   XamppDir := DetectXampp;
 
-  // Página 1: carpeta de XAMPP (si no se detectó automáticamente)
+  // Página 1: carpeta de XAMPP
   XamppPage := CreateInputDirPage(
     wpSelectDir,
     'Ubicación de XAMPP',
     'Indicá dónde está instalado XAMPP en tu equipo.',
-    'La instalación copiará los archivos dentro de la carpeta htdocs de XAMPP.' + #13#10 +
-    'Si XAMPP está en otro disco o carpeta, modificalo acá.',
+    'El instalador detectó la ruta de XAMPP automáticamente.' + #13#10 +
+    'Si XAMPP está en otra unidad o carpeta, modificala acá.',
     False, ''
   );
   XamppPage.Add('Carpeta de XAMPP:');
@@ -141,31 +141,31 @@ begin
   DBPage := CreateInputQueryPage(
     XamppPage.ID,
     'Configuración de MySQL',
-    'Ingresá los datos de conexión a MySQL.',
-    'Si MySQL no tiene contraseña (instalación por defecto de XAMPP), dejá el campo vacío.'
+    'Datos de conexión a la base de datos.',
+    'En XAMPP la instalación por defecto no tiene contraseña.' + #13#10 +
+    'Dejá el campo vacío si nunca configuraste una.'
   );
   DBPage.Add('Contraseña del usuario root de MySQL:', True);
 
-  // Página 3: opciones de instalación
+  // Página 3: tipo de instalación
   OptionsPage := CreateInputOptionPage(
     DBPage.ID,
-    'Opciones de instalación',
-    'Elegí qué acciones realizar durante la instalación.',
+    'Tipo de instalación',
+    'Elegí qué hacer con la base de datos.',
     '',
     False, False
   );
-  OptionsPage.Add('Crear/actualizar la base de datos (recomendado en instalación nueva)');
-  OptionsPage.Add('Solo actualizar archivos (conserva los datos existentes)');
+  OptionsPage.Add('Instalación nueva: crear base de datos con todos los medicamentos (recomendado)');
+  OptionsPage.Add('Actualización: solo reemplazar archivos, conservar datos existentes');
   OptionsPage.Values[0] := True;
   OptionsPage.Values[1] := False;
 end;
 
-// ─── Al avanzar de página: actualizar variables ──────────────────────────────
+// ── Validar al avanzar ───────────────────────────────────────────────────────
 
 procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = wpSelectDir then begin
-    // Sincronizar el dir seleccionado con el de XAMPP
     XamppDir := XamppPage.Values[0];
     WizardForm.DirEdit.Text := XamppDir + '\htdocs\stock-control';
   end;
@@ -173,45 +173,42 @@ end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
-  MysqlExe: String;
+  MysqlExe, ApacheExe: String;
 begin
   Result := True;
 
-  // Validar que XAMPP existe
   if CurPageID = XamppPage.ID then begin
     XamppDir := XamppPage.Values[0];
     MysqlExe := XamppDir + '\mysql\bin\mysql.exe';
+    ApacheExe := XamppDir + '\apache\bin\httpd.exe';
+
     if not FileExists(MysqlExe) then begin
       MsgBox(
-        'No se encontró mysql.exe en:' + #13#10 + MysqlExe + #13#10#13#10 +
-        'Verificá que la ruta de XAMPP sea correcta.',
+        'No se encontró MySQL en:' + #13#10 + MysqlExe + #13#10#13#10 +
+        'Verificá que la ruta de XAMPP sea correcta y que XAMPP esté instalado.',
         mbError, MB_OK
       );
       Result := False;
       Exit;
     end;
-    // Actualizar la ruta de instalación
+
     WizardForm.DirEdit.Text := XamppDir + '\htdocs\stock-control';
   end;
 
-  // Guardar contraseña y opción de DB
   if CurPageID = OptionsPage.ID then begin
     DBPassword := DBPage.Values[0];
     ImportDB   := OptionsPage.Values[0];
   end;
 end;
 
-// ─── Actualizar database.php con la contraseña ingresada ────────────────────
+// ── Actualizar database.php con la contraseña ingresada ─────────────────────
 
 procedure UpdateDatabaseConfig;
 var
-  ConfigFile: String;
-  Content: String;
+  ConfigFile, Content: String;
 begin
   ConfigFile := WizardDirValue + '\config\database.php';
   if not LoadStringFromFile(ConfigFile, Content) then Exit;
-
-  // Reemplazar la contraseña en el archivo de configuración
   StringChangeEx(Content,
     'define(''DB_PASS'', '''');',
     'define(''DB_PASS'', ''' + DBPassword + ''');',
@@ -222,24 +219,24 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssPostInstall then begin
+  if CurStep = ssPostInstall then
     UpdateDatabaseConfig;
-  end;
 end;
 
-// ─── Mensaje de éxito al finalizar ──────────────────────────────────────────
+// ── Resumen antes de instalar ────────────────────────────────────────────────
 
 function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo,
   MemoTypeInfo, MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: String): String;
 var
   S: String;
 begin
-  S := '';
-  S := S + 'Carpeta de instalación:' + NewLine + Space + WizardDirValue + NewLine + NewLine;
-  S := S + 'Carpeta de XAMPP:' + NewLine + Space + XamppDir + NewLine + NewLine;
+  S := 'Carpeta de instalación:' + NewLine + Space + WizardDirValue + NewLine + NewLine;
+  S := S + 'XAMPP detectado en:' + NewLine + Space + XamppDir + NewLine + NewLine;
   if ImportDB then
-    S := S + 'Base de datos: Se creará/actualizará' + NewLine
+    S := S + 'Base de datos: instalación nueva (se importarán todos los medicamentos)' + NewLine
   else
-    S := S + 'Base de datos: Se omitirá (solo archivos)' + NewLine;
+    S := S + 'Base de datos: solo actualización de archivos (datos conservados)' + NewLine;
+  S := S + NewLine + 'Usuario admin: admin  /  Contraseña: password' + NewLine;
+  S := S + 'Usuario operador: operador  /  Contraseña: password' + NewLine;
   Result := S;
 end;
