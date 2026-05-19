@@ -247,7 +247,7 @@ export default function Reports() {
           {/* Ubicación: no aplica a stock_por_sector ni stock_bajo */}
           {reportType !== 'stock_por_sector' && reportType !== 'stock_bajo' && reportType !== 'movimientos' && (
             <div className="form-group" style={{ margin: 0, flex: '0 0 200px' }}>
-              <label className="form-label" style={{ marginBottom: 4 }}>Ubicación</label>
+              <label className="form-label" style={{ marginBottom: 4 }}>Dependencia</label>
               <select className="form-control" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
                 <option value="">Todas</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -280,7 +280,7 @@ export default function Reports() {
                 <input type="date" className="form-control" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
               </div>
               <div className="form-group" style={{ margin: 0, flex: '0 0 200px' }}>
-                <label className="form-label" style={{ marginBottom: 4 }}>Ubicación</label>
+                <label className="form-label" style={{ marginBottom: 4 }}>Dependencia</label>
                 <select className="form-control" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
                   <option value="">Todas</option>
                   {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
