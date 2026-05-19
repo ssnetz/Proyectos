@@ -528,28 +528,26 @@ export default function Products() {
             />
           </div>
 
-          {movForm.type === 'entrada' && (
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Nro. de lote</label>
-                <input
-                  className="form-control"
-                  placeholder="Ej: LT-2024-001"
-                  value={movForm.lot_number}
-                  onChange={(e) => setMovForm({ ...movForm, lot_number: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Fecha de vencimiento</label>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={movForm.expiration_date}
-                  onChange={(e) => setMovForm({ ...movForm, expiration_date: e.target.value })}
-                />
-              </div>
+          <div className="form-row" style={{ background: 'var(--primary-light)', padding: '10px 12px', borderRadius: 8, border: '1px solid #bfdbfe' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Nro. de lote <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>(opcional)</span></label>
+              <input
+                className="form-control"
+                placeholder="Ej: LT-2024-001"
+                value={movForm.lot_number}
+                onChange={(e) => setMovForm({ ...movForm, lot_number: e.target.value })}
+              />
             </div>
-          )}
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Fecha de vencimiento <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>(opcional)</span></label>
+              <input
+                type="date"
+                className="form-control"
+                value={movForm.expiration_date}
+                onChange={(e) => setMovForm({ ...movForm, expiration_date: e.target.value })}
+              />
+            </div>
+          </div>
 
           <div className="form-group">
             <label className="form-label">Motivo</label>
