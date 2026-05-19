@@ -201,19 +201,36 @@ begin
   end;
 end;
 
-// ── Actualizar database.php con la contraseña ingresada ─────────────────────
+// ── Escribir database.php con la contraseña ingresada ───────────────────────
 
 procedure UpdateDatabaseConfig;
 var
   ConfigFile, Content: String;
 begin
   ConfigFile := WizardDirValue + '\config\database.php';
-  if not LoadStringFromFile(ConfigFile, Content) then Exit;
-  StringChangeEx(Content,
-    'define(''DB_PASS'', '''');',
-    'define(''DB_PASS'', ''' + DBPassword + ''');',
-    True
-  );
+  Content := '<?php' + #13#10 +
+    'define(''DB_HOST'', ''localhost'');' + #13#10 +
+    'define(''DB_NAME'', ''stock_control'');' + #13#10 +
+    'define(''DB_USER'', ''root'');' + #13#10 +
+    'define(''DB_PASS'', ''' + DBPassword + ''');' + #13#10 +
+    'define(''DB_CHARSET'', ''utf8mb4'');' + #13#10 +
+    #13#10 +
+    'define(''JWT_SECRET'', ''stock_control_secret_key_hospital_cima'');' + #13#10 +
+    'define(''JWT_EXPIRY'', 8 * 3600);' + #13#10 +
+    #13#10 +
+    'function getDB(): PDO {' + #13#10 +
+    '    static $pdo = null;' + #13#10 +
+    '    if ($pdo === null) {' + #13#10 +
+    '        $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;' + #13#10 +
+    '        $options = [' + #13#10 +
+    '            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,' + #13#10 +
+    '            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,' + #13#10 +
+    '            PDO::ATTR_EMULATE_PREPARES   => false,' + #13#10 +
+    '        ];' + #13#10 +
+    '        $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);' + #13#10 +
+    '    }' + #13#10 +
+    '    return $pdo;' + #13#10 +
+    '}' + #13#10;
   SaveStringToFile(ConfigFile, Content, False);
 end;
 
