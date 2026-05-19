@@ -78,7 +78,14 @@ function AppLayout() {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <span>🏥</span> Farmacia Cima
+          <img
+            src="/stock-control/logo-municipalidad.png"
+            alt="Municipalidad de Cosquín"
+            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
+          />
+          <span className="sidebar-logo-fallback" style={{ display: 'none' }}>
+            🏥 Farmacia Hospital Dr. Armando Cima
+          </span>
         </div>
         <nav className="sidebar-nav">
           {navItems.map(({ to, icon, label }) => (

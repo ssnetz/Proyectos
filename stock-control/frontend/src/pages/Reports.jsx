@@ -68,26 +68,54 @@ export default function Reports() {
     }
   };
 
-  const exportPDF = () => {
-    if (!reportData) return;
-    const doc = new jsPDF({ orientation: reportData.columns.length > 7 ? 'landscape' : 'portrait' });
+  const loadLogoBase64 = () =>
+    fetch('/stock-control/logo-municipalidad.png')
+      .then((r) => { if (!r.ok) throw new Error('no logo'); return r.blob(); })
+      .then((blob) => new Promise((res) => {
+        const reader = new FileReader();
+        reader.onloadend = () => res(reader.result);
+        reader.readAsDataURL(blob);
+      }))
+      .catch(() => null);
 
-    // Encabezado
-    doc.setFontSize(16);
-    doc.setTextColor(30, 64, 175);
-    doc.text('Hospital Dr. Armando Cima', 14, 16);
-    doc.setFontSize(13);
-    doc.setTextColor(30, 30, 30);
-    doc.text(reportData.title, 14, 24);
-    doc.setFontSize(9);
-    doc.setTextColor(120, 120, 120);
-    doc.text(`Generado: ${reportData.generated}`, 14, 30);
+  const exportPDF = async () => {
+    if (!reportData) return;
+    const doc  = new jsPDF({ orientation: reportData.columns.length > 7 ? 'landscape' : 'portrait' });
+    const pageW = doc.internal.pageSize.getWidth();
+
+    const logoB64  = await loadLogoBase64();
+    const tableTop = logoB64 ? 38 : 36;
+
+    // Encabezado con logo
+    if (logoB64) {
+      doc.addImage(logoB64, 'PNG', 14, 5, 85, 13);
+    } else {
+      doc.setFontSize(14);
+      doc.setTextColor(30, 64, 175);
+      doc.text('Municipalidad de la Ciudad de Cosquín', 14, 13);
+      doc.setFontSize(10);
+      doc.setTextColor(80, 80, 80);
+      doc.text('Hospital Dr. Armando Cima · Farmacia', 14, 19);
+    }
+
+    // Línea divisoria
+    doc.setDrawColor(30, 64, 175);
+    doc.setLineWidth(0.5);
+    doc.line(14, 21, pageW - 14, 21);
+
+    // Título del reporte
+    doc.setFontSize(12);
+    doc.setTextColor(20, 20, 20);
+    doc.text(reportData.title, 14, 28);
+    doc.setFontSize(8);
+    doc.setTextColor(130, 130, 130);
+    doc.text(`Generado: ${reportData.generated}`, 14, 34);
 
     // Colorear columna tipo en movimientos
     const isMovimientos = reportType === 'movimientos';
 
     autoTable(doc, {
-      startY: 35,
+      startY: tableTop,
       head: [reportData.columns],
       body: reportData.rows,
       styles: { fontSize: 8, cellPadding: 2 },
@@ -121,7 +149,7 @@ export default function Reports() {
       doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.getWidth() - 30, doc.internal.pageSize.getHeight() - 8);
     }
 
-    doc.save(`${reportType}_${new Date().toISOString().slice(0,10)}.pdf`);
+    doc.save(`reporte_${reportType}_${new Date().toISOString().slice(0,10)}.pdf`);
   };
 
   const print = () => {
@@ -130,18 +158,29 @@ export default function Reports() {
     win.document.write(`
       <html><head><title>${reportData?.title}</title>
       <style>
-        body { font-family: Arial, sans-serif; font-size: 11px; color: #111; }
-        h2 { color: #1e40af; margin-bottom: 2px; }
-        p  { color: #888; margin: 0 0 12px; font-size: 10px; }
+        body { font-family: Arial, sans-serif; font-size: 11px; color: #111; margin: 10mm; }
+        .print-header { display: flex; align-items: center; gap: 16px; padding-bottom: 10px; border-bottom: 2px solid #1e40af; margin-bottom: 10px; }
+        .print-header img { height: 40px; width: auto; }
+        .print-header-text h2 { color: #1e40af; font-size: 13px; margin: 0 0 2px; }
+        .print-header-text p { color: #888; font-size: 9px; margin: 0; }
+        h3 { margin: 0 0 4px; font-size: 12px; }
+        .print-meta { color: #888; font-size: 9px; margin: 0 0 10px; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #1e40af; color: #fff; padding: 5px 8px; text-align: left; font-size: 10px; }
         td { padding: 4px 8px; border-bottom: 1px solid #e5e7eb; font-size: 10px; }
         tr:nth-child(even) td { background: #f5f7ff; }
-        @media print { body { margin: 10mm; } }
       </style></head><body>
-      <h2>Hospital Dr. Armando Cima</h2>
-      <h3 style="margin:0 0 4px">${reportData?.title}</h3>
-      <p>Generado: ${reportData?.generated}</p>
+      <div class="print-header">
+        <img src="/stock-control/logo-municipalidad.png" alt="Municipalidad de Cosquín"
+             onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
+        <span style="display:none;font-weight:700;color:#1e40af;font-size:13px">Municipalidad de la Ciudad de Cosquín</span>
+        <div class="print-header-text">
+          <h2>Hospital Dr. Armando Cima · Farmacia</h2>
+          <p>Sistema de Control de Stock</p>
+        </div>
+      </div>
+      <h3>${reportData?.title}</h3>
+      <p class="print-meta">Generado: ${reportData?.generated}</p>
       ${tableRef.current.outerHTML}
       </body></html>
     `);
