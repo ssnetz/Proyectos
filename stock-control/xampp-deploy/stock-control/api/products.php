@@ -25,7 +25,7 @@ function listProducts(PDO $db): void {
 
     if ($locationId) {
         // Stock específico de una ubicación
-        $sql = "SELECT p.*, c.name AS category_name, s.name AS supplier_name,
+        $sql = "SELECT p.*, p.therapeutic_action, c.name AS category_name, s.name AS supplier_name,
                        COALESCE(ps.quantity, 0) AS stock_total,
                        COALESCE(ps.min_stock, p.min_stock) AS location_min_stock
                 FROM products p
@@ -63,7 +63,7 @@ function listProducts(PDO $db): void {
         }
         $sql .= " ORDER BY p.name";
     } else {
-        $sql .= " GROUP BY p.id, p.code, p.name, p.description, p.category_id, p.supplier_id,
+        $sql .= " GROUP BY p.id, p.code, p.name, p.description, p.therapeutic_action, p.category_id, p.supplier_id,
                            p.purchase_price, p.sale_price, p.stock, p.min_stock, p.unit,
                            p.active, p.created_at, p.updated_at, c.name, s.name";
         if ($lowStock) {
@@ -149,21 +149,22 @@ function createProduct(PDO $db): void {
     $initialStock = (int)($data['stock'] ?? 0);
 
     $stmt = $db->prepare(
-        "INSERT INTO products (code, name, description, category_id, supplier_id,
+        "INSERT INTO products (code, name, description, therapeutic_action, category_id, supplier_id,
          purchase_price, sale_price, stock, min_stock, unit)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     $stmt->execute([
         $data['code'],
         $data['name'],
-        $data['description']    ?? null,
-        $data['category_id']    ?? null,
-        $data['supplier_id']    ?? null,
-        $data['purchase_price'] ?? 0,
-        $data['sale_price']     ?? 0,
+        $data['description']        ?? null,
+        $data['therapeutic_action'] ?? null,
+        $data['category_id']        ?? null,
+        $data['supplier_id']        ?? null,
+        $data['purchase_price']     ?? 0,
+        $data['sale_price']         ?? 0,
         $initialStock,
-        $data['min_stock']      ?? 5,
-        $data['unit']           ?? 'unidad',
+        $data['min_stock']          ?? 5,
+        $data['unit']               ?? 'unidad',
     ]);
 
     $productId  = (int)$db->lastInsertId();
@@ -190,20 +191,21 @@ function createProduct(PDO $db): void {
 function updateProduct(PDO $db, int $id): void {
     $data = getBody();
     $stmt = $db->prepare(
-        "UPDATE products SET code=?, name=?, description=?, category_id=?, supplier_id=?,
+        "UPDATE products SET code=?, name=?, description=?, therapeutic_action=?, category_id=?, supplier_id=?,
          purchase_price=?, sale_price=?, min_stock=?, unit=?, updated_at=NOW()
          WHERE id=?"
     );
     $stmt->execute([
         $data['code'],
         $data['name'],
-        $data['description']    ?? null,
-        $data['category_id']    ?? null,
-        $data['supplier_id']    ?? null,
-        $data['purchase_price'] ?? 0,
-        $data['sale_price']     ?? 0,
-        $data['min_stock']      ?? 5,
-        $data['unit']           ?? 'unidad',
+        $data['description']        ?? null,
+        $data['therapeutic_action'] ?? null,
+        $data['category_id']        ?? null,
+        $data['supplier_id']        ?? null,
+        $data['purchase_price']     ?? 0,
+        $data['sale_price']         ?? 0,
+        $data['min_stock']          ?? 5,
+        $data['unit']               ?? 'unidad',
         $id,
     ]);
     jsonResponse(['message' => 'Producto actualizado']);

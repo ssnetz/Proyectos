@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 const emptyProduct = {
-  code: '', name: '', description: '', category_id: '', supplier_id: '',
+  code: '', name: '', description: '', therapeutic_action: '', category_id: '', supplier_id: '',
   purchase_price: '', sale_price: '', stock: '', min_stock: '5', unit: 'comp',
   location_id: '1',
 };
@@ -84,6 +84,7 @@ export default function Products() {
   const openEdit = (p) => {
     setForm({
       code: p.code, name: p.name, description: p.description || '',
+      therapeutic_action: p.therapeutic_action || '',
       category_id: p.category_id || '', supplier_id: p.supplier_id || '',
       purchase_price: p.purchase_price, sale_price: p.sale_price,
       stock: p.stock_total ?? p.stock, min_stock: p.min_stock, unit: p.unit,
@@ -238,6 +239,11 @@ export default function Products() {
                       <td>
                         <strong>{p.name}</strong>
                         {p.unit && <span style={{ color: 'var(--gray-400)', marginLeft: 4, fontSize: '.8rem' }}>/ {p.unit}</span>}
+                        {p.therapeutic_action && (
+                          <div style={{ fontSize: '.72rem', color: 'var(--gray-400)', marginTop: 2 }}>
+                            {p.therapeutic_action}
+                          </div>
+                        )}
                       </td>
                       <td>{p.category_name || <span style={{ color: 'var(--gray-400)' }}>—</span>}</td>
                       <td>
@@ -381,6 +387,15 @@ export default function Products() {
           <div className="form-group">
             <label className="form-label">Descripción</label>
             <textarea className="form-control" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Acción Terapéutica</label>
+            <input
+              className="form-control"
+              value={form.therapeutic_action}
+              onChange={(e) => setForm({ ...form, therapeutic_action: e.target.value })}
+              placeholder="Ej: Antibiótico, Analgésico / Antipirético..."
+            />
           </div>
           <div className="form-row">
             <div className="form-group">
