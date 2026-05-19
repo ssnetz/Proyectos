@@ -45,7 +45,7 @@ function SidebarUser() {
 }
 
 const pageTitles = {
-  '/':           'Dashboard',
+  '/':           'Sistema de Stock · Farmacia Hospital Dr. Armando Cima',
   '/products':   'Medicamentos',
   '/movements':  'Historial de movimientos',
   '/inventory':  'Carga de inventario',
