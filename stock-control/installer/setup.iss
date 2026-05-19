@@ -205,32 +205,33 @@ end;
 
 procedure UpdateDatabaseConfig;
 var
-  ConfigFile, Content: String;
+  ConfigFile, Content, nl: String;
 begin
+  nl := #13#10;
   ConfigFile := WizardDirValue + '\config\database.php';
-  Content := '<?php' + #13#10 +
-    'define(''DB_HOST'', ''localhost'');' + #13#10 +
-    'define(''DB_NAME'', ''stock_control'');' + #13#10 +
-    'define(''DB_USER'', ''root'');' + #13#10 +
-    'define(''DB_PASS'', ''' + DBPassword + ''');' + #13#10 +
-    'define(''DB_CHARSET'', ''utf8mb4'');' + #13#10 +
-    #13#10 +
-    'define(''JWT_SECRET'', ''stock_control_secret_key_hospital_cima'');' + #13#10 +
-    'define(''JWT_EXPIRY'', 8 * 3600);' + #13#10 +
-    #13#10 +
-    'function getDB(): PDO {' + #13#10 +
-    '    static $pdo = null;' + #13#10 +
-    '    if ($pdo === null) {' + #13#10 +
-    '        $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;' + #13#10 +
-    '        $options = [' + #13#10 +
-    '            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,' + #13#10 +
-    '            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,' + #13#10 +
-    '            PDO::ATTR_EMULATE_PREPARES   => false,' + #13#10 +
-    '        ];' + #13#10 +
-    '        $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);' + #13#10 +
-    '    }' + #13#10 +
-    '    return $pdo;' + #13#10 +
-    '}' + #13#10;
+  Content := '<?php' + nl;
+  Content := Content + 'define(''DB_HOST'', ''localhost'');' + nl;
+  Content := Content + 'define(''DB_NAME'', ''stock_control'');' + nl;
+  Content := Content + 'define(''DB_USER'', ''root'');' + nl;
+  Content := Content + 'define(''DB_PASS'', ''' + DBPassword + ''');' + nl;
+  Content := Content + 'define(''DB_CHARSET'', ''utf8mb4'');' + nl;
+  Content := Content + nl;
+  Content := Content + 'define(''JWT_SECRET'', ''stock_control_secret_key_hospital_cima'');' + nl;
+  Content := Content + 'define(''JWT_EXPIRY'', 8 * 3600);' + nl;
+  Content := Content + nl;
+  Content := Content + 'function getDB(): PDO {' + nl;
+  Content := Content + '    static $pdo = null;' + nl;
+  Content := Content + '    if ($pdo === null) {' + nl;
+  Content := Content + '        $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;' + nl;
+  Content := Content + '        $options = [' + nl;
+  Content := Content + '            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,' + nl;
+  Content := Content + '            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,' + nl;
+  Content := Content + '            PDO::ATTR_EMULATE_PREPARES   => false,' + nl;
+  Content := Content + '        ];' + nl;
+  Content := Content + '        $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);' + nl;
+  Content := Content + '    }' + nl;
+  Content := Content + '    return $pdo;' + nl;
+  Content := Content + '}' + nl;
   SaveStringToFile(ConfigFile, Content, False);
 end;
 
