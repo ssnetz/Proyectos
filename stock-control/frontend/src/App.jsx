@@ -8,6 +8,7 @@ import Categories from './pages/Categories';
 import Locations  from './pages/Locations';
 import Inventory  from './pages/Inventory';
 import Users      from './pages/Users';
+import Reports    from './pages/Reports';
 import Login      from './pages/Login';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -52,6 +53,7 @@ const pageTitles = {
   '/suppliers':  'Proveedores',
   '/categories': 'Categorías',
   '/users':      'Usuarios',
+  '/reports':    'Reportes',
 };
 
 function AppLayout() {
@@ -68,6 +70,7 @@ function AppLayout() {
     { to: '/locations',  icon: '🏥', label: 'Ubicaciones' },
     { to: '/suppliers',  icon: '🏭', label: 'Proveedores' },
     { to: '/categories', icon: '🏷️', label: 'Categorías' },
+    { to: '/reports',    icon: '📄', label: 'Reportes' },
     ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -108,6 +111,7 @@ function AppLayout() {
             <Route path="/suppliers"  element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
             <Route path="/users"      element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+            <Route path="/reports"    element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
