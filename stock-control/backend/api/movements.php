@@ -16,12 +16,17 @@ match($method) {
 
 function listMovements(PDO $db): void {
     $productId = $_GET['product_id'] ?? null;
-    $type = $_GET['type'] ?? '';
-    $limit = min((int)($_GET['limit'] ?? 50), 200);
+    $type      = $_GET['type'] ?? '';
+    $limit     = min((int)($_GET['limit'] ?? 50), 200);
 
-    $sql = "SELECT m.*, p.name AS product_name, p.code AS product_code
+    $sql = "SELECT m.*,
+                   p.name AS product_name, p.code AS product_code,
+                   per.apellido AS beneficiary_apellido,
+                   per.nombre   AS beneficiary_nombre,
+                   per.documento AS beneficiary_documento
             FROM stock_movements m
             JOIN products p ON m.product_id = p.id
+            LEFT JOIN personas per ON m.beneficiary_id = per.id
             WHERE 1=1";
     $params = [];
 
@@ -52,7 +57,16 @@ function createMovement(PDO $db, array $authPayload): void {
     $qty = (int)$data['quantity'];
 
     if ($qty <= 0) jsonError('La cantidad debe ser mayor a 0');
-    if (!in_array($type, ['entrada', 'salida', 'ajuste'])) jsonError('Tipo de movimiento inválido');
+    if (!in_array($type, ['entrada', 'salida', 'ajuste', 'dispensa'])) jsonError('Tipo de movimiento inválido');
+
+    $beneficiaryId = null;
+    if ($type === 'dispensa') {
+        if (empty($data['beneficiary_id'])) jsonError('Debe seleccionar un beneficiario para la dispensa');
+        $bStmt = $db->prepare("SELECT id FROM personas WHERE id = ? AND active = 1");
+        $bStmt->execute([(int)$data['beneficiary_id']]);
+        if (!$bStmt->fetch()) jsonError('Beneficiario no encontrado', 404);
+        $beneficiaryId = (int)$data['beneficiary_id'];
+    }
 
     $stmt = $db->prepare("SELECT stock FROM products WHERE id = ? AND active = 1");
     $stmt->execute([$productId]);
@@ -61,14 +75,15 @@ function createMovement(PDO $db, array $authPayload): void {
 
     $prevStock = (int)$product['stock'];
 
-    if ($type === 'salida' && $qty > $prevStock) {
+    if (in_array($type, ['salida', 'dispensa']) && $qty > $prevStock) {
         jsonError("Stock insuficiente. Disponible: $prevStock");
     }
 
     $newStock = match($type) {
-        'entrada' => $prevStock + $qty,
-        'salida'  => $prevStock - $qty,
-        'ajuste'  => $qty,
+        'entrada'  => $prevStock + $qty,
+        'salida'   => $prevStock - $qty,
+        'dispensa' => $prevStock - $qty,
+        'ajuste'   => $qty,
     };
 
     $db->beginTransaction();
@@ -79,8 +94,8 @@ function createMovement(PDO $db, array $authPayload): void {
         $quantityStored = $type === 'ajuste' ? abs($newStock - $prevStock) : $qty;
         $stmt = $db->prepare(
             "INSERT INTO stock_movements
-             (product_id, type, quantity, previous_stock, new_stock, reason, reference, user, user_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+             (product_id, type, quantity, previous_stock, new_stock, reason, reference, user, user_id, beneficiary_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
             $productId, $type, $quantityStored, $prevStock, $newStock,
@@ -88,6 +103,7 @@ function createMovement(PDO $db, array $authPayload): void {
             $data['reference'] ?? null,
             $authPayload['username'],
             $authPayload['sub'],
+            $beneficiaryId,
         ]);
 
         $db->commit();

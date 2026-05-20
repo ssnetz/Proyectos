@@ -20,7 +20,7 @@ export default function Movements() {
   }, [filterType, limit]);
 
   const typeLabel = (t) => {
-    const map = { entrada: '⬆ Entrada', salida: '⬇ Salida', ajuste: '⚙ Ajuste' };
+    const map = { entrada: '⬆ Entrada', salida: '⬇ Salida', ajuste: '⚙ Ajuste', dispensa: '💊 Dispensa' };
     return map[t] || t;
   };
 
@@ -35,6 +35,7 @@ export default function Movements() {
             <select className="form-control" style={{ width: 160 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
               <option value="">Todos los tipos</option>
               <option value="entrada">Entradas</option>
+              <option value="dispensa">Dispensas</option>
               <option value="salida">Salidas</option>
               <option value="ajuste">Ajustes</option>
             </select>
@@ -56,8 +57,8 @@ export default function Movements() {
               <thead>
                 <tr>
                   <th>#</th><th>Fecha</th><th>Producto</th><th>Tipo</th>
-                  <th>Cantidad</th><th>Stock anterior</th><th>Stock nuevo</th>
-                  <th>Motivo</th><th>Referencia</th><th>Usuario</th>
+                  <th>Cantidad</th><th>Stock ant.</th><th>Stock nuevo</th>
+                  <th>Beneficiario</th><th>Motivo</th><th>Referencia</th><th>Usuario</th>
                 </tr>
               </thead>
               <tbody>
@@ -75,6 +76,11 @@ export default function Movements() {
                     <td><strong>{m.quantity}</strong></td>
                     <td style={{ color: 'var(--gray-500)' }}>{m.previous_stock}</td>
                     <td><strong>{m.new_stock}</strong></td>
+                    <td style={{ fontSize: '.8rem' }}>
+                      {m.beneficiary_apellido
+                        ? <span>👤 <strong>{m.beneficiary_apellido}{m.beneficiary_nombre ? ', ' + m.beneficiary_nombre : ''}</strong><br /><span style={{ color: 'var(--gray-400)' }}>DNI {m.beneficiary_documento}</span></span>
+                        : <span style={{ color: 'var(--gray-500)' }}>—</span>}
+                    </td>
                     <td style={{ color: 'var(--gray-600)', fontSize: '.85rem' }}>{m.reason || '—'}</td>
                     <td style={{ color: 'var(--gray-500)', fontSize: '.8rem' }}>{m.reference || '—'}</td>
                     <td style={{ color: 'var(--gray-500)', fontSize: '.8rem' }}>{m.user}</td>

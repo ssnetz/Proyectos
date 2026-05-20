@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useProducts, useCategories, useSuppliers, useMovements } from '../hooks/useApi';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useProducts, useCategories, useSuppliers, useMovements, usePersonas } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
@@ -13,6 +13,7 @@ export default function Products() {
   const categoriesApi = useCategories();
   const suppliersApi  = useSuppliers();
   const movementsApi  = useMovements();
+  const personasApi   = usePersonas();
   const { user }      = useAuth();
   const isAdmin       = user?.role === 'admin';
 
@@ -30,8 +31,14 @@ export default function Products() {
   const [modalProduct, setModalProduct] = useState(null);
   const [modalMovement, setModalMovement] = useState(null);
   const [form, setForm]             = useState(emptyProduct);
-  const [movForm, setMovForm]       = useState({ type: 'entrada', quantity: '', reason: '', reference: '' });
+  const [movForm, setMovForm]       = useState({ type: 'entrada', quantity: '', reason: '', reference: '', beneficiary_id: '', beneficiary_label: '' });
   const [saving, setSaving]         = useState(false);
+
+  // Beneficiary search state
+  const [benSearch, setBenSearch]   = useState('');
+  const [benResults, setBenResults] = useState([]);
+  const [benLoading, setBenLoading] = useState(false);
+  const benTimer = useRef(null);
 
   const loadProducts = useCallback(() => {
     const params = {};
@@ -101,7 +108,32 @@ export default function Products() {
 
   const openMovement = (p) => {
     setModalMovement(p);
-    setMovForm({ type: 'entrada', quantity: '', reason: '', reference: '' });
+    setMovForm({ type: 'entrada', quantity: '', reason: '', reference: '', beneficiary_id: '', beneficiary_label: '' });
+    setBenSearch('');
+    setBenResults([]);
+  };
+
+  const searchBeneficiary = (q) => {
+    setBenSearch(q);
+    if (benTimer.current) clearTimeout(benTimer.current);
+    if (!q.trim()) { setBenResults([]); return; }
+    setBenLoading(true);
+    benTimer.current = setTimeout(() => {
+      personasApi.list({ search: q, limit: 10 })
+        .then((r) => setBenResults(r.data.data || []))
+        .catch(() => setBenResults([]))
+        .finally(() => setBenLoading(false));
+    }, 350);
+  };
+
+  const selectBeneficiary = (p) => {
+    setMovForm((prev) => ({
+      ...prev,
+      beneficiary_id: p.id,
+      beneficiary_label: `${p.apellido}${p.nombre ? ', ' + p.nombre : ''} — DNI ${p.documento}`,
+    }));
+    setBenSearch('');
+    setBenResults([]);
   };
 
   const handleMovement = async () => {
@@ -300,19 +332,71 @@ export default function Products() {
           </p>
           <div className="form-group">
             <label className="form-label">Tipo de movimiento</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {['entrada', 'salida', 'ajuste'].map((t) => (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { key: 'entrada',  label: '⬆ Entrada' },
+                { key: 'dispensa', label: '💊 Dispensa' },
+                { key: 'salida',   label: '⬇ Salida' },
+                { key: 'ajuste',   label: '⚙ Ajuste' },
+              ].map(({ key, label }) => (
                 <button
-                  key={t} type="button"
-                  className={`btn ${movForm.type === t ? 'btn-primary' : 'btn-ghost'}`}
-                  onClick={() => setMovForm({ ...movForm, type: t })}
-                  style={{ textTransform: 'capitalize', flex: 1 }}
+                  key={key} type="button"
+                  className={`btn ${movForm.type === key ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setMovForm({ ...movForm, type: key, beneficiary_id: '', beneficiary_label: '' })}
+                  style={{ flex: 1, minWidth: 90 }}
                 >
-                  {t === 'entrada' ? '⬆ Entrada' : t === 'salida' ? '⬇ Salida' : '⚙ Ajuste'}
+                  {label}
                 </button>
               ))}
             </div>
           </div>
+
+          {movForm.type === 'dispensa' && (
+            <div className="form-group">
+              <label className="form-label">Beneficiario *</label>
+              {movForm.beneficiary_id ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ flex: 1, padding: '6px 10px', background: 'var(--gray-800)', borderRadius: 6, fontSize: '.875rem' }}>
+                    👤 {movForm.beneficiary_label}
+                  </span>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setMovForm({ ...movForm, beneficiary_id: '', beneficiary_label: '' })}>✕</button>
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="form-control"
+                    placeholder="Buscar por DNI, apellido o nombre..."
+                    value={benSearch}
+                    onChange={(e) => searchBeneficiary(e.target.value)}
+                    autoComplete="off"
+                  />
+                  {benLoading && <div style={{ position: 'absolute', right: 10, top: 8, fontSize: '.75rem', color: 'var(--gray-400)' }}>Buscando...</div>}
+                  {benResults.length > 0 && (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                      background: 'var(--gray-800)', border: '1px solid var(--gray-700)',
+                      borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,.4)', maxHeight: 220, overflowY: 'auto',
+                    }}>
+                      {benResults.map((p) => (
+                        <div
+                          key={p.id}
+                          onClick={() => selectBeneficiary(p)}
+                          style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--gray-700)', fontSize: '.875rem' }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-700)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = ''}
+                        >
+                          <strong>{p.apellido}{p.nombre ? ', ' + p.nombre : ''}</strong>
+                          <span style={{ color: 'var(--gray-400)', marginLeft: 8 }}>DNI {p.documento}</span>
+                          {p.barrio && <span style={{ color: 'var(--gray-500)', marginLeft: 8, fontSize: '.8rem' }}>{p.barrio}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="form-group">
             <label className="form-label">
               {movForm.type === 'ajuste' ? 'Nuevo stock total' : 'Cantidad'}
@@ -325,7 +409,7 @@ export default function Products() {
           </div>
           <div className="form-group">
             <label className="form-label">Motivo</label>
-            <input className="form-control" placeholder="Ej: Compra proveedor, Venta, Inventario..." value={movForm.reason} onChange={(e) => setMovForm({ ...movForm, reason: e.target.value })} />
+            <input className="form-control" placeholder="Ej: Compra proveedor, Inventario..." value={movForm.reason} onChange={(e) => setMovForm({ ...movForm, reason: e.target.value })} />
           </div>
           <div className="form-group">
             <label className="form-label">Referencia / Nro. documento</label>

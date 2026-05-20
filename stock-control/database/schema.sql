@@ -90,3 +90,32 @@ CREATE TABLE IF NOT EXISTS users (
 INSERT INTO users (username, email, `password`, role) VALUES
   ('admin',    'admin@stock.com',    '$2y$12$bzZBJIhbVmT8OFx7IJ6NaOMwhi/H7kqVewtnoZDJJiHk.eWwVg1bC', 'admin'),
   ('operador', 'operador@stock.com', '$2y$12$GeQrk5QV1WmiCTwYYvDm7OgPS9q1wU5KdT6Q878uCLAeDcBe36z96', 'operador');
+
+-- ─── Beneficiarios / Personas ────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS personas (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    tipo_documento VARCHAR(10)  DEFAULT '1',
+    documento     VARCHAR(20)   UNIQUE NOT NULL,
+    apellido      VARCHAR(100)  NOT NULL,
+    nombre        VARCHAR(100),
+    sexo          CHAR(1),
+    calle         VARCHAR(150),
+    numeracion    VARCHAR(20),
+    departamento  VARCHAR(10),
+    piso          VARCHAR(10),
+    barrio        VARCHAR(100),
+    cuit_cuil     VARCHAR(20),
+    active        TINYINT(1)    DEFAULT 1,
+    created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_documento (documento),
+    INDEX idx_apellido  (apellido)
+);
+
+-- Agregar soporte de dispensa y beneficiario en movimientos (instalaciones existentes)
+ALTER TABLE stock_movements
+    MODIFY COLUMN type ENUM('entrada','salida','ajuste','dispensa') NOT NULL;
+
+ALTER TABLE stock_movements
+    ADD COLUMN IF NOT EXISTS beneficiary_id INT AFTER user_id;

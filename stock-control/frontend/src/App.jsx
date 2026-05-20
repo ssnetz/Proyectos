@@ -6,6 +6,7 @@ import Movements  from './pages/Movements';
 import Suppliers  from './pages/Suppliers';
 import Categories from './pages/Categories';
 import Users      from './pages/Users';
+import Personas   from './pages/Personas';
 import Login      from './pages/Login';
 
 // ─── Protected route ────────────────────────────────────────────────────────
@@ -52,6 +53,7 @@ const pageTitles = {
   '/movements':  'Historial de movimientos',
   '/suppliers':  'Proveedores',
   '/categories': 'Categorías',
+  '/personas':   'Beneficiarios / Personas',
   '/users':      'Usuarios',
 };
 
@@ -67,6 +69,7 @@ function AppLayout() {
     { to: '/movements',  icon: '↕️',  label: 'Movimientos' },
     { to: '/suppliers',  icon: '🏭', label: 'Proveedores' },
     { to: '/categories', icon: '🏷️', label: 'Categorías' },
+    { to: '/personas',   icon: '👥', label: 'Personas' },
     ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -104,6 +107,7 @@ function AppLayout() {
             <Route path="/movements"  element={<ProtectedRoute><Movements /></ProtectedRoute>} />
             <Route path="/suppliers"  element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
+            <Route path="/personas"   element={<ProtectedRoute><Personas /></ProtectedRoute>} />
             <Route path="/users"      element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
           </Routes>
         </main>

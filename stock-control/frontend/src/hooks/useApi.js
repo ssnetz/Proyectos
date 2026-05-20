@@ -62,6 +62,15 @@ export function useDashboard() {
   return { get };
 }
 
+export function usePersonas() {
+  const list   = (params)      => api.get('/personas.php', { params });
+  const get    = (id)          => api.get('/personas.php', { params: { id } });
+  const create = (data)        => api.post('/personas.php', data);
+  const update = (id, data)    => api.put(`/personas.php?id=${id}`, data);
+  const remove = (id)          => api.delete(`/personas.php?id=${id}`);
+  return { list, get, create, update, remove };
+}
+
 export function useUsers() {
   const list   = ()           => api.get('/users.php');
   const create = (data)       => api.post('/users.php', data);
