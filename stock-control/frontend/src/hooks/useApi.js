@@ -71,6 +71,11 @@ export function usePersonas() {
   return { list, get, create, update, remove };
 }
 
+export function useReports() {
+  const get = (params) => api.get('/reports.php', { params });
+  return { get };
+}
+
 export function useUsers() {
   const list   = ()           => api.get('/users.php');
   const create = (data)       => api.post('/users.php', data);

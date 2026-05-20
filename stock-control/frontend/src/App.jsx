@@ -7,6 +7,7 @@ import Suppliers  from './pages/Suppliers';
 import Categories from './pages/Categories';
 import Users      from './pages/Users';
 import Personas   from './pages/Personas';
+import Reports    from './pages/Reports';
 import Login      from './pages/Login';
 
 // ─── Protected route ────────────────────────────────────────────────────────
@@ -49,11 +50,12 @@ function SidebarUser() {
 // ─── Main layout (with sidebar) ─────────────────────────────────────────────
 const pageTitles = {
   '/':           'Dashboard',
-  '/products':   'Productos',
+  '/products':   'Medicamentos',
   '/movements':  'Historial de movimientos',
   '/suppliers':  'Proveedores',
   '/categories': 'Categorías',
   '/personas':   'Beneficiarios / Personas',
+  '/reports':    'Reportes',
   '/users':      'Usuarios',
 };
 
@@ -65,11 +67,12 @@ function AppLayout() {
 
   const navItems = [
     { to: '/',           icon: '📊', label: 'Dashboard' },
-    { to: '/products',   icon: '📦', label: 'Productos' },
+    { to: '/products',   icon: '💊', label: 'Medicamentos' },
     { to: '/movements',  icon: '↕️',  label: 'Movimientos' },
+    { to: '/personas',   icon: '👥', label: 'Personas' },
+    { to: '/reports',    icon: '📋', label: 'Reportes' },
     { to: '/suppliers',  icon: '🏭', label: 'Proveedores' },
     { to: '/categories', icon: '🏷️', label: 'Categorías' },
-    { to: '/personas',   icon: '👥', label: 'Personas' },
     ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -108,6 +111,7 @@ function AppLayout() {
             <Route path="/suppliers"  element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
             <Route path="/personas"   element={<ProtectedRoute><Personas /></ProtectedRoute>} />
+            <Route path="/reports"    element={<ProtectedRoute><Reports /></ProtectedRoute>} />
             <Route path="/users"      element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
           </Routes>
         </main>
