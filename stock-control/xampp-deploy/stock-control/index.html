@@ -9,6 +9,29 @@
     <link rel="stylesheet" crossorigin href="/stock-control/assets/index-BksEAt_4.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Mensaje de carga mientras React inicializa. React lo reemplaza automáticamente. -->
+      <div id="loading-fallback" style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-family:sans-serif;background:#f9fafb;">
+        <div style="font-size:2.5rem">📦</div>
+        <p style="color:#374151;font-size:1.1rem;margin:0">Cargando Stock Control...</p>
+        <p style="color:#9ca3af;font-size:.8rem;margin:0" id="fallback-url"></p>
+      </div>
+    </div>
+    <script>
+      // Si después de 5 segundos React no montó, mostramos un error con diagnóstico
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        var fallback = document.getElementById('loading-fallback');
+        if (fallback && root && root.contains(fallback)) {
+          fallback.innerHTML = '<div style="text-align:center;padding:24px">'
+            + '<div style="font-size:2.5rem">⚠️</div>'
+            + '<p style="color:#dc2626;font-weight:bold;margin:12px 0 4px">No se pudo cargar la aplicación</p>'
+            + '<p style="color:#6b7280;font-size:.85rem;margin:0 0 8px">URL actual: <code>' + location.href + '</code></p>'
+            + '<p style="color:#6b7280;font-size:.85rem;margin:0">Presione F12 → Console para ver el error exacto.</p>'
+            + '<button onclick="location.reload()" style="margin-top:16px;padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer">Reintentar</button>'
+            + '</div>';
+        }
+      }, 5000);
+    </script>
   </body>
 </html>
