@@ -1,12 +1,14 @@
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Dashboard  from './pages/Dashboard';
-import Products   from './pages/Products';
-import Movements  from './pages/Movements';
-import Suppliers  from './pages/Suppliers';
-import Categories from './pages/Categories';
-import Users      from './pages/Users';
-import Login      from './pages/Login';
+import Dashboard      from './pages/Dashboard';
+import Products       from './pages/Products';
+import Movements      from './pages/Movements';
+import Suppliers      from './pages/Suppliers';
+import Categories     from './pages/Categories';
+import Users          from './pages/Users';
+import Beneficiarios  from './pages/Beneficiarios';
+import Dispensas      from './pages/Dispensas';
+import Login          from './pages/Login';
 
 // ─── Protected route ────────────────────────────────────────────────────────
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -47,12 +49,14 @@ function SidebarUser() {
 
 // ─── Main layout (with sidebar) ─────────────────────────────────────────────
 const pageTitles = {
-  '/':           'Dashboard',
-  '/products':   'Productos',
-  '/movements':  'Historial de movimientos',
-  '/suppliers':  'Proveedores',
-  '/categories': 'Categorías',
-  '/users':      'Usuarios',
+  '/':                'Dashboard',
+  '/products':        'Productos',
+  '/movements':       'Historial de movimientos',
+  '/suppliers':       'Proveedores',
+  '/categories':      'Categorías',
+  '/users':           'Usuarios',
+  '/beneficiarios':   'Beneficiarios',
+  '/dispensas':       'Dispensas',
 };
 
 function AppLayout() {
@@ -62,11 +66,13 @@ function AppLayout() {
   const isAdmin = user?.role === 'admin';
 
   const navItems = [
-    { to: '/',           icon: '📊', label: 'Dashboard' },
-    { to: '/products',   icon: '📦', label: 'Productos' },
-    { to: '/movements',  icon: '↕️',  label: 'Movimientos' },
-    { to: '/suppliers',  icon: '🏭', label: 'Proveedores' },
-    { to: '/categories', icon: '🏷️', label: 'Categorías' },
+    { to: '/',                icon: '📊', label: 'Dashboard' },
+    { to: '/products',        icon: '📦', label: 'Productos' },
+    { to: '/movements',       icon: '↕️',  label: 'Movimientos' },
+    { to: '/beneficiarios',   icon: '👥', label: 'Beneficiarios' },
+    { to: '/dispensas',       icon: '💊', label: 'Dispensas' },
+    { to: '/suppliers',       icon: '🏭', label: 'Proveedores' },
+    { to: '/categories',      icon: '🏷️', label: 'Categorías' },
     ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -104,7 +110,9 @@ function AppLayout() {
             <Route path="/movements"  element={<ProtectedRoute><Movements /></ProtectedRoute>} />
             <Route path="/suppliers"  element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
-            <Route path="/users"      element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+            <Route path="/users"           element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+            <Route path="/beneficiarios"  element={<ProtectedRoute><Beneficiarios /></ProtectedRoute>} />
+            <Route path="/dispensas"      element={<ProtectedRoute><Dispensas /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>

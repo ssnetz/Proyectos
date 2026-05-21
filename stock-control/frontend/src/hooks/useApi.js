@@ -69,3 +69,19 @@ export function useUsers() {
   const remove = (id)         => api.delete(`/users.php?id=${id}`);
   return { list, create, update, remove };
 }
+
+export function useBeneficiarios() {
+  const list   = (params)     => api.get('/beneficiarios.php', { params });
+  const get    = (id)         => api.get('/beneficiarios.php', { params: { id } });
+  const create = (data)       => api.post('/beneficiarios.php', data);
+  const update = (id, data)   => api.put(`/beneficiarios.php?id=${id}`, data);
+  const remove = (id)         => api.delete(`/beneficiarios.php?id=${id}`);
+  return { list, get, create, update, remove };
+}
+
+export function useDispensas() {
+  const list   = (params)     => api.get('/dispensas.php', { params });
+  const get    = (id)         => api.get('/dispensas.php', { params: { id } });
+  const create = (data)       => api.post('/dispensas.php', data);
+  return { list, get, create };
+}
