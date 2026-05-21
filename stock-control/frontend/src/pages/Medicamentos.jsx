@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useMedicamentos, useCategorias, useProveedores, useMovimientos, useLotes } from '../hooks/useApi';
+import { useMedicamentos, useCategorias, useProveedores, useMovimientos, useLotes, useUbicaciones } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
@@ -15,25 +15,27 @@ export default function Medicamentos() {
   const provApi  = useProveedores();
   const movApi   = useMovimientos();
   const lotesApi = useLotes();
+  const ubApi    = useUbicaciones();
   const { user } = useAuth();
   const isAdmin  = user?.role === 'admin';
 
   const [items, setItems]         = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [proveedores, setProveedores] = useState([]);
+  const [ubicaciones, setUbicaciones] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
   const [success, setSuccess]     = useState('');
   const [search, setSearch]       = useState('');
   const [filterCat, setFilterCat] = useState('');
   const [showLow, setShowLow]     = useState(false);
-  const [modal, setModal]         = useState(null); // null | 'create' | id
-  const [movModal, setMovModal]   = useState(null); // null | product obj
+  const [modal, setModal]       = useState(null);
+  const [movModal, setMovModal] = useState(null);
   const [detailMed, setDetailMed] = useState(null); // null | product obj
   const [detailLotes, setDetailLotes] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm]           = useState(emptyForm);
-  const [movForm, setMovForm]     = useState({ type: 'entrada', quantity: '', reason: '', reference: '' });
+  const [movForm, setMovForm]     = useState({ type: 'entrada', quantity: '', reason: '', reference: '', location_id: '', to_location_id: '' });
   const [saving, setSaving]       = useState(false);
 
   const loadItems = useCallback(() => {
@@ -45,10 +47,11 @@ export default function Medicamentos() {
   }, [search, filterCat, showLow]);
 
   useEffect(() => {
-    Promise.all([loadItems(), catApi.list(), provApi.list()])
-      .then(([, cats, provs]) => {
+    Promise.all([loadItems(), catApi.list(), provApi.list(), ubApi.list()])
+      .then(([, cats, provs, ubs]) => {
         setCategorias(cats.data);
         setProveedores(provs.data);
+        setUbicaciones(ubs.data);
       })
       .catch(() => setError('Error al cargar datos'))
       .finally(() => setLoading(false));
@@ -126,7 +129,7 @@ export default function Medicamentos() {
 
   const openMovement = (p) => {
     setMovModal(p);
-    setMovForm({ type: 'entrada', quantity: '', reason: '', reference: '' });
+    setMovForm({ type: 'entrada', quantity: '', reason: '', reference: '', location_id: '', to_location_id: '' });
     setError('');
   };
 
@@ -423,6 +426,38 @@ export default function Medicamentos() {
             <input type="number" min="1" className="form-control"
               value={movForm.quantity} onChange={mfld('quantity')} />
           </div>
+
+          {ubicaciones.length > 0 && (
+            <div className="form-row">
+              {movForm.type === 'salida' ? (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Ubicación origen</label>
+                    <select className="form-control" value={movForm.location_id} onChange={mfld('location_id')}>
+                      <option value="">— Sin especificar —</option>
+                      {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Destino / Servicio</label>
+                    <select className="form-control" value={movForm.to_location_id} onChange={mfld('to_location_id')}>
+                      <option value="">— Sin especificar —</option>
+                      {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">{movForm.type === 'entrada' ? 'Depositar en' : 'Ubicación'}</label>
+                  <select className="form-control" value={movForm.location_id} onChange={mfld('location_id')}>
+                    <option value="">— Sin especificar —</option>
+                    {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="form-group">
             <label className="form-label">Motivo</label>
             <input className="form-control" placeholder="Ej: Compra, Inventario, Baja..."
