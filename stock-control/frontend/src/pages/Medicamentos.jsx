@@ -1,0 +1,330 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useMedicamentos, useCategorias, useProveedores, useMovimientos } from '../hooks/useApi';
+import { useAuth } from '../context/AuthContext';
+import Modal from '../components/Modal';
+
+const emptyForm = {
+  code: '', name: '', description: '', therapeutic_action: '',
+  category_id: '', supplier_id: '',
+  purchase_price: '0', sale_price: '0', stock: '0', min_stock: '5', unit: 'unidad',
+};
+
+export default function Medicamentos() {
+  const medApi  = useMedicamentos();
+  const catApi  = useCategorias();
+  const provApi = useProveedores();
+  const movApi  = useMovimientos();
+  const { user } = useAuth();
+  const isAdmin  = user?.role === 'admin';
+
+  const [items, setItems]         = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState('');
+  const [success, setSuccess]     = useState('');
+  const [search, setSearch]       = useState('');
+  const [filterCat, setFilterCat] = useState('');
+  const [showLow, setShowLow]     = useState(false);
+  const [modal, setModal]         = useState(null); // null | 'create' | id
+  const [movModal, setMovModal]   = useState(null); // null | product obj
+  const [form, setForm]           = useState(emptyForm);
+  const [movForm, setMovForm]     = useState({ type: 'entrada', quantity: '', reason: '', reference: '' });
+  const [saving, setSaving]       = useState(false);
+
+  const loadItems = useCallback(() => {
+    const params = {};
+    if (search) params.search = search;
+    if (filterCat) params.category_id = filterCat;
+    if (showLow) params.low_stock = '1';
+    return medApi.list(params).then((r) => setItems(r.data));
+  }, [search, filterCat, showLow]);
+
+  useEffect(() => {
+    Promise.all([loadItems(), catApi.list(), provApi.list()])
+      .then(([, cats, provs]) => {
+        setCategorias(cats.data);
+        setProveedores(provs.data);
+      })
+      .catch(() => setError('Error al cargar datos'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!loading) loadItems().catch(() => {});
+  }, [search, filterCat, showLow]);
+
+  const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); };
+  const fld = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const mfld = (k) => (e) => setMovForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const openCreate = () => { setForm(emptyForm); setError(''); setModal('create'); };
+  const openEdit   = (p) => {
+    setForm({
+      code: p.code, name: p.name,
+      description: p.description || '',
+      therapeutic_action: p.therapeutic_action || '',
+      category_id: p.category_id ?? '',
+      supplier_id: p.supplier_id ?? '',
+      purchase_price: p.purchase_price,
+      sale_price: p.sale_price,
+      stock: p.stock,
+      min_stock: p.min_stock,
+      unit: p.unit,
+    });
+    setError('');
+    setModal(p.id);
+  };
+
+  const handleSave = async () => {
+    setSaving(true); setError('');
+    try {
+      if (modal === 'create') {
+        await medApi.create(form);
+        notify('Medicamento creado');
+      } else {
+        await medApi.update(modal, form);
+        notify('Medicamento actualizado');
+      }
+      setModal(null);
+      await loadItems();
+    } catch (e) {
+      setError(e.response?.data?.error || 'Error al guardar');
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id, name) => {
+    if (!confirm(`¿Desactivar el medicamento "${name}"?`)) return;
+    try {
+      await medApi.remove(id);
+      notify('Medicamento desactivado');
+      await loadItems();
+    } catch (e) { setError(e.response?.data?.error || 'Error al eliminar'); }
+  };
+
+  const openMovement = (p) => {
+    setMovModal(p);
+    setMovForm({ type: 'entrada', quantity: '', reason: '', reference: '' });
+    setError('');
+  };
+
+  const handleMovement = async () => {
+    setSaving(true); setError('');
+    try {
+      await movApi.create({ ...movForm, product_id: movModal.id });
+      notify('Movimiento registrado');
+      setMovModal(null);
+      await loadItems();
+    } catch (e) {
+      setError(e.response?.data?.error || 'Error al registrar movimiento');
+    } finally { setSaving(false); }
+  };
+
+  const stockBadge = (p) => {
+    if (p.stock === 0 || p.stock === '0') return <span className="badge badge-red">Sin stock</span>;
+    if (Number(p.stock) <= Number(p.min_stock)) return <span className="badge badge-yellow">Stock bajo</span>;
+    return <span className="badge badge-green">OK</span>;
+  };
+
+  return (
+    <div>
+      {error   && <div className="alert alert-danger">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
+
+      <div className="card">
+        <div className="table-actions">
+          <div className="filters">
+            <div className="search-input">
+              <input className="form-control" placeholder="Buscar medicamento, código, acción..."
+                value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 260 }} />
+            </div>
+            <select className="form-control" style={{ width: 180 }} value={filterCat}
+              onChange={(e) => setFilterCat(e.target.value)}>
+              <option value="">Todas las categorías</option>
+              {categorias.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '.875rem', cursor: 'pointer' }}>
+              <input type="checkbox" checked={showLow} onChange={(e) => setShowLow(e.target.checked)} />
+              Solo stock bajo
+            </label>
+          </div>
+          {isAdmin && <button className="btn btn-primary" onClick={openCreate}>+ Nuevo medicamento</button>}
+        </div>
+
+        {loading ? <div className="spinner" /> : items.length === 0 ? (
+          <div className="empty"><div className="empty-icon">💊</div><p>No hay medicamentos</p></div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th><th>Nombre</th><th>Acción terapéutica</th>
+                  <th>Categoría</th><th>Stock actual</th><th>Stock mín.</th>
+                  <th>Unidad</th><th>Estado</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((p) => (
+                  <tr key={p.id}>
+                    <td><code style={{ fontSize: '.8rem' }}>{p.code}</code></td>
+                    <td><strong>{p.name}</strong></td>
+                    <td style={{ color: 'var(--gray-600)', maxWidth: 200 }}>{p.therapeutic_action || '—'}</td>
+                    <td>{p.category_name || '—'}</td>
+                    <td>
+                      <strong style={{
+                        color: p.stock === 0 ? 'var(--danger)'
+                             : Number(p.stock) <= Number(p.min_stock) ? 'var(--warning)'
+                             : 'inherit'
+                      }}>{p.stock}</strong>
+                    </td>
+                    <td style={{ color: 'var(--gray-500)' }}>{p.min_stock}</td>
+                    <td style={{ color: 'var(--gray-500)' }}>{p.unit}</td>
+                    <td>{stockBadge(p)}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="btn btn-ghost btn-sm" title="Registrar movimiento"
+                          onClick={() => openMovement(p)}>↕</button>
+                        {isAdmin && (
+                          <>
+                            <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}>✏️</button>
+                            <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(p.id, p.name)}>🗑️</button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {modal !== null && (
+        <Modal
+          title={modal === 'create' ? 'Nuevo medicamento' : 'Editar medicamento'}
+          onClose={() => setModal(null)}
+          size="modal-lg"
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setModal(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </>
+          }
+        >
+          {error && <div className="alert alert-danger">{error}</div>}
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Código *</label>
+              <input className="form-control" value={form.code} onChange={fld('code')} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Nombre *</label>
+              <input className="form-control" value={form.name} onChange={fld('name')} />
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Acción terapéutica</label>
+            <input className="form-control" placeholder="Ej: Analgésico, Antibiótico..." value={form.therapeutic_action} onChange={fld('therapeutic_action')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Descripción</label>
+            <textarea className="form-control" value={form.description} onChange={fld('description')} />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Categoría</label>
+              <select className="form-control" value={form.category_id} onChange={fld('category_id')}>
+                <option value="">Sin categoría</option>
+                {categorias.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Proveedor</label>
+              <select className="form-control" value={form.supplier_id} onChange={fld('supplier_id')}>
+                <option value="">Sin proveedor</option>
+                {proveedores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="form-row-3">
+            <div className="form-group">
+              <label className="form-label">Precio compra</label>
+              <input type="number" min="0" className="form-control" value={form.purchase_price} onChange={fld('purchase_price')} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Precio venta</label>
+              <input type="number" min="0" className="form-control" value={form.sale_price} onChange={fld('sale_price')} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Unidad</label>
+              <input className="form-control" placeholder="unidad, caja, frasco..." value={form.unit} onChange={fld('unit')} />
+            </div>
+          </div>
+          <div className="form-row">
+            {modal === 'create' && (
+              <div className="form-group">
+                <label className="form-label">Stock inicial</label>
+                <input type="number" min="0" className="form-control" value={form.stock} onChange={fld('stock')} />
+              </div>
+            )}
+            <div className="form-group">
+              <label className="form-label">Stock mínimo</label>
+              <input type="number" min="0" className="form-control" value={form.min_stock} onChange={fld('min_stock')} />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {movModal && (
+        <Modal
+          title={`Movimiento — ${movModal.name}`}
+          onClose={() => setMovModal(null)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setMovModal(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleMovement} disabled={saving}>
+                {saving ? 'Registrando...' : 'Registrar'}
+              </button>
+            </>
+          }
+        >
+          {error && <div className="alert alert-danger">{error}</div>}
+          <p style={{ marginBottom: 16, color: 'var(--gray-500)', fontSize: '.875rem' }}>
+            Stock actual: <strong>{movModal.stock}</strong> {movModal.unit}
+          </p>
+          <div className="form-group">
+            <label className="form-label">Tipo de movimiento</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[['entrada','⬆ Entrada'],['salida','⬇ Salida'],['ajuste','⚙ Ajuste']].map(([t, lbl]) => (
+                <button key={t} type="button"
+                  className={`btn ${movForm.type === t ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setMovForm((f) => ({ ...f, type: t }))}
+                  style={{ flex: 1 }}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">{movForm.type === 'ajuste' ? 'Nuevo stock total' : 'Cantidad'}</label>
+            <input type="number" min="1" className="form-control"
+              value={movForm.quantity} onChange={mfld('quantity')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Motivo</label>
+            <input className="form-control" placeholder="Ej: Compra, Inventario, Baja..."
+              value={movForm.reason} onChange={mfld('reason')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Referencia</label>
+            <input className="form-control" placeholder="Factura, remito, etc."
+              value={movForm.reference} onChange={mfld('reference')} />
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}

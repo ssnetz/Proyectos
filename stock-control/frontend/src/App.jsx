@@ -1,16 +1,19 @@
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Dashboard      from './pages/Dashboard';
-import Products       from './pages/Products';
-import Movements      from './pages/Movements';
-import Suppliers      from './pages/Suppliers';
-import Categories     from './pages/Categories';
-import Users          from './pages/Users';
-import Personas   from './pages/Personas';
-import Dispensas  from './pages/Dispensas';
-import Login          from './pages/Login';
+import Dashboard    from './pages/Dashboard';
+import Medicamentos from './pages/Medicamentos';
+import Lotes        from './pages/Lotes';
+import Movimientos  from './pages/Movimientos';
+import Personas     from './pages/Personas';
+import Dispensas    from './pages/Dispensas';
+import Reportes     from './pages/Reportes';
+import Proveedores  from './pages/Proveedores';
+import Categorias   from './pages/Categorias';
+import Ubicaciones  from './pages/Ubicaciones';
+import Usuarios     from './pages/Usuarios';
+import Login        from './pages/Login';
 
-// ─── Protected route ────────────────────────────────────────────────────────
+// ─── Protected route ─────────────────────────────────────────────────────────
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
@@ -19,13 +22,11 @@ function ProtectedRoute({ children, adminOnly = false }) {
   return children;
 }
 
-// ─── Sidebar user section ───────────────────────────────────────────────────
+// ─── Sidebar user section ────────────────────────────────────────────────────
 function SidebarUser() {
   const { user, logout } = useAuth();
   if (!user) return null;
-
-  const initials = (user.username || user.email || '??').slice(0, 2).toUpperCase();
-
+  const initials = (user?.username || user?.email || '?').slice(0, 2).toUpperCase();
   return (
     <div className="sidebar-user">
       <div className="sidebar-user-avatar">{initials}</div>
@@ -47,40 +48,49 @@ function SidebarUser() {
   );
 }
 
-// ─── Main layout (with sidebar) ─────────────────────────────────────────────
+// ─── Page titles ─────────────────────────────────────────────────────────────
 const pageTitles = {
-  '/':                'Dashboard',
-  '/products':        'Productos',
-  '/movements':       'Historial de movimientos',
-  '/suppliers':       'Proveedores',
-  '/categories':      'Categorías',
-  '/users':           'Usuarios',
-  '/personas':        'Personas',
-  '/dispensas':       'Dispensas',
+  '/':               'Dashboard',
+  '/medicamentos':   'Medicamentos',
+  '/lotes':          'Lotes y Vencimientos',
+  '/movimientos':    'Movimientos',
+  '/personas':       'Personas',
+  '/dispensas':      'Dispensas',
+  '/reportes':       'Reportes',
+  '/proveedores':    'Proveedores',
+  '/categorias':     'Categorías',
+  '/ubicaciones':    'Ubicaciones',
+  '/usuarios':       'Usuarios',
 };
 
+// ─── Main layout ─────────────────────────────────────────────────────────────
 function AppLayout() {
   const { pathname } = useLocation();
   const { user }     = useAuth();
-  const title = pageTitles[pathname] ?? 'Control de Stock';
-  const isAdmin = user?.role === 'admin';
+  const title        = pageTitles[pathname] ?? 'Control de Stock';
+  const isAdmin      = user?.role === 'admin';
 
   const navItems = [
-    { to: '/',                icon: '📊', label: 'Dashboard' },
-    { to: '/products',        icon: '📦', label: 'Productos' },
-    { to: '/movements',       icon: '↕️',  label: 'Movimientos' },
-    { to: '/personas',        icon: '👥', label: 'Personas' },
-    { to: '/dispensas',       icon: '💊', label: 'Dispensas' },
-    { to: '/suppliers',       icon: '🏭', label: 'Proveedores' },
-    { to: '/categories',      icon: '🏷️', label: 'Categorías' },
-    ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
+    { to: '/',             icon: '📊', label: 'Dashboard' },
+    { to: '/medicamentos', icon: '💊', label: 'Medicamentos' },
+    { to: '/lotes',        icon: '📦', label: 'Lotes y Vencimientos' },
+    { to: '/movimientos',  icon: '↕️',  label: 'Movimientos' },
+    { to: '/personas',     icon: '👥', label: 'Personas' },
+    { to: '/dispensas',    icon: '🩺', label: 'Dispensas' },
+    { to: '/reportes',     icon: '📈', label: 'Reportes' },
+    { to: '/proveedores',  icon: '🏭', label: 'Proveedores' },
+    { to: '/categorias',   icon: '🏷️', label: 'Categorías' },
+    ...(isAdmin ? [
+      { to: '/ubicaciones', icon: '📍', label: 'Ubicaciones' },
+      { to: '/usuarios',    icon: '👤', label: 'Usuarios' },
+    ] : []),
   ];
 
   return (
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <span>📦</span> Stock Control
+          <span>💊</span> Farmacia – Stock
         </div>
         <nav className="sidebar-nav">
           {navItems.map(({ to, icon, label }) => (
@@ -96,7 +106,7 @@ function AppLayout() {
           ))}
         </nav>
         <SidebarUser />
-        <div className="sidebar-footer">v2.0 · Control de Stock</div>
+        <div className="sidebar-footer">Control de Stock · Farmacia</div>
       </aside>
 
       <div className="main">
@@ -105,14 +115,17 @@ function AppLayout() {
         </header>
         <main className="page-content">
           <Routes>
-            <Route path="/"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/products"   element={<ProtectedRoute><Products /></ProtectedRoute>} />
-            <Route path="/movements"  element={<ProtectedRoute><Movements /></ProtectedRoute>} />
-            <Route path="/suppliers"  element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-            <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
-            <Route path="/users"           element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
-            <Route path="/personas"       element={<ProtectedRoute><Personas /></ProtectedRoute>} />
-            <Route path="/dispensas"      element={<ProtectedRoute><Dispensas /></ProtectedRoute>} />
+            <Route path="/"             element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/medicamentos" element={<ProtectedRoute><Medicamentos /></ProtectedRoute>} />
+            <Route path="/lotes"        element={<ProtectedRoute><Lotes /></ProtectedRoute>} />
+            <Route path="/movimientos"  element={<ProtectedRoute><Movimientos /></ProtectedRoute>} />
+            <Route path="/personas"     element={<ProtectedRoute><Personas /></ProtectedRoute>} />
+            <Route path="/dispensas"    element={<ProtectedRoute><Dispensas /></ProtectedRoute>} />
+            <Route path="/reportes"     element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+            <Route path="/proveedores"  element={<ProtectedRoute><Proveedores /></ProtectedRoute>} />
+            <Route path="/categorias"   element={<ProtectedRoute><Categorias /></ProtectedRoute>} />
+            <Route path="/ubicaciones"  element={<ProtectedRoute adminOnly><Ubicaciones /></ProtectedRoute>} />
+            <Route path="/usuarios"     element={<ProtectedRoute adminOnly><Usuarios /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
@@ -120,7 +133,7 @@ function AppLayout() {
   );
 }
 
-// ─── Root component ──────────────────────────────────────────────────────────
+// ─── Root component ───────────────────────────────────────────────────────────
 export default function App() {
   return (
     <AuthProvider>
@@ -132,7 +145,6 @@ export default function App() {
   );
 }
 
-// Redirect already-logged-in users away from /login
 function LoginGuard() {
   const { user, loading } = useAuth();
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;

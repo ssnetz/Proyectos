@@ -168,7 +168,7 @@ function createDispensa(PDO $db, array $auth): void {
                 $reason,
                 $reference,
                 $auth['username'],
-                $auth['sub'],
+                $auth['id'] ?? $auth['sub'] ?? 0,
                 $personaId,
             ]);
         }
