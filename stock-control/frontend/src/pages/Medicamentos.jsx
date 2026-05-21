@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useMedicamentos, useCategorias, useProveedores, useMovimientos } from '../hooks/useApi';
+import { useMedicamentos, useCategorias, useProveedores, useMovimientos, useLotes } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
@@ -10,10 +10,11 @@ const emptyForm = {
 };
 
 export default function Medicamentos() {
-  const medApi  = useMedicamentos();
-  const catApi  = useCategorias();
-  const provApi = useProveedores();
-  const movApi  = useMovimientos();
+  const medApi   = useMedicamentos();
+  const catApi   = useCategorias();
+  const provApi  = useProveedores();
+  const movApi   = useMovimientos();
+  const lotesApi = useLotes();
   const { user } = useAuth();
   const isAdmin  = user?.role === 'admin';
 
@@ -28,6 +29,9 @@ export default function Medicamentos() {
   const [showLow, setShowLow]     = useState(false);
   const [modal, setModal]         = useState(null); // null | 'create' | id
   const [movModal, setMovModal]   = useState(null); // null | product obj
+  const [detailMed, setDetailMed] = useState(null); // null | product obj
+  const [detailLotes, setDetailLotes] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm]           = useState(emptyForm);
   const [movForm, setMovForm]     = useState({ type: 'entrada', quantity: '', reason: '', reference: '' });
   const [saving, setSaving]       = useState(false);
@@ -100,6 +104,24 @@ export default function Medicamentos() {
       notify('Medicamento desactivado');
       await loadItems();
     } catch (e) { setError(e.response?.data?.error || 'Error al eliminar'); }
+  };
+
+  const openDetail = (p) => {
+    setDetailMed(p);
+    setDetailLotes([]);
+    setDetailLoading(true);
+    lotesApi.list({ product_id: p.id })
+      .then((r) => setDetailLotes(r.data))
+      .catch(() => {})
+      .finally(() => setDetailLoading(false));
+  };
+
+  const loteBadge = (days) => {
+    const d = Number(days);
+    if (d < 0)   return <span className="badge badge-red">VENCIDO</span>;
+    if (d <= 7)  return <span className="badge badge-red">CRÍTICO</span>;
+    if (d <= 30) return <span className="badge badge-yellow">PRÓXIMO</span>;
+    return <span className="badge badge-green">OK</span>;
   };
 
   const openMovement = (p) => {
@@ -182,6 +204,8 @@ export default function Medicamentos() {
                     <td>{stockBadge(p)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="btn btn-ghost btn-sm" title="Ver lotes y distribución"
+                          onClick={() => openDetail(p)}>📦</button>
                         <button className="btn btn-ghost btn-sm" title="Registrar movimiento"
                           onClick={() => openMovement(p)}>↕</button>
                         {isAdmin && (
@@ -275,6 +299,92 @@ export default function Medicamentos() {
               <input type="number" min="0" className="form-control" value={form.min_stock} onChange={fld('min_stock')} />
             </div>
           </div>
+        </Modal>
+      )}
+
+      {detailMed && (
+        <Modal
+          title={`Lotes y stock — ${detailMed.name}`}
+          onClose={() => setDetailMed(null)}
+          size="modal-lg"
+        >
+          <div style={{ marginBottom: 16, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <div>
+              <span style={{ fontSize: '.75rem', color: 'var(--gray-500)', textTransform: 'uppercase' }}>Stock total</span>
+              <p style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700, color: detailMed.stock === 0 ? 'var(--danger)' : Number(detailMed.stock) <= Number(detailMed.min_stock) ? 'var(--warning)' : 'var(--gray-800)' }}>
+                {detailMed.stock} <span style={{ fontSize: '.9rem', fontWeight: 400 }}>{detailMed.unit}</span>
+              </p>
+            </div>
+            <div>
+              <span style={{ fontSize: '.75rem', color: 'var(--gray-500)', textTransform: 'uppercase' }}>Stock mínimo</span>
+              <p style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>{detailMed.min_stock} <span style={{ fontSize: '.9rem', fontWeight: 400 }}>{detailMed.unit}</span></p>
+            </div>
+            {detailMed.category_name && (
+              <div>
+                <span style={{ fontSize: '.75rem', color: 'var(--gray-500)', textTransform: 'uppercase' }}>Categoría</span>
+                <p style={{ margin: 0 }}>{detailMed.category_name}</p>
+              </div>
+            )}
+          </div>
+
+          {detailLoading ? <div className="spinner" /> : detailLotes.length === 0 ? (
+            <div className="empty" style={{ padding: '24px 0' }}>
+              <div className="empty-icon">📦</div>
+              <p>No hay lotes registrados para este medicamento</p>
+            </div>
+          ) : (
+            <>
+              {/* Stock por ubicación */}
+              {(() => {
+                const byLoc = detailLotes.reduce((acc, l) => {
+                  const loc = l.location_name || 'Sin ubicación';
+                  acc[loc] = (acc[loc] || 0) + Number(l.quantity);
+                  return acc;
+                }, {});
+                const locs = Object.entries(byLoc);
+                return locs.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <p style={{ fontWeight: 600, marginBottom: 8, color: 'var(--gray-700)' }}>Distribución por ubicación</p>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      {locs.map(([loc, qty]) => (
+                        <div key={loc} style={{ background: 'var(--gray-50)', border: '1px solid var(--gray-200)', borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
+                          <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{qty}</div>
+                          <div style={{ fontSize: '.75rem', color: 'var(--gray-500)' }}>{loc}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Lista de lotes */}
+              <p style={{ fontWeight: 600, marginBottom: 8, color: 'var(--gray-700)' }}>Lotes</p>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>N° Lote</th><th>Vencimiento</th><th>Días restantes</th>
+                      <th>Cantidad</th><th>Ubicación</th><th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detailLotes.map((l) => (
+                      <tr key={l.id}>
+                        <td><code style={{ fontSize: '.8rem' }}>{l.lot_number}</code></td>
+                        <td>{new Date(l.expiry_date + 'T00:00:00').toLocaleDateString('es-AR')}</td>
+                        <td style={{ fontWeight: 600, color: Number(l.days_left) < 0 ? 'var(--danger)' : Number(l.days_left) <= 30 ? 'var(--warning)' : 'inherit' }}>
+                          {Number(l.days_left) < 0 ? `Venció hace ${Math.abs(Number(l.days_left))} días` : `${l.days_left} días`}
+                        </td>
+                        <td><strong>{l.quantity}</strong> {l.unit}</td>
+                        <td>{l.location_name || <span style={{ color: 'var(--gray-400)' }}>—</span>}</td>
+                        <td>{loteBadge(l.days_left)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </Modal>
       )}
 
