@@ -24,16 +24,20 @@ export default function Personas() {
   const [form, setForm]       = useState(emptyForm);
   const [saving, setSaving]   = useState(false);
 
-  const load = useCallback(() =>
-    api.list({ search, active_only: showInactive ? '0' : '1' }).then((r) => setPersonas(r.data)),
-  [search, showInactive]);
+  const doSearch = useCallback((q, inactive) =>
+    api.list({ search: q, active_only: inactive ? '0' : '1' }).then((r) => setPersonas(r.data)),
+  []);
 
+  // Initial load
   useEffect(() => {
-    load().catch(() => setError('Error cargando personas')).finally(() => setLoading(false));
+    doSearch('', false).catch(() => setError('Error cargando personas')).finally(() => setLoading(false));
   }, []);
 
+  // Debounced search on changes
   useEffect(() => {
-    if (!loading) load().catch(() => {});
+    if (loading) return;
+    const t = setTimeout(() => doSearch(search, showInactive).catch(() => {}), 300);
+    return () => clearTimeout(t);
   }, [search, showInactive]);
 
   const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); };
@@ -108,8 +112,13 @@ export default function Personas() {
           <button className="btn btn-primary" onClick={openCreate}>+ Nueva persona</button>
         </div>
 
+        {personas.length === 100 && !search && (
+          <div style={{ padding: '8px 16px', background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)', fontSize: '.825rem', color: 'var(--gray-500)' }}>
+            Mostrando primeros 100 resultados — buscá por documento, apellido o nombre para filtrar
+          </div>
+        )}
         {loading ? <div className="spinner" /> : personas.length === 0 ? (
-          <div className="empty"><div className="empty-icon">👥</div><p>No hay personas registradas</p></div>
+          <div className="empty"><div className="empty-icon">👥</div><p>No hay personas registradas{search ? ' con ese criterio' : ''}</p></div>
         ) : (
           <div className="table-wrap">
             <table>

@@ -24,11 +24,11 @@ function listLotes(PDO $db): void {
     $expired      = isset($_GET['expired']) && $_GET['expired'] === '1';
 
     $sql = "SELECT
-                pl.id, pl.lot_number, pl.expiry_date, pl.quantity, pl.created_at,
+                pl.id, pl.lot_number, pl.expiration_date AS expiry_date, pl.quantity, pl.created_at,
                 pl.product_id, pl.location_id,
                 p.name AS product_name, p.code AS product_code, p.unit,
                 l.name AS location_name,
-                DATEDIFF(pl.expiry_date, CURDATE()) AS days_left
+                DATEDIFF(pl.expiration_date, CURDATE()) AS days_left
             FROM product_lots pl
             JOIN products p ON pl.product_id = p.id
             LEFT JOIN locations l ON pl.location_id = l.id
@@ -41,13 +41,13 @@ function listLotes(PDO $db): void {
     }
 
     if ($expired) {
-        $sql .= " AND pl.expiry_date < CURDATE()";
+        $sql .= " AND pl.expiration_date < CURDATE()";
     } elseif ($expiringDays !== null) {
-        $sql .= " AND pl.expiry_date >= CURDATE() AND pl.expiry_date <= DATE_ADD(CURDATE(), INTERVAL ? DAY)";
+        $sql .= " AND pl.expiration_date >= CURDATE() AND pl.expiration_date <= DATE_ADD(CURDATE(), INTERVAL ? DAY)";
         $params[] = (int)$expiringDays;
     }
 
-    $sql .= " ORDER BY pl.expiry_date ASC";
+    $sql .= " ORDER BY pl.expiration_date ASC";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     jsonResponse($stmt->fetchAll());
@@ -55,9 +55,11 @@ function listLotes(PDO $db): void {
 
 function getLote(PDO $db, int $id): void {
     $stmt = $db->prepare(
-        "SELECT pl.*, p.name AS product_name, p.code AS product_code, p.unit,
+        "SELECT pl.id, pl.lot_number, pl.expiration_date AS expiry_date, pl.quantity,
+                pl.created_at, pl.product_id, pl.location_id,
+                p.name AS product_name, p.code AS product_code, p.unit,
                 l.name AS location_name,
-                DATEDIFF(pl.expiry_date, CURDATE()) AS days_left
+                DATEDIFF(pl.expiration_date, CURDATE()) AS days_left
          FROM product_lots pl
          JOIN products p ON pl.product_id = p.id
          LEFT JOIN locations l ON pl.location_id = l.id
@@ -91,7 +93,7 @@ function createLote(PDO $db, array $auth): void {
     try {
         // Create lot
         $stmt = $db->prepare(
-            "INSERT INTO product_lots (product_id, lot_number, expiry_date, quantity, location_id)
+            "INSERT INTO product_lots (product_id, lot_number, expiration_date, quantity, location_id)
              VALUES (?, ?, ?, ?, ?)"
         );
         $stmt->execute([
@@ -131,8 +133,10 @@ function createLote(PDO $db, array $auth): void {
         $db->commit();
 
         $stmt = $db->prepare(
-            "SELECT pl.*, p.name AS product_name, l.name AS location_name,
-                    DATEDIFF(pl.expiry_date, CURDATE()) AS days_left
+            "SELECT pl.id, pl.lot_number, pl.expiration_date AS expiry_date, pl.quantity,
+                    pl.created_at, pl.product_id, pl.location_id,
+                    p.name AS product_name, l.name AS location_name,
+                    DATEDIFF(pl.expiration_date, CURDATE()) AS days_left
              FROM product_lots pl
              JOIN products p ON pl.product_id = p.id
              LEFT JOIN locations l ON pl.location_id = l.id

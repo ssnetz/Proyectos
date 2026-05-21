@@ -17,18 +17,28 @@ match ($type) {
     default       => jsonError('Tipo de reporte inválido. Use: stock, vencimientos, dispensas, movimientos'),
 };
 
+function hasPriceCols(PDO $db): bool {
+    static $has = null;
+    if ($has !== null) return $has;
+    try { $db->query("SELECT purchase_price FROM products LIMIT 0"); $has = true; }
+    catch (Exception $e) { $has = false; }
+    return $has;
+}
+
 function reportStock(PDO $db): void {
-    $stmt = $db->query(
+    $price = hasPriceCols($db) ? "p.purchase_price, p.sale_price, (p.stock * p.purchase_price) AS stock_value,"
+                              : "0 AS purchase_price, 0 AS sale_price, 0 AS stock_value,";
+    $stmt = $db->prepare(
         "SELECT p.id, p.code, p.name, p.therapeutic_action, p.stock, p.min_stock, p.unit,
-                p.purchase_price, p.sale_price,
-                c.name AS category_name, s.name AS supplier_name,
-                (p.stock * p.purchase_price) AS stock_value
+                $price
+                c.name AS category_name, s.name AS supplier_name
          FROM products p
          LEFT JOIN categories c ON p.category_id = c.id
          LEFT JOIN suppliers  s ON p.supplier_id  = s.id
          WHERE p.active = 1
          ORDER BY c.name, p.name"
     );
+    $stmt->execute();
     jsonResponse($stmt->fetchAll());
 }
 
@@ -36,16 +46,16 @@ function reportVencimientos(PDO $db): void {
     $days = (int)($_GET['days'] ?? 30);
 
     $stmt = $db->prepare(
-        "SELECT pl.id, pl.lot_number, pl.expiry_date, pl.quantity,
+        "SELECT pl.id, pl.lot_number, pl.expiration_date AS expiry_date, pl.quantity,
                 p.name AS product_name, p.code AS product_code, p.unit,
                 l.name AS location_name,
-                DATEDIFF(pl.expiry_date, CURDATE()) AS days_left
+                DATEDIFF(pl.expiration_date, CURDATE()) AS days_left
          FROM product_lots pl
          JOIN products p ON pl.product_id = p.id
          LEFT JOIN locations l ON pl.location_id = l.id
-         WHERE pl.expiry_date <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+         WHERE pl.expiration_date <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
            AND pl.quantity > 0
-         ORDER BY pl.expiry_date ASC"
+         ORDER BY pl.expiration_date ASC"
     );
     $stmt->execute([$days]);
     jsonResponse($stmt->fetchAll());

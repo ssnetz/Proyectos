@@ -34,7 +34,8 @@ function listPersonas(PDO $db): void {
         $params  = array_merge($params, [$like, $like, $like]);
     }
 
-    $sql .= " ORDER BY apellido, nombre";
+    $limit = $search !== '' ? 300 : 100;
+    $sql .= " ORDER BY apellido, nombre LIMIT $limit";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     jsonResponse($stmt->fetchAll());

@@ -49,14 +49,14 @@ $movementsByDay = $db->query(
 )->fetchAll();
 
 $expiringSoon = $db->query(
-    "SELECT pl.id, pl.lot_number, pl.expiry_date, pl.quantity,
+    "SELECT pl.id, pl.lot_number, pl.expiration_date AS expiry_date, pl.quantity,
             p.name AS product_name,
-            DATEDIFF(pl.expiry_date, CURDATE()) AS days_left
+            DATEDIFF(pl.expiration_date, CURDATE()) AS days_left
      FROM product_lots pl
      JOIN products p ON pl.product_id = p.id
-     WHERE pl.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+     WHERE pl.expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
        AND pl.quantity > 0
-     ORDER BY pl.expiry_date ASC
+     ORDER BY pl.expiration_date ASC
      LIMIT 20"
 )->fetchAll();
 
