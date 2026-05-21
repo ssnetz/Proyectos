@@ -5,48 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Control de Stock</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>" />
-    <style>
-      #diag { display:none; font-family:monospace; padding:24px; background:#1e1e1e; color:#f8f8f2; margin:0; min-height:100vh; box-sizing:border-box; }
-      #diag h2 { color:#ff5555; margin-top:0 }
-      #diag .label { color:#8be9fd; font-size:12px; text-transform:uppercase; margin-top:16px; margin-bottom:4px }
-      #diag pre { background:#282a36; padding:12px; border-radius:4px; white-space:pre-wrap; word-break:break-all; font-size:13px; margin:0; color:#f1fa8c }
-      #diag .tip { margin-top:20px; font-size:13px; color:#6272a4 }
-    </style>
+    <script type="module" crossorigin src="/stock-control/assets/app.js"></script>
+    <link rel="stylesheet" crossorigin href="/stock-control/assets/index.css">
   </head>
   <body>
-    <div id="diag">
-      <h2>&#9888; Error al cargar la aplicación</h2>
-      <div class="label">Mensaje</div>
-      <pre id="diag-msg"></pre>
-      <div class="label">Detalle</div>
-      <pre id="diag-detail"></pre>
-      <p class="tip">Copiá este mensaje y enviáselo al desarrollador. También podés abrir F12 → Console para más información.</p>
-    </div>
     <div id="root"></div>
-
-    <script>
-      function showError(msg, detail) {
-        document.getElementById('diag').style.display = 'block';
-        document.getElementById('root').style.display = 'none';
-        document.getElementById('diag-msg').textContent = msg || '(sin mensaje)';
-        document.getElementById('diag-detail').textContent = detail || '';
-      }
-      window.addEventListener('error', function(e) {
-        showError(e.message, (e.filename || '') + (e.lineno ? '\nLínea: ' + e.lineno : ''));
-      });
-      window.addEventListener('unhandledrejection', function(e) {
-        var r = e.reason;
-        showError(
-          'Promise rechazado: ' + (r && r.message ? r.message : String(r)),
-          r && r.stack ? r.stack : ''
-        );
-      });
-    </script>
-
-    <script type="module"
-      src="/stock-control/assets/index-Bs3Csyws.js"
-      onerror="showError('No se pudo cargar: /stock-control/assets/index-Bs3Csyws.js', 'Verificá que el archivo existe en htdocs/stock-control/assets/')"
-    ></script>
-    <link rel="stylesheet" href="/stock-control/assets/index-BksEAt_4.css">
   </body>
 </html>
