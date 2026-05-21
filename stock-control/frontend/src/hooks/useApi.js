@@ -17,12 +17,13 @@ api.interceptors.response.use(
 );
 
 export function useMedicamentos() {
-  const list   = (params)     => api.get('/medicamentos.php', { params });
-  const get    = (id)         => api.get('/medicamentos.php', { params: { id } });
-  const create = (data)       => api.post('/medicamentos.php', data);
-  const update = (id, data)   => api.put(`/medicamentos.php?id=${id}`, data);
-  const remove = (id)         => api.delete(`/medicamentos.php?id=${id}`);
-  return { list, get, create, update, remove };
+  const list        = (params)   => api.get('/medicamentos.php', { params });
+  const get         = (id)       => api.get('/medicamentos.php', { params: { id } });
+  const distribucion = (id)      => api.get('/medicamentos.php', { params: { id, distribucion: 1 } });
+  const create      = (data)     => api.post('/medicamentos.php', data);
+  const update      = (id, data) => api.put(`/medicamentos.php?id=${id}`, data);
+  const remove      = (id)       => api.delete(`/medicamentos.php?id=${id}`);
+  return { list, get, distribucion, create, update, remove };
 }
 
 // Alias for backwards compatibility

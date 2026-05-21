@@ -10,7 +10,9 @@ $method = getMethod();
 $id     = getId();
 
 match ($method) {
-    'GET'    => (requireAuth() && ($id ? getMedicamento($db, $id) : listMedicamentos($db))),
+    'GET'    => (requireAuth() && ($id
+                    ? (isset($_GET['distribucion']) ? getDistribucion($db, $id) : getMedicamento($db, $id))
+                    : listMedicamentos($db))),
     'POST'   => createMedicamento($db, requireAuth()),
     'PUT'    => ($id ? updateMedicamento($db, $id, requireAuth()) : jsonError('ID requerido', 400)),
     'DELETE' => ($id ? deleteMedicamento($db, $id, requireAuth()) : jsonError('ID requerido', 400)),
@@ -218,6 +220,27 @@ function updateMedicamento(PDO $db, int $id, array $auth): void {
     }
 
     getMedicamento($db, $id);
+}
+
+function getDistribucion(PDO $db, int $productId): void {
+    $stmt = $db->prepare("
+        SELECT
+            COALESCE(l.name, 'Sin ubicación') AS location_name,
+            m.location_id,
+            GREATEST(0, SUM(CASE
+                WHEN m.type = 'entrada' THEN m.quantity
+                WHEN m.type IN ('salida', 'dispensa') THEN -m.quantity
+                ELSE 0
+            END)) AS net_qty
+        FROM stock_movements m
+        LEFT JOIN locations l ON m.location_id = l.id
+        WHERE m.product_id = ? AND m.location_id IS NOT NULL
+        GROUP BY m.location_id, l.name
+        HAVING net_qty > 0
+        ORDER BY net_qty DESC
+    ");
+    $stmt->execute([$productId]);
+    jsonResponse($stmt->fetchAll());
 }
 
 function deleteMedicamento(PDO $db, int $id, array $auth): void {

@@ -33,6 +33,7 @@ export default function Medicamentos() {
   const [movModal, setMovModal] = useState(null);
   const [detailMed, setDetailMed] = useState(null); // null | product obj
   const [detailLotes, setDetailLotes] = useState([]);
+  const [detailDistrib, setDetailDistrib] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm]           = useState(emptyForm);
   const [movForm, setMovForm]     = useState({ type: 'entrada', quantity: '', reason: '', reference: '', location_id: '', to_location_id: '' });
@@ -119,9 +120,16 @@ export default function Medicamentos() {
   const openDetail = (p) => {
     setDetailMed(p);
     setDetailLotes([]);
+    setDetailDistrib([]);
     setDetailLoading(true);
-    lotesApi.list({ product_id: p.id })
-      .then((r) => setDetailLotes(r.data))
+    Promise.all([
+      lotesApi.list({ product_id: p.id }),
+      medApi.distribucion(p.id),
+    ])
+      .then(([lotesRes, distribRes]) => {
+        setDetailLotes(lotesRes.data);
+        setDetailDistrib(distribRes.data);
+      })
       .catch(() => {})
       .finally(() => setDetailLoading(false));
   };
@@ -151,8 +159,14 @@ export default function Medicamentos() {
       // Si el detalle de lotes está abierto para este medicamento, recargar los lotes
       if (detailMed?.id === movedId) {
         setDetailLoading(true);
-        lotesApi.list({ product_id: movedId })
-          .then((r) => setDetailLotes(r.data))
+        Promise.all([
+          lotesApi.list({ product_id: movedId }),
+          medApi.distribucion(movedId),
+        ])
+          .then(([lotesRes, distribRes]) => {
+            setDetailLotes(lotesRes.data);
+            setDetailDistrib(distribRes.data);
+          })
           .finally(() => setDetailLoading(false));
       }
     } catch (e) {
@@ -345,36 +359,30 @@ export default function Medicamentos() {
             )}
           </div>
 
-          {detailLoading ? <div className="spinner" /> : detailLotes.length === 0 ? (
-            <div className="empty" style={{ padding: '24px 0' }}>
-              <div className="empty-icon">📦</div>
-              <p>No hay lotes registrados para este medicamento</p>
-            </div>
-          ) : (
+          {detailLoading ? <div className="spinner" /> : (
             <>
-              {/* Stock por ubicación */}
-              {(() => {
-                const byLoc = detailLotes.reduce((acc, l) => {
-                  const loc = l.location_name || 'Sin ubicación';
-                  acc[loc] = (acc[loc] || 0) + Number(l.quantity);
-                  return acc;
-                }, {});
-                const locs = Object.entries(byLoc);
-                return locs.length > 0 && (
-                  <div style={{ marginBottom: 16 }}>
-                    <p style={{ fontWeight: 600, marginBottom: 8, color: 'var(--gray-700)' }}>Distribución por ubicación</p>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                      {locs.map(([loc, qty]) => (
-                        <div key={loc} style={{ background: 'var(--gray-50)', border: '1px solid var(--gray-200)', borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
-                          <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{qty}</div>
-                          <div style={{ fontSize: '.75rem', color: 'var(--gray-500)' }}>{loc}</div>
-                        </div>
-                      ))}
-                    </div>
+              {/* Distribución por ubicación (calculada desde movimientos) */}
+              {detailDistrib.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ fontWeight: 600, marginBottom: 8, color: 'var(--gray-700)' }}>Distribución por ubicación</p>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {detailDistrib.map((d) => (
+                      <div key={d.location_id ?? d.location_name} style={{ background: 'var(--gray-50)', border: '1px solid var(--gray-200)', borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
+                        <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{d.net_qty}</div>
+                        <div style={{ fontSize: '.75rem', color: 'var(--gray-500)' }}>{d.location_name}</div>
+                      </div>
+                    ))}
                   </div>
-                );
-              })()}
+                </div>
+              )}
 
+              {detailLotes.length === 0 ? (
+                <div className="empty" style={{ padding: '24px 0' }}>
+                  <div className="empty-icon">📦</div>
+                  <p>No hay lotes registrados para este medicamento</p>
+                </div>
+              ) : (
+                <>
               {/* Lista de lotes */}
               <p style={{ fontWeight: 600, marginBottom: 8, color: 'var(--gray-700)' }}>Lotes</p>
               <div className="table-wrap">
@@ -401,6 +409,8 @@ export default function Medicamentos() {
                   </tbody>
                 </table>
               </div>
+                </>
+              )}
             </>
           )}
         </Modal>
