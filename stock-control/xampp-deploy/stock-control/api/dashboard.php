@@ -8,9 +8,9 @@ requireAuth();
 
 $db = getDB();
 
-$totalProducts = $db->query("SELECT COUNT(*) FROM products WHERE active = 1")->fetchColumn();
-$lowStockCount = $db->query("SELECT COUNT(*) FROM products WHERE active = 1 AND stock <= min_stock")->fetchColumn();
-$outOfStock    = $db->query("SELECT COUNT(*) FROM products WHERE active = 1 AND stock = 0")->fetchColumn();
+$totalProducts  = $db->query("SELECT COUNT(*) FROM products WHERE active = 1")->fetchColumn();
+$lowStockCount  = $db->query("SELECT COUNT(*) FROM products WHERE active = 1 AND stock <= min_stock")->fetchColumn();
+$outOfStock     = $db->query("SELECT COUNT(*) FROM products WHERE active = 1 AND stock = 0")->fetchColumn();
 $totalSuppliers = $db->query("SELECT COUNT(*) FROM suppliers")->fetchColumn();
 
 $stockValue = $db->query(
@@ -37,11 +37,23 @@ $recentMovements = $db->query(
 $movementsByDay = $db->query(
     "SELECT DATE(created_at) AS day,
             SUM(CASE WHEN type='entrada' THEN quantity ELSE 0 END) AS entradas,
-            SUM(CASE WHEN type='salida' THEN quantity ELSE 0 END) AS salidas
+            SUM(CASE WHEN type='salida'  THEN quantity ELSE 0 END) AS salidas
      FROM stock_movements
      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
      GROUP BY DATE(created_at)
      ORDER BY day"
+)->fetchAll();
+
+$expiringSoon = $db->query(
+    "SELECT pl.id, pl.lot_number, pl.expiry_date, pl.quantity,
+            p.name AS product_name,
+            DATEDIFF(pl.expiry_date, CURDATE()) AS days_left
+     FROM product_lots pl
+     JOIN products p ON pl.product_id = p.id
+     WHERE pl.expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+       AND pl.quantity > 0
+     ORDER BY pl.expiry_date ASC
+     LIMIT 20"
 )->fetchAll();
 
 jsonResponse([
@@ -55,4 +67,5 @@ jsonResponse([
     'low_stock_products' => $lowStockProducts,
     'recent_movements'   => $recentMovements,
     'movements_by_day'   => $movementsByDay,
+    'expiring_soon'      => $expiringSoon,
 ]);

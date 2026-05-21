@@ -1,9 +1,16 @@
 <?php
+function startSession(): void {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_set_cookie_params(['path' => '/', 'samesite' => 'Lax', 'httponly' => true]);
+        session_start();
+    }
+}
+
 function setCorsHeaders(): void {
+    header('Content-Type: application/json; charset=utf-8');
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, Authorization');
-    header('Content-Type: application/json; charset=utf-8');
+    header('Access-Control-Allow-Headers: Content-Type');
 }
 
 function handleOptions(): void {
@@ -24,8 +31,7 @@ function jsonError(string $message, int $status = 400): void {
 }
 
 function getBody(): array {
-    $raw = file_get_contents('php://input');
-    return json_decode($raw, true) ?? [];
+    return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
 function getMethod(): string {
@@ -37,79 +43,18 @@ function getId(): ?int {
     return $id !== null ? (int)$id : null;
 }
 
-// ─── JWT puro en PHP sin librerías ──────────────────────────────────────────
-
-function base64url_encode(string $data): string {
-    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
-}
-
-function base64url_decode(string $data): string {
-    $remainder = strlen($data) % 4;
-    if ($remainder) {
-        $data .= str_repeat('=', 4 - $remainder);
-    }
-    return base64_decode(strtr($data, '-_', '+/'));
-}
-
-function jwtEncode(array $payload, string $secret): string {
-    $header  = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
-    $payload = base64url_encode(json_encode($payload));
-    $sig     = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
-    return "$header.$payload.$sig";
-}
-
-function jwtDecode(string $token, string $secret): ?array {
-    $parts = explode('.', $token);
-    if (count($parts) !== 3) return null;
-
-    [$header, $payload, $sig] = $parts;
-    $expected = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
-
-    if (!hash_equals($expected, $sig)) return null;
-
-    $data = json_decode(base64url_decode($payload), true);
-    if (!$data) return null;
-
-    if (isset($data['exp']) && $data['exp'] < time()) return null;
-
-    return $data;
-}
-
-function getAuthHeader(): string {
-    // 1. Variables estándar de Apache/mod_php
-    if (!empty($_SERVER['HTTP_AUTHORIZATION']))          return $_SERVER['HTTP_AUTHORIZATION'];
-    if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-
-    // 2. apache_request_headers() — más confiable que $_SERVER en XAMPP
-    if (function_exists('apache_request_headers')) {
-        $headers = apache_request_headers();
-        if (!empty($headers['Authorization']))  return $headers['Authorization'];
-        if (!empty($headers['authorization']))  return $headers['authorization'];
-    }
-
-    // 3. Header X-Token — fallback para cuando Apache bloquea Authorization
-    if (!empty($_SERVER['HTTP_X_TOKEN'])) return 'Bearer ' . $_SERVER['HTTP_X_TOKEN'];
-
-    return '';
-}
-
 function requireAuth(): array {
-    $authHeader = getAuthHeader();
-    if (!str_starts_with($authHeader, 'Bearer ')) {
+    startSession();
+    if (empty($_SESSION['user'])) {
         jsonError('No autorizado', 401);
     }
-    $token   = substr($authHeader, 7);
-    $payload = jwtDecode($token, JWT_SECRET);
-    if (!$payload) {
-        jsonError('No autorizado', 401);
-    }
-    return $payload;
+    return $_SESSION['user'];
 }
 
 function requireAdmin(): array {
-    $payload = requireAuth();
-    if (($payload['role'] ?? '') !== 'admin') {
+    $user = requireAuth();
+    if (($user['role'] ?? '') !== 'admin') {
         jsonError('Sin permisos', 403);
     }
-    return $payload;
+    return $user;
 }

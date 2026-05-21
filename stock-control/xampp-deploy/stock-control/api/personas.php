@@ -9,7 +9,7 @@ $db     = getDB();
 $method = getMethod();
 $id     = getId();
 
-match(true) {
+match (true) {
     $method === 'GET'    && $id !== null => (requireAuth() && getPersona($db, $id)),
     $method === 'GET'                   => (requireAuth() && listPersonas($db)),
     $method === 'POST'                  => createPersona($db, requireAuth()),
@@ -19,7 +19,7 @@ match(true) {
 };
 
 function listPersonas(PDO $db): void {
-    $search     = $_GET['search'] ?? '';
+    $search     = $_GET['search']      ?? '';
     $activeOnly = ($_GET['active_only'] ?? '1') !== '0';
 
     $sql    = "SELECT * FROM personas WHERE 1=1";
@@ -29,9 +29,9 @@ function listPersonas(PDO $db): void {
         $sql .= " AND active = 1";
     }
     if ($search !== '') {
-        $sql   .= " AND (documento LIKE ? OR apellido LIKE ? OR nombre LIKE ?)";
-        $like   = "%{$search}%";
-        $params = array_merge($params, [$like, $like, $like]);
+        $sql    .= " AND (documento LIKE ? OR apellido LIKE ? OR nombre LIKE ?)";
+        $like    = "%{$search}%";
+        $params  = array_merge($params, [$like, $like, $like]);
     }
 
     $sql .= " ORDER BY apellido, nombre";
@@ -65,14 +65,14 @@ function createPersona(PDO $db, array $auth): void {
             $data['tipo_documento'] ?? '1',
             trim($data['documento']),
             trim($data['apellido']),
-            $data['nombre']      ?? null,
-            $data['sexo']        ?? null,
-            $data['calle']       ?? null,
-            $data['numeracion']  ?? null,
-            $data['departamento']?? null,
-            $data['piso']        ?? null,
-            $data['barrio']      ?? null,
-            $data['cuit_cuil']   ?? null,
+            $data['nombre']       ?? null,
+            $data['sexo']         ?? null,
+            $data['calle']        ?? null,
+            $data['numeracion']   ?? null,
+            $data['departamento'] ?? null,
+            $data['piso']         ?? null,
+            $data['barrio']       ?? null,
+            $data['cuit_cuil']    ?? null,
         ]);
     } catch (PDOException $e) {
         if ($e->getCode() === '23000') jsonError('Ya existe una persona con ese documento');
@@ -103,14 +103,14 @@ function updatePersona(PDO $db, int $id, array $auth): void {
             $data['tipo_documento'] ?? '1',
             trim($data['documento']),
             trim($data['apellido']),
-            $data['nombre']      ?? null,
-            $data['sexo']        ?? null,
-            $data['calle']       ?? null,
-            $data['numeracion']  ?? null,
-            $data['departamento']?? null,
-            $data['piso']        ?? null,
-            $data['barrio']      ?? null,
-            $data['cuit_cuil']   ?? null,
+            $data['nombre']       ?? null,
+            $data['sexo']         ?? null,
+            $data['calle']        ?? null,
+            $data['numeracion']   ?? null,
+            $data['departamento'] ?? null,
+            $data['piso']         ?? null,
+            $data['barrio']       ?? null,
+            $data['cuit_cuil']    ?? null,
             $id,
         ]);
     } catch (PDOException $e) {

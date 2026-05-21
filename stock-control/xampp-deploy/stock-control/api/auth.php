@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
 
+startSession();
 setCorsHeaders();
 handleOptions();
 
@@ -11,13 +12,13 @@ $action = $_GET['action'] ?? '';
 
 match (true) {
     $method === 'POST' && $action === 'login'  => login($db),
-    $method === 'GET'  && $action === 'me'     => me($db),
+    $method === 'GET'  && $action === 'me'     => me(),
     $method === 'POST' && $action === 'logout' => logout(),
     default => jsonError('Acción no válida', 400),
 };
 
 function login(PDO $db): void {
-    $data = getBody();
+    $data     = getBody();
     $username = trim($data['username'] ?? '');
     $password = $data['password'] ?? '';
 
@@ -25,7 +26,9 @@ function login(PDO $db): void {
         jsonError('Usuario y contraseña requeridos');
     }
 
-    $stmt = $db->prepare("SELECT id, username, email, password, role, active FROM users WHERE username = ?");
+    $stmt = $db->prepare(
+        "SELECT id, username, email, password, role, active FROM users WHERE username = ?"
+    );
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -33,37 +36,36 @@ function login(PDO $db): void {
         jsonError('Credenciales incorrectas', 401);
     }
 
-    $now     = time();
-    $payload = [
+    $sessionUser = [
         'sub'      => $user['id'],
+        'id'       => $user['id'],
         'username' => $user['username'],
+        'email'    => $user['email'],
         'role'     => $user['role'],
-        'iat'      => $now,
-        'exp'      => $now + JWT_EXPIRY,
     ];
 
-    $token = jwtEncode($payload, JWT_SECRET);
+    $_SESSION['user'] = $sessionUser;
 
-    jsonResponse([
-        'token' => $token,
-        'user'  => [
-            'id'       => $user['id'],
-            'username' => $user['username'],
-            'email'    => $user['email'],
-            'role'     => $user['role'],
-        ],
-    ]);
+    jsonResponse(['user' => $sessionUser]);
 }
 
-function me(PDO $db): void {
-    $payload = requireAuth();
-    $stmt    = $db->prepare("SELECT id, username, email, role, active FROM users WHERE id = ? AND active = 1");
-    $stmt->execute([$payload['sub']]);
-    $user = $stmt->fetch();
-    if (!$user) jsonError('Usuario no encontrado', 404);
-    jsonResponse($user);
+function me(): void {
+    if (empty($_SESSION['user'])) {
+        jsonError('No autorizado', 401);
+    }
+    jsonResponse($_SESSION['user']);
 }
 
 function logout(): void {
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(
+            session_name(), '', time() - 42000,
+            $params['path'], $params['domain'],
+            $params['secure'], $params['httponly']
+        );
+    }
+    session_destroy();
     jsonResponse(['message' => 'Sesión cerrada']);
 }
