@@ -24,13 +24,13 @@ function SidebarUser() {
   const { user, logout } = useAuth();
   if (!user) return null;
 
-  const initials = user.username.slice(0, 2).toUpperCase();
+  const initials = (user.username || user.email || '??').slice(0, 2).toUpperCase();
 
   return (
     <div className="sidebar-user">
       <div className="sidebar-user-avatar">{initials}</div>
       <div className="sidebar-user-info">
-        <span className="sidebar-user-name">{user.username}</span>
+        <span className="sidebar-user-name">{user.username || user.email || '—'}</span>
         <span className={`badge ${user.role === 'admin' ? 'badge-purple' : 'badge-gray'}`} style={{ fontSize: '.65rem' }}>
           {user.role}
         </span>

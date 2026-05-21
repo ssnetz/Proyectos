@@ -19,6 +19,7 @@ export default function Dashboard() {
 
   if (loading) return <div className="spinner" />;
   if (error) return <div className="alert alert-danger">{error}</div>;
+  if (!data || !data.stats) return <div className="alert alert-danger">Error: respuesta inesperada del servidor. Revisá la consola PHP de XAMPP.</div>;
 
   const { stats, low_stock_products, recent_movements, movements_by_day } = data;
 
