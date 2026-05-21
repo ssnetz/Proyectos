@@ -34,6 +34,8 @@ function listMovimientos(PDO $db): void {
     if ($type !== '') {
         $sql .= " AND m.type = ?";
         $params[] = $type;
+    } else {
+        $sql .= " AND m.type != 'dispensa'";
     }
     if ($from !== '') {
         $sql .= " AND DATE(m.created_at) >= ?";

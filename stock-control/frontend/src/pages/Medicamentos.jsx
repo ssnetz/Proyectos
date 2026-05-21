@@ -61,6 +61,13 @@ export default function Medicamentos() {
     if (!loading) loadItems().catch(() => {});
   }, [search, filterCat, showLow]);
 
+  // Cuando se actualizan los items, sincronizar el stock del detalle si está abierto
+  useEffect(() => {
+    if (!detailMed) return;
+    const updated = items.find((p) => p.id === detailMed.id);
+    if (updated && updated.stock !== detailMed.stock) setDetailMed(updated);
+  }, [items]);
+
   const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); };
   const fld = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const mfld = (k) => (e) => setMovForm((f) => ({ ...f, [k]: e.target.value }));
@@ -134,12 +141,20 @@ export default function Medicamentos() {
   };
 
   const handleMovement = async () => {
+    const movedId = movModal.id;
     setSaving(true); setError('');
     try {
-      await movApi.create({ ...movForm, product_id: movModal.id });
+      await movApi.create({ ...movForm, product_id: movedId });
       notify('Movimiento registrado');
       setMovModal(null);
       await loadItems();
+      // Si el detalle de lotes está abierto para este medicamento, recargar los lotes
+      if (detailMed?.id === movedId) {
+        setDetailLoading(true);
+        lotesApi.list({ product_id: movedId })
+          .then((r) => setDetailLotes(r.data))
+          .finally(() => setDetailLoading(false));
+      }
     } catch (e) {
       setError(e.response?.data?.error || 'Error al registrar movimiento');
     } finally { setSaving(false); }

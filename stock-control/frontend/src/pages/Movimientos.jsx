@@ -3,11 +3,10 @@ import { useMovimientos, useMedicamentos } from '../hooks/useApi';
 import Modal from '../components/Modal';
 
 const TIPOS = [
-  { value: '',         label: 'Todos los tipos' },
-  { value: 'entrada',  label: 'Entradas' },
-  { value: 'salida',   label: 'Salidas' },
-  { value: 'ajuste',   label: 'Ajustes' },
-  { value: 'dispensa', label: 'Dispensas' },
+  { value: '',        label: 'Todos los tipos' },
+  { value: 'entrada', label: 'Entradas' },
+  { value: 'salida',  label: 'Salidas' },
+  { value: 'ajuste',  label: 'Ajustes' },
 ];
 
 export default function Movimientos() {
@@ -102,7 +101,10 @@ export default function Movimientos() {
             <input type="date" className="form-control" style={{ width: 150 }}
               value={toDate} onChange={(e) => setToDate(e.target.value)} title="Hasta" />
           </div>
-          <button className="btn btn-primary" onClick={openModal}>+ Registrar movimiento</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-ghost" onClick={() => loadMovs().catch(() => {})} title="Actualizar lista">↻ Actualizar</button>
+            <button className="btn btn-primary" onClick={openModal}>+ Registrar movimiento</button>
+          </div>
         </div>
 
         {loading ? <div className="spinner" /> : movs.length === 0 ? (

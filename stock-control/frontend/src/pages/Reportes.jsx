@@ -1,6 +1,58 @@
 import { useState, useEffect } from 'react';
 import { useReportes, useMedicamentos } from '../hooks/useApi';
 
+function exportPDF(data, tab, tabLabel, filters) {
+  if (!data || data.length === 0) return;
+
+  const fmtDate = (d) => d ? new Date(d).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+  const fmtDay  = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('es-AR') : '—';
+
+  const HEADERS = {
+    stock:        ['Código','Medicamento','Acción terapéutica','Categoría','Stock','Stock mín.','Unidad','$ Compra','Valor stock'],
+    vencimientos: ['Medicamento','N° Lote','Vencimiento','Cantidad','Ubicación','Días restantes'],
+    dispensas:    ['Referencia','Fecha','Paciente','Documento','Ítems','Unidades','Operador','Observaciones'],
+    movimientos:  ['Fecha','Medicamento','Tipo','Cantidad','Stock ant.','Stock nuevo','Motivo','Operador'],
+  };
+
+  const buildRow = (d) => {
+    if (tab === 'stock') return [d.code, d.name, d.therapeutic_action||'—', d.category_name||'—', d.stock, d.min_stock, d.unit, `$${Number(d.purchase_price).toLocaleString('es-AR')}`, `$${Number(d.stock_value).toLocaleString('es-AR')}`];
+    if (tab === 'vencimientos') return [d.product_name, d.lot_number, fmtDay(d.expiry_date), `${d.quantity} ${d.unit}`, d.location_name||'—', Number(d.days_left) < 0 ? `Vencido hace ${Math.abs(Number(d.days_left))} días` : `${d.days_left} días`];
+    if (tab === 'dispensas') return [d.reference, fmtDate(d.fecha), `${d.apellido}, ${d.nombre}`, d.documento, d.total_items, d.total_unidades, d.operador||'—', d.observaciones||'—'];
+    if (tab === 'movimientos') return [fmtDate(d.created_at), d.product_name, d.type, d.quantity, d.previous_stock, d.new_stock, d.reason||'—', d.user||'—'];
+    return [];
+  };
+
+  const headers = HEADERS[tab] || [];
+  const rows    = data.map(buildRow);
+
+  const thCells = headers.map((h) => `<th>${h}</th>`).join('');
+  const trRows  = rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('');
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<title>Reporte ${tabLabel}</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:10px;margin:16px}
+  h2{font-size:14px;margin:0 0 2px}
+  .sub{color:#666;font-size:9px;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse}
+  th{background:#e5e7eb;padding:5px 7px;text-align:left;border:1px solid #ccc;font-size:9px}
+  td{padding:4px 7px;border:1px solid #ddd;vertical-align:top}
+  tr:nth-child(even){background:#f9fafb}
+  .foot{color:#999;font-size:9px;margin-top:8px}
+  @page{margin:15mm}
+</style></head><body>
+<h2>Farmacia — Reporte ${tabLabel}</h2>
+<p class="sub">${filters || ''} &nbsp;·&nbsp; Generado: ${new Date().toLocaleString('es-AR')} &nbsp;·&nbsp; ${data.length} registros</p>
+<table><thead><tr>${thCells}</tr></thead><tbody>${trRows}</tbody></table>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 400);
+}
+
 function exportCSV(data, filename) {
   if (!data || data.length === 0) return;
   const keys = Object.keys(data[0]);
@@ -93,7 +145,16 @@ export default function Reportes() {
       )}
       <button className="btn btn-primary btn-sm" onClick={loadReport}>Generar</button>
       <button className="btn btn-ghost btn-sm" onClick={() => exportCSV(data, `reporte-${tab}-${today}.csv`)}>
-        Exportar CSV
+        CSV
+      </button>
+      <button className="btn btn-ghost btn-sm" onClick={() => {
+        const tabLabel = TABS.find(t => t.id === tab)?.label || tab;
+        const filterDesc = tab === 'vencimientos' ? `Próximos ${days} días`
+          : (tab === 'dispensas' || tab === 'movimientos') ? `${from} al ${to}`
+          : '';
+        exportPDF(data, tab, tabLabel, filterDesc);
+      }}>
+        PDF
       </button>
     </div>
   );
