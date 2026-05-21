@@ -1,114 +1,122 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useDispensas, useBeneficiarios, useProducts } from '../hooks/useApi';
-import { useAuth } from '../context/AuthContext';
+import { useDispensas, usePersonas, useProducts, useLocations } from '../hooks/useApi';
 import Modal from '../components/Modal';
 
 const today = () => new Date().toISOString().slice(0, 10);
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-AR') : '—';
 
 export default function Dispensas() {
-  const dispensasApi     = useDispensas();
-  const beneficiariosApi = useBeneficiarios();
-  const productsApi      = useProducts();
-  const { user }         = useAuth();
+  const dispensasApi = useDispensas();
+  const personasApi  = usePersonas();
+  const productsApi  = useProducts();
+  const locationsApi = useLocations();
 
-  const [dispensas, setDispensas]         = useState([]);
-  const [beneficiarios, setBeneficiarios] = useState([]);
-  const [products, setProducts]           = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [error, setError]                 = useState('');
-  const [success, setSuccess]             = useState('');
+  const [dispensas, setDispensas]     = useState([]);
+  const [personas, setPersonas]       = useState([]);
+  const [products, setProducts]       = useState([]);
+  const [locations, setLocations]     = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState('');
+  const [success, setSuccess]         = useState('');
 
-  // Create modal state
+  // Create modal
   const [showCreate, setShowCreate]       = useState(false);
   const [saving, setSaving]               = useState(false);
-  const [benSearch, setBenSearch]         = useState('');
-  const [benDropdown, setBenDropdown]     = useState(false);
-  const [selectedBen, setSelectedBen]     = useState(null);
-  const [fecha, setFecha]                 = useState(today());
+  const [formError, setFormError]         = useState('');
+  const [personaSearch, setPersonaSearch] = useState('');
+  const [showDrop, setShowDrop]           = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState(null);
+  const [locationId, setLocationId]       = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [items, setItems]                 = useState([]);
-  const [formError, setFormError]         = useState('');
-  const benRef = useRef(null);
+  const dropRef = useRef(null);
 
-  // Detail modal state
-  const [detail, setDetail] = useState(null);
+  // Detail modal
+  const [detail, setDetail]               = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const load = useCallback(() =>
-    dispensasApi.list().then((r) => setDispensas(r.data)),
-  []);
+    dispensasApi.list().then((r) => setDispensas(r.data)), []);
 
   useEffect(() => {
     Promise.all([
       load(),
-      beneficiariosApi.list({ active_only: '1' }),
+      personasApi.list({ active_only: '1' }),
       productsApi.list(),
-    ]).then(([, bens, prods]) => {
-      setBeneficiarios(bens.data);
+      locationsApi.list(),
+    ]).then(([, pers, prods, locs]) => {
+      setPersonas(pers.data);
       setProducts(prods.data.filter((p) => p.active));
+      setLocations(locs.data);
+      if (locs.data.length === 1) setLocationId(String(locs.data[0].id));
     }).catch(() => setError('Error cargando datos'))
       .finally(() => setLoading(false));
   }, []);
 
-  // Close beneficiary dropdown on outside click
+  // Close dropdown on outside click
   useEffect(() => {
-    const handler = (e) => { if (benRef.current && !benRef.current.contains(e.target)) setBenDropdown(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const h = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) setShowDrop(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); };
+  const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3500); };
 
-  // ─── Beneficiary search helpers ──────────────────────────────────────────
-  const filteredBens = benSearch.length >= 1
-    ? beneficiarios.filter((b) => {
-        const q = benSearch.toLowerCase();
-        return b.dni.includes(q) || b.apellido.toLowerCase().includes(q) || b.nombre.toLowerCase().includes(q);
+  // ─── Persona search ────────────────────────────────────────────────────────
+  const filteredPersonas = personaSearch.length >= 1
+    ? personas.filter((p) => {
+        const q = personaSearch.toLowerCase();
+        return p.documento.includes(q)
+          || p.apellido.toLowerCase().includes(q)
+          || (p.nombre ?? '').toLowerCase().includes(q);
       }).slice(0, 8)
     : [];
 
-  const selectBen = (b) => { setSelectedBen(b); setBenSearch(''); setBenDropdown(false); };
-  const clearBen  = () => { setSelectedBen(null); setBenSearch(''); };
+  const selectPersona = (p) => { setSelectedPersona(p); setPersonaSearch(''); setShowDrop(false); };
+  const clearPersona  = () => { setSelectedPersona(null); setPersonaSearch(''); };
 
-  // ─── Items helpers ───────────────────────────────────────────────────────
-  const addItem = () => setItems([...items, { product_id: '', cantidad: 1 }]);
-  const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
-  const updateItem = (idx, key, val) =>
-    setItems(items.map((it, i) => i === idx ? { ...it, [key]: val } : it));
+  // ─── Items ─────────────────────────────────────────────────────────────────
+  const addItem    = () => setItems([...items, { product_id: '', cantidad: 1 }]);
+  const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
+  const setItem    = (i, k, v) => setItems(items.map((it, idx) => idx === i ? { ...it, [k]: v } : it));
 
-  const getProduct = (id) => products.find((p) => p.id === parseInt(id));
-  const usedProductIds = new Set(items.map((it) => parseInt(it.product_id)).filter(Boolean));
+  const getProduct    = (id) => products.find((p) => p.id === parseInt(id));
+  const usedIds       = new Set(items.map((it) => parseInt(it.product_id)).filter(Boolean));
 
-  // ─── Open create modal ───────────────────────────────────────────────────
+  // ─── Open create ────────────────────────────────────────────────────────────
   const openCreate = () => {
-    setSelectedBen(null); setBenSearch(''); setFecha(today());
-    setObservaciones(''); setItems([]); setFormError('');
+    setSelectedPersona(null); setPersonaSearch(''); setObservaciones('');
+    setItems([]); setFormError('');
+    if (locations.length !== 1) setLocationId('');
     setShowCreate(true);
   };
 
-  // ─── Submit dispensa ─────────────────────────────────────────────────────
+  // ─── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     setFormError('');
-    if (!selectedBen)              return setFormError('Seleccioná un beneficiario');
-    if (items.length === 0)        return setFormError('Agregá al menos un medicamento');
+    if (!selectedPersona)       return setFormError('Seleccioná una persona');
+    if (items.length === 0)     return setFormError('Agregá al menos un medicamento');
     for (const it of items) {
-      if (!it.product_id)          return setFormError('Seleccioná el medicamento en todos los ítems');
-      if (!it.cantidad || it.cantidad < 1) return setFormError('La cantidad debe ser mayor a 0');
+      if (!it.product_id)       return setFormError('Seleccioná el medicamento en todos los ítems');
+      if (!it.cantidad || parseInt(it.cantidad) < 1) return setFormError('La cantidad debe ser mayor a 0');
       const p = getProduct(it.product_id);
-      if (p && it.cantidad > p.stock) return setFormError(`Stock insuficiente para ${p.name} (disponible: ${p.stock})`);
+      if (p && parseInt(it.cantidad) > p.stock)
+        return setFormError(`Stock insuficiente para ${p.name} (disponible: ${p.stock})`);
     }
 
     setSaving(true);
     try {
       await dispensasApi.create({
-        beneficiario_id: selectedBen.id,
-        fecha,
+        persona_id:   selectedPersona.id,
+        location_id:  locationId || null,
         observaciones: observaciones || null,
-        items: items.map((it) => ({ product_id: parseInt(it.product_id), cantidad: parseInt(it.cantidad) })),
+        items: items.map((it) => ({
+          product_id: parseInt(it.product_id),
+          cantidad:   parseInt(it.cantidad),
+        })),
       });
       notify('Dispensa registrada correctamente');
       setShowCreate(false);
-      // Refresh dispensas and products (stock changed)
       const [, prods] = await Promise.all([load(), productsApi.list()]);
       setProducts(prods.data.filter((p) => p.active));
     } catch (e) {
@@ -116,18 +124,16 @@ export default function Dispensas() {
     } finally { setSaving(false); }
   };
 
-  // ─── View detail ─────────────────────────────────────────────────────────
-  const openDetail = async (id) => {
+  // ─── View detail ────────────────────────────────────────────────────────────
+  const openDetail = async (ref) => {
     setLoadingDetail(true);
-    setDetail({ id });
+    setDetail({ ref });
     try {
-      const r = await dispensasApi.get(id);
+      const r = await dispensasApi.get(ref);
       setDetail(r.data);
     } catch { setDetail(null); setError('Error cargando detalle'); }
     finally { setLoadingDetail(false); }
   };
-
-  const fmt = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('es-AR') : '—';
 
   return (
     <div>
@@ -147,31 +153,31 @@ export default function Dispensas() {
             <table>
               <thead>
                 <tr>
-                  <th>#</th><th>Fecha</th><th>Beneficiario</th><th>Obra Social</th>
-                  <th>Medicamentos</th><th>Operador</th><th>Detalle</th>
+                  <th>Referencia</th><th>Fecha</th><th>Persona</th>
+                  <th>Ubicación</th><th>Medicamentos</th><th>Operador</th><th></th>
                 </tr>
               </thead>
               <tbody>
                 {dispensas.map((d) => (
-                  <tr key={d.id}>
-                    <td><code style={{ fontSize: '.8rem' }}>#{d.id}</code></td>
-                    <td>{fmt(d.fecha)}</td>
+                  <tr key={d.reference}>
+                    <td><code style={{ fontSize: '.75rem' }}>{d.reference}</code></td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(d.fecha)}</td>
                     <td>
-                      <strong>{d.apellido}</strong>, {d.nombre}
-                      <br /><code style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>DNI {d.dni}</code>
+                      <strong>{d.apellido}</strong>{d.nombre ? `, ${d.nombre}` : ''}
+                      <br /><span style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>Doc. {d.documento}</span>
                     </td>
+                    <td>{d.location_name || <span style={{ color: 'var(--gray-400)' }}>—</span>}</td>
                     <td>
-                      {d.obra_social
-                        ? <>{d.obra_social}<br /><span style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>{d.numero_afiliado}</span></>
-                        : <span style={{ color: 'var(--gray-400)' }}>—</span>}
-                    </td>
-                    <td>
-                      <span className="badge badge-purple">{d.total_items} ítem{d.total_items !== 1 ? 's' : ''}</span>
-                      <span style={{ marginLeft: 6, fontSize: '.8rem', color: 'var(--gray-400)' }}>{d.total_unidades} u.</span>
+                      <span className="badge badge-purple">
+                        {d.total_items} ítem{d.total_items !== 1 ? 's' : ''}
+                      </span>
+                      <span style={{ marginLeft: 6, fontSize: '.8rem', color: 'var(--gray-400)' }}>
+                        {d.total_unidades} u.
+                      </span>
                     </td>
                     <td style={{ fontSize: '.85rem' }}>{d.user || '—'}</td>
                     <td>
-                      <button className="btn btn-ghost btn-sm" onClick={() => openDetail(d.id)}>Ver</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openDetail(d.reference)}>Ver</button>
                     </td>
                   </tr>
                 ))}
@@ -181,7 +187,7 @@ export default function Dispensas() {
         )}
       </div>
 
-      {/* ─── Create modal ──────────────────────────────────────────────── */}
+      {/* ─── Create modal ─────────────────────────────────────────────────── */}
       {showCreate && (
         <Modal
           title="Nueva Dispensa"
@@ -198,56 +204,65 @@ export default function Dispensas() {
         >
           {formError && <div className="alert alert-danger">{formError}</div>}
 
-          {/* Beneficiario */}
-          <fieldset style={{ border: '1px solid var(--gray-700)', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
-            <legend style={{ fontSize: '.8rem', color: 'var(--gray-400)', padding: '0 6px' }}>Beneficiario</legend>
-            {selectedBen ? (
+          {/* Persona */}
+          <fieldset style={{ border: '1px solid var(--gray-700)', borderRadius: 8, padding: '12px 16px', marginBottom: 14 }}>
+            <legend style={{ fontSize: '.75rem', color: 'var(--gray-400)', padding: '0 6px', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+              Persona
+            </legend>
+            {selectedPersona ? (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--gray-800)', borderRadius: 6, padding: '8px 12px' }}>
                 <div>
-                  <strong>{selectedBen.apellido}, {selectedBen.nombre}</strong>
-                  <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-400)' }}>DNI {selectedBen.dni}</span>
-                  {selectedBen.obra_social && (
-                    <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-400)' }}>{selectedBen.obra_social}</span>
+                  <strong>{selectedPersona.apellido}</strong>{selectedPersona.nombre ? `, ${selectedPersona.nombre}` : ''}
+                  <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-400)' }}>
+                    Doc. {selectedPersona.documento}
+                  </span>
+                  {selectedPersona.barrio && (
+                    <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-400)' }}>
+                      {selectedPersona.barrio}
+                    </span>
                   )}
                 </div>
-                <button className="btn btn-ghost btn-sm" onClick={clearBen} style={{ fontSize: '.75rem' }}>Cambiar</button>
+                <button className="btn btn-ghost btn-sm" onClick={clearPersona} style={{ fontSize: '.75rem' }}>
+                  Cambiar
+                </button>
               </div>
             ) : (
-              <div ref={benRef} style={{ position: 'relative' }}>
+              <div ref={dropRef} style={{ position: 'relative' }}>
                 <input
                   className="form-control"
-                  placeholder="Buscar por DNI, apellido o nombre..."
-                  value={benSearch}
-                  onChange={(e) => { setBenSearch(e.target.value); setBenDropdown(true); }}
-                  onFocus={() => setBenDropdown(true)}
+                  placeholder="Buscar por documento, apellido o nombre..."
+                  value={personaSearch}
+                  onChange={(e) => { setPersonaSearch(e.target.value); setShowDrop(true); }}
+                  onFocus={() => setShowDrop(true)}
                   autoComplete="off"
                 />
-                {benDropdown && filteredBens.length > 0 && (
+                {showDrop && filteredPersonas.length > 0 && (
                   <div style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
                     background: 'var(--gray-800)', border: '1px solid var(--gray-700)',
-                    borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,.4)', maxHeight: 220, overflowY: 'auto'
+                    borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,.5)',
+                    maxHeight: 240, overflowY: 'auto',
                   }}>
-                    {filteredBens.map((b) => (
+                    {filteredPersonas.map((p) => (
                       <div
-                        key={b.id}
-                        onMouseDown={() => selectBen(b)}
+                        key={p.id}
+                        onMouseDown={() => selectPersona(p)}
                         style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--gray-700)' }}
                         onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-700)'}
                         onMouseLeave={(e) => e.currentTarget.style.background = ''}
                       >
-                        <strong>{b.apellido}</strong>, {b.nombre}
-                        <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-400)' }}>DNI {b.dni}</span>
-                        {b.obra_social && <span style={{ marginLeft: 10, fontSize: '.75rem', color: 'var(--gray-500)' }}>{b.obra_social}</span>}
+                        <strong>{p.apellido}</strong>{p.nombre ? `, ${p.nombre}` : ''}
+                        <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-400)' }}>Doc. {p.documento}</span>
+                        {p.barrio && <span style={{ marginLeft: 8, fontSize: '.75rem', color: 'var(--gray-500)' }}>{p.barrio}</span>}
                       </div>
                     ))}
                   </div>
                 )}
-                {benDropdown && benSearch.length >= 1 && filteredBens.length === 0 && (
+                {showDrop && personaSearch.length >= 1 && filteredPersonas.length === 0 && (
                   <div style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
                     background: 'var(--gray-800)', border: '1px solid var(--gray-700)',
-                    borderRadius: 6, padding: '10px 12px', fontSize: '.85rem', color: 'var(--gray-400)'
+                    borderRadius: 6, padding: '10px 12px', fontSize: '.875rem', color: 'var(--gray-400)',
                   }}>
                     Sin resultados
                   </div>
@@ -256,60 +271,76 @@ export default function Dispensas() {
             )}
           </fieldset>
 
-          {/* Fecha y observaciones */}
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Fecha *</label>
-              <input type="date" className="form-control" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-            </div>
+          {/* Ubicación y observaciones */}
+          <div className="form-row" style={{ marginBottom: 14 }}>
+            {locations.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Ubicación / Servicio</label>
+                <select className="form-control" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+                  <option value="">— Sin especificar —</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>{l.name} ({l.type})</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="form-group" style={{ flex: 2 }}>
               <label className="form-label">Observaciones</label>
-              <input className="form-control" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Opcional..." />
+              <input
+                className="form-control"
+                placeholder="Opcional..."
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+              />
             </div>
           </div>
 
-          {/* Items */}
+          {/* Medicamentos */}
           <fieldset style={{ border: '1px solid var(--gray-700)', borderRadius: 8, padding: '12px 16px' }}>
-            <legend style={{ fontSize: '.8rem', color: 'var(--gray-400)', padding: '0 6px' }}>Medicamentos</legend>
+            <legend style={{ fontSize: '.75rem', color: 'var(--gray-400)', padding: '0 6px', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+              Medicamentos
+            </legend>
             {items.length === 0 && (
-              <p style={{ color: 'var(--gray-500)', fontSize: '.875rem', marginBottom: 8 }}>Ningún medicamento agregado aún.</p>
+              <p style={{ color: 'var(--gray-500)', fontSize: '.875rem', marginBottom: 8 }}>
+                Ningún medicamento agregado aún.
+              </p>
             )}
             {items.map((item, idx) => {
-              const prod = getProduct(item.product_id);
-              const maxQty = prod ? prod.stock : 9999;
+              const prod  = getProduct(item.product_id);
               const isOver = prod && parseInt(item.cantidad) > prod.stock;
               return (
-                <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
                   <div style={{ flex: 3 }}>
                     <select
                       className="form-control"
                       value={item.product_id}
-                      onChange={(e) => updateItem(idx, 'product_id', e.target.value)}
+                      onChange={(e) => setItem(idx, 'product_id', e.target.value)}
                     >
                       <option value="">Seleccionar medicamento...</option>
                       {products
-                        .filter((p) => !usedProductIds.has(p.id) || p.id === parseInt(item.product_id))
+                        .filter((p) => !usedIds.has(p.id) || p.id === parseInt(item.product_id))
                         .map((p) => (
                           <option key={p.id} value={p.id} disabled={p.stock === 0}>
-                            {p.name} — stock: {p.stock} {p.unit}
+                            {p.name}{p.therapeutic_action ? ` — ${p.therapeutic_action}` : ''} (stock: {p.stock} {p.unit})
                           </option>
                         ))}
                     </select>
                   </div>
-                  <div style={{ width: 100 }}>
+                  <div style={{ width: 90 }}>
                     <input
-                      type="number" className="form-control" min="1" max={maxQty}
+                      type="number" className="form-control" min="1"
+                      max={prod ? prod.stock : undefined}
                       value={item.cantidad}
-                      onChange={(e) => updateItem(idx, 'cantidad', e.target.value)}
+                      onChange={(e) => setItem(idx, 'cantidad', e.target.value)}
                       style={isOver ? { borderColor: 'var(--red-500)' } : {}}
                     />
                   </div>
                   {prod && (
-                    <div style={{ fontSize: '.75rem', color: isOver ? 'var(--red-400)' : 'var(--gray-400)', paddingTop: 8, whiteSpace: 'nowrap' }}>
-                      stock: {prod.stock}
-                    </div>
+                    <span style={{ fontSize: '.75rem', color: isOver ? 'var(--red-400)' : 'var(--gray-400)', whiteSpace: 'nowrap' }}>
+                      / {prod.stock}
+                    </span>
                   )}
-                  <button className="btn btn-ghost btn-sm btn-icon" onClick={() => removeItem(idx)} style={{ marginTop: 2 }}>✕</button>
+                  <button className="btn btn-ghost btn-sm btn-icon" onClick={() => removeItem(idx)}>✕</button>
                 </div>
               );
             })}
@@ -325,29 +356,30 @@ export default function Dispensas() {
         </Modal>
       )}
 
-      {/* ─── Detail modal ──────────────────────────────────────────────── */}
+      {/* ─── Detail modal ─────────────────────────────────────────────────── */}
       {detail && (
         <Modal
-          title={`Detalle de Dispensa #${detail.id}`}
+          title={`Dispensa ${detail.reference ?? ''}`}
           onClose={() => setDetail(null)}
           size="modal-lg"
         >
           {loadingDetail ? <div className="spinner" /> : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px', marginBottom: 16 }}>
                 <div>
-                  <span style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>Beneficiario</span>
-                  <p style={{ margin: 0, fontWeight: 600 }}>{detail.apellido}, {detail.nombre}</p>
-                  <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--gray-400)' }}>DNI {detail.dni}</p>
-                </div>
-                <div>
-                  <span style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>Obra Social</span>
-                  <p style={{ margin: 0 }}>{detail.obra_social || '—'}</p>
-                  {detail.numero_afiliado && <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--gray-400)' }}>N° {detail.numero_afiliado}</p>}
+                  <span style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>Persona</span>
+                  <p style={{ margin: 0, fontWeight: 600 }}>
+                    {detail.apellido}{detail.nombre ? `, ${detail.nombre}` : ''}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--gray-400)' }}>Doc. {detail.documento}</p>
                 </div>
                 <div>
                   <span style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>Fecha</span>
-                  <p style={{ margin: 0 }}>{fmt(detail.fecha)}</p>
+                  <p style={{ margin: 0 }}>{fmtDate(detail.fecha)}</p>
+                </div>
+                <div>
+                  <span style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>Ubicación</span>
+                  <p style={{ margin: 0 }}>{detail.location_name || '—'}</p>
                 </div>
                 <div>
                   <span style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>Operador</span>
@@ -365,7 +397,8 @@ export default function Dispensas() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Código</th><th>Medicamento</th><th>Cantidad</th><th>Stock previo</th><th>Stock final</th>
+                      <th>Código</th><th>Medicamento</th><th>Acción terap.</th>
+                      <th>Cantidad</th><th>Stock previo</th><th>Stock final</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -373,6 +406,9 @@ export default function Dispensas() {
                       <tr key={it.id}>
                         <td><code style={{ fontSize: '.8rem' }}>{it.product_code}</code></td>
                         <td>{it.product_name}</td>
+                        <td style={{ fontSize: '.8rem', color: 'var(--gray-400)' }}>
+                          {it.therapeutic_action || '—'}
+                        </td>
                         <td><strong>{it.cantidad}</strong> {it.unit}</td>
                         <td style={{ color: 'var(--gray-400)' }}>{it.stock_previo}</td>
                         <td>{it.stock_nuevo}</td>

@@ -70,18 +70,23 @@ export function useUsers() {
   return { list, create, update, remove };
 }
 
-export function useBeneficiarios() {
-  const list   = (params)     => api.get('/beneficiarios.php', { params });
-  const get    = (id)         => api.get('/beneficiarios.php', { params: { id } });
-  const create = (data)       => api.post('/beneficiarios.php', data);
-  const update = (id, data)   => api.put(`/beneficiarios.php?id=${id}`, data);
-  const remove = (id)         => api.delete(`/beneficiarios.php?id=${id}`);
+export function usePersonas() {
+  const list   = (params)     => api.get('/personas.php', { params });
+  const get    = (id)         => api.get('/personas.php', { params: { id } });
+  const create = (data)       => api.post('/personas.php', data);
+  const update = (id, data)   => api.put(`/personas.php?id=${id}`, data);
+  const remove = (id)         => api.delete(`/personas.php?id=${id}`);
   return { list, get, create, update, remove };
+}
+
+export function useLocations() {
+  const list = (params) => api.get('/locations.php', { params });
+  return { list };
 }
 
 export function useDispensas() {
   const list   = (params)     => api.get('/dispensas.php', { params });
-  const get    = (id)         => api.get('/dispensas.php', { params: { id } });
+  const get    = (ref)        => api.get('/dispensas.php', { params: { ref } });
   const create = (data)       => api.post('/dispensas.php', data);
   return { list, get, create };
 }

@@ -7,60 +7,81 @@ handleOptions();
 
 $db     = getDB();
 $method = getMethod();
-$id     = getId();
+$ref    = $_GET['ref'] ?? null;
 
 match(true) {
-    $method === 'GET'  && $id !== null => (requireAuth() && getDispensa($db, $id)),
-    $method === 'GET'                  => (requireAuth() && listDispensas($db)),
-    $method === 'POST'                 => createDispensa($db, requireAuth()),
+    $method === 'GET'  && $ref !== null => (requireAuth() && getDispensa($db, $ref)),
+    $method === 'GET'                   => (requireAuth() && listDispensas($db)),
+    $method === 'POST'                  => createDispensa($db, requireAuth()),
     default => jsonError('Método no permitido', 405),
 };
 
 function listDispensas(PDO $db): void {
-    $beneficiarioId = $_GET['beneficiario_id'] ?? null;
-    $limit          = min((int)($_GET['limit'] ?? 100), 500);
+    $personaId = $_GET['persona_id'] ?? null;
+    $limit     = min((int)($_GET['limit'] ?? 100), 500);
 
-    $sql = "SELECT d.id, d.fecha, d.observaciones, d.user, d.created_at,
-                   b.id AS beneficiario_id, b.dni, b.apellido, b.nombre,
-                   b.obra_social, b.numero_afiliado,
-                   COUNT(di.id) AS total_items,
-                   SUM(di.cantidad) AS total_unidades
-            FROM dispensas d
-            JOIN beneficiarios b ON d.beneficiario_id = b.id
-            LEFT JOIN dispensa_items di ON di.dispensa_id = d.id
-            WHERE 1=1";
+    $sql = "SELECT
+                sm.reference,
+                sm.beneficiary_id,
+                p.documento, p.tipo_documento, p.apellido, p.nombre,
+                MIN(sm.created_at)  AS fecha,
+                COUNT(sm.id)        AS total_items,
+                SUM(sm.quantity)    AS total_unidades,
+                sm.user,
+                sm.location_id,
+                l.name              AS location_name,
+                MIN(sm.reason)      AS observaciones
+            FROM stock_movements sm
+            JOIN personas p ON sm.beneficiary_id = p.id
+            LEFT JOIN locations l ON sm.location_id = l.id
+            WHERE sm.type = 'dispensa'";
     $params = [];
 
-    if ($beneficiarioId) {
-        $sql    .= " AND d.beneficiario_id = ?";
-        $params[] = (int)$beneficiarioId;
+    if ($personaId) {
+        $sql    .= " AND sm.beneficiary_id = ?";
+        $params[] = (int)$personaId;
     }
 
-    $sql .= " GROUP BY d.id ORDER BY d.created_at DESC LIMIT $limit";
+    $sql .= " GROUP BY sm.reference, sm.beneficiary_id, sm.user, sm.location_id
+              ORDER BY MIN(sm.created_at) DESC
+              LIMIT $limit";
+
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     jsonResponse($stmt->fetchAll());
 }
 
-function getDispensa(PDO $db, int $id): void {
+function getDispensa(PDO $db, string $ref): void {
+    // Header info from first movement in this reference
     $stmt = $db->prepare(
-        "SELECT d.*, b.dni, b.apellido, b.nombre, b.obra_social, b.numero_afiliado
-         FROM dispensas d
-         JOIN beneficiarios b ON d.beneficiario_id = b.id
-         WHERE d.id = ?"
+        "SELECT sm.reference, sm.beneficiary_id, sm.user, sm.location_id,
+                MIN(sm.created_at) AS fecha,
+                MIN(sm.reason) AS observaciones,
+                p.documento, p.tipo_documento, p.apellido, p.nombre,
+                p.calle, p.numeracion, p.barrio, p.cuit_cuil,
+                l.name AS location_name, l.type AS location_type
+         FROM stock_movements sm
+         JOIN personas p ON sm.beneficiary_id = p.id
+         LEFT JOIN locations l ON sm.location_id = l.id
+         WHERE sm.reference = ? AND sm.type = 'dispensa'
+         GROUP BY sm.reference, sm.beneficiary_id, sm.user, sm.location_id"
     );
-    $stmt->execute([$id]);
+    $stmt->execute([$ref]);
     $dispensa = $stmt->fetch();
     if (!$dispensa) jsonError('Dispensa no encontrada', 404);
 
+    // Items
     $stmt = $db->prepare(
-        "SELECT di.*, p.name AS product_name, p.code AS product_code, p.unit
-         FROM dispensa_items di
-         JOIN products p ON di.product_id = p.id
-         WHERE di.dispensa_id = ?
-         ORDER BY di.id"
+        "SELECT sm.id, sm.product_id, sm.quantity AS cantidad,
+                sm.previous_stock AS stock_previo, sm.new_stock AS stock_nuevo,
+                pr.name AS product_name, pr.code AS product_code, pr.unit,
+                pr.therapeutic_action
+         FROM stock_movements sm
+         JOIN products pr ON sm.product_id = pr.id
+         WHERE sm.reference = ? AND sm.type = 'dispensa'
+         ORDER BY sm.id"
     );
-    $stmt->execute([$id]);
+    $stmt->execute([$ref]);
     $dispensa['items'] = $stmt->fetchAll();
 
     jsonResponse($dispensa);
@@ -69,103 +90,91 @@ function getDispensa(PDO $db, int $id): void {
 function createDispensa(PDO $db, array $auth): void {
     $data = getBody();
 
-    if (empty($data['beneficiario_id'])) jsonError('Campo requerido: beneficiario_id');
-    if (empty($data['fecha']))           jsonError('Campo requerido: fecha');
+    if (empty($data['persona_id']))                        jsonError('Campo requerido: persona_id');
     if (empty($data['items']) || !is_array($data['items'])) jsonError('Debe incluir al menos un medicamento');
-    if (count($data['items']) === 0)     jsonError('Debe incluir al menos un medicamento');
+    if (count($data['items']) === 0)                       jsonError('Debe incluir al menos un medicamento');
 
-    $beneficiarioId = (int)$data['beneficiario_id'];
-    $fecha          = $data['fecha'];
+    $personaId  = (int)$data['persona_id'];
+    $locationId = !empty($data['location_id']) ? (int)$data['location_id'] : null;
 
-    $stmt = $db->prepare("SELECT id, apellido, nombre FROM beneficiarios WHERE id = ? AND active = 1");
-    $stmt->execute([$beneficiarioId]);
-    $beneficiario = $stmt->fetch();
-    if (!$beneficiario) jsonError('Beneficiario no encontrado', 404);
+    // Validate persona
+    $stmt = $db->prepare("SELECT id, apellido, nombre FROM personas WHERE id = ? AND active = 1");
+    $stmt->execute([$personaId]);
+    $persona = $stmt->fetch();
+    if (!$persona) jsonError('Persona no encontrada', 404);
 
-    // Validate and load stock for each item
+    // Validate and collect stock for each item
     $itemsData = [];
     $seen      = [];
     foreach ($data['items'] as $item) {
         $productId = (int)($item['product_id'] ?? 0);
         $cantidad  = (int)($item['cantidad']   ?? 0);
 
-        if ($productId === 0) jsonError('product_id inválido en un ítem');
-        if ($cantidad <= 0)   jsonError('La cantidad debe ser mayor a 0');
-        if (isset($seen[$productId])) jsonError('Producto duplicado en la dispensa');
+        if ($productId === 0)           jsonError('product_id inválido en un ítem');
+        if ($cantidad <= 0)             jsonError('La cantidad debe ser mayor a 0');
+        if (isset($seen[$productId]))   jsonError('Medicamento duplicado en la dispensa');
         $seen[$productId] = true;
 
         $stmt = $db->prepare("SELECT id, name, stock FROM products WHERE id = ? AND active = 1");
         $stmt->execute([$productId]);
         $product = $stmt->fetch();
         if (!$product) jsonError("Producto ID $productId no encontrado");
+
         if ($product['stock'] < $cantidad) {
             jsonError("Stock insuficiente para {$product['name']}. Disponible: {$product['stock']}");
         }
 
         $itemsData[] = [
             'product_id'  => $productId,
-            'product_name'=> $product['name'],
             'cantidad'    => $cantidad,
             'stock_previo'=> (int)$product['stock'],
             'stock_nuevo' => (int)$product['stock'] - $cantidad,
         ];
     }
 
+    // Unique reference for this dispensa session
+    $reference = 'DISP-' . date('YmdHis') . '-P' . $personaId;
+    $reason    = $data['observaciones'] ?? null;
+
     $db->beginTransaction();
     try {
-        // Insert dispensa header
-        $stmt = $db->prepare(
-            "INSERT INTO dispensas (beneficiario_id, fecha, observaciones, user_id, user)
-             VALUES (?, ?, ?, ?, ?)"
-        );
-        $stmt->execute([
-            $beneficiarioId,
-            $fecha,
-            $data['observaciones'] ?? null,
-            $auth['sub'],
-            $auth['username'],
-        ]);
-        $dispensaId = (int)$db->lastInsertId();
-
-        $refLabel = "Dispensa #{$dispensaId} — {$beneficiario['apellido']} {$beneficiario['nombre']}";
-
         foreach ($itemsData as $item) {
-            // Insert dispensa item
-            $stmt = $db->prepare(
-                "INSERT INTO dispensa_items (dispensa_id, product_id, cantidad, stock_previo, stock_nuevo)
-                 VALUES (?, ?, ?, ?, ?)"
-            );
-            $stmt->execute([
-                $dispensaId,
-                $item['product_id'],
-                $item['cantidad'],
-                $item['stock_previo'],
-                $item['stock_nuevo'],
-            ]);
-
-            // Reduce product stock
+            // Reduce total product stock
             $stmt = $db->prepare("UPDATE products SET stock = ?, updated_at = NOW() WHERE id = ?");
             $stmt->execute([$item['stock_nuevo'], $item['product_id']]);
 
-            // Record in stock_movements
+            // Also reduce product_stock for the location if an entry exists
+            if ($locationId) {
+                $stmt = $db->prepare(
+                    "UPDATE product_stock SET quantity = GREATEST(0, quantity - ?)
+                     WHERE product_id = ? AND location_id = ?"
+                );
+                $stmt->execute([$item['cantidad'], $item['product_id'], $locationId]);
+            }
+
+            // Record movement with type='dispensa'
             $stmt = $db->prepare(
                 "INSERT INTO stock_movements
-                 (product_id, type, quantity, previous_stock, new_stock, reason, reference, user, user_id)
-                 VALUES (?, 'salida', ?, ?, ?, 'Dispensa a beneficiario', ?, ?, ?)"
+                 (product_id, location_id, type, quantity, previous_stock, new_stock,
+                  reason, reference, user, user_id, beneficiary_id)
+                 VALUES (?, ?, 'dispensa', ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             $stmt->execute([
                 $item['product_id'],
+                $locationId,
                 $item['cantidad'],
                 $item['stock_previo'],
                 $item['stock_nuevo'],
-                $refLabel,
+                $reason,
+                $reference,
                 $auth['username'],
                 $auth['sub'],
+                $personaId,
             ]);
         }
 
         $db->commit();
-        jsonResponse(['message' => 'Dispensa registrada', 'id' => $dispensaId], 201);
+        jsonResponse(['message' => 'Dispensa registrada', 'reference' => $reference], 201);
     } catch (Exception $e) {
         $db->rollBack();
         jsonError('Error al registrar la dispensa: ' . $e->getMessage(), 500);

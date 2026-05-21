@@ -6,8 +6,8 @@ import Movements      from './pages/Movements';
 import Suppliers      from './pages/Suppliers';
 import Categories     from './pages/Categories';
 import Users          from './pages/Users';
-import Beneficiarios  from './pages/Beneficiarios';
-import Dispensas      from './pages/Dispensas';
+import Personas   from './pages/Personas';
+import Dispensas  from './pages/Dispensas';
 import Login          from './pages/Login';
 
 // ─── Protected route ────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ const pageTitles = {
   '/suppliers':       'Proveedores',
   '/categories':      'Categorías',
   '/users':           'Usuarios',
-  '/beneficiarios':   'Beneficiarios',
+  '/personas':        'Personas',
   '/dispensas':       'Dispensas',
 };
 
@@ -69,7 +69,7 @@ function AppLayout() {
     { to: '/',                icon: '📊', label: 'Dashboard' },
     { to: '/products',        icon: '📦', label: 'Productos' },
     { to: '/movements',       icon: '↕️',  label: 'Movimientos' },
-    { to: '/beneficiarios',   icon: '👥', label: 'Beneficiarios' },
+    { to: '/personas',        icon: '👥', label: 'Personas' },
     { to: '/dispensas',       icon: '💊', label: 'Dispensas' },
     { to: '/suppliers',       icon: '🏭', label: 'Proveedores' },
     { to: '/categories',      icon: '🏷️', label: 'Categorías' },
@@ -111,7 +111,7 @@ function AppLayout() {
             <Route path="/suppliers"  element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
             <Route path="/users"           element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
-            <Route path="/beneficiarios"  element={<ProtectedRoute><Beneficiarios /></ProtectedRoute>} />
+            <Route path="/personas"       element={<ProtectedRoute><Personas /></ProtectedRoute>} />
             <Route path="/dispensas"      element={<ProtectedRoute><Dispensas /></ProtectedRoute>} />
           </Routes>
         </main>
