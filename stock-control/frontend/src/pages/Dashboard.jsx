@@ -76,6 +76,24 @@ export default function Dashboard() {
             <div className="stat-label">Proveedores</div>
           </div>
         </div>
+        <div className="stat-card">
+          <div className="stat-icon yellow">⏰</div>
+          <div>
+            <div className="stat-value" style={{ color: stats.expiring_count > 0 ? 'var(--warning)' : 'inherit' }}>
+              {stats.expiring_count ?? 0}
+            </div>
+            <div className="stat-label">Vencen en 30 días</div>
+          </div>
+        </div>
+        {(stats.expired_count ?? 0) > 0 && (
+          <div className="stat-card">
+            <div className="stat-icon red">💀</div>
+            <div>
+              <div className="stat-value" style={{ color: 'var(--danger)' }}>{stats.expired_count}</div>
+              <div className="stat-label">Lotes vencidos</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Chart + recent movements */}

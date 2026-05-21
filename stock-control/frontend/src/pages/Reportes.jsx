@@ -32,16 +32,29 @@ function exportPDF(data, tab, tabLabel, filters) {
 <title>Reporte ${tabLabel}</title>
 <style>
   body{font-family:Arial,sans-serif;font-size:10px;margin:16px}
-  h2{font-size:14px;margin:0 0 2px}
-  .sub{color:#666;font-size:9px;margin-bottom:12px}
+  .header{display:flex;align-items:center;gap:14px;border-bottom:2px solid #1e3a5f;padding-bottom:10px;margin-bottom:10px}
+  .header img{height:52px;width:auto}
+  .header-text{flex:1}
+  .header-muni{font-size:11px;font-weight:700;color:#1e3a5f;line-height:1.3;text-transform:uppercase;letter-spacing:.03em}
+  .header-dep{font-size:9px;color:#555;margin-top:2px}
+  .header-right{text-align:right;font-size:9px;color:#1e3a5f;font-weight:600;line-height:1.5}
+  h2{font-size:13px;margin:6px 0 2px;color:#1e3a5f}
+  .sub{color:#666;font-size:9px;margin-bottom:10px}
   table{width:100%;border-collapse:collapse}
-  th{background:#e5e7eb;padding:5px 7px;text-align:left;border:1px solid #ccc;font-size:9px}
+  th{background:#1e3a5f;color:#fff;padding:5px 7px;text-align:left;border:1px solid #1e3a5f;font-size:9px}
   td{padding:4px 7px;border:1px solid #ddd;vertical-align:top}
-  tr:nth-child(even){background:#f9fafb}
-  .foot{color:#999;font-size:9px;margin-top:8px}
+  tr:nth-child(even){background:#f0f4f9}
   @page{margin:15mm}
 </style></head><body>
-<h2>Farmacia — Reporte ${tabLabel}</h2>
+<div class="header">
+  <img src="/stock-control/assets/logo-cosquin.png" onerror="this.style.display='none'" alt="" />
+  <div class="header-text">
+    <div class="header-muni">Municipalidad de la Ciudad de Cosquín</div>
+    <div class="header-dep">Secretaría de Salud — Farmacia Municipal</div>
+  </div>
+  <div class="header-right">Intendente<br/><strong>Dr. Raúl Cardinali</strong></div>
+</div>
+<h2>Reporte ${tabLabel}</h2>
 <p class="sub">${filters || ''} &nbsp;·&nbsp; Generado: ${new Date().toLocaleString('es-AR')} &nbsp;·&nbsp; ${data.length} registros</p>
 <table><thead><tr>${thCells}</tr></thead><tbody>${trRows}</tbody></table>
 </body></html>`;

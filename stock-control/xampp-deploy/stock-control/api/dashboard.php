@@ -60,6 +60,18 @@ $expiringSoon = $db->query(
      LIMIT 20"
 )->fetchAll();
 
+$expiringCount = (int)$db->query(
+    "SELECT COUNT(*) FROM product_lots
+     WHERE expiration_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+       AND quantity > 0"
+)->fetchColumn();
+
+$expiredCount = (int)$db->query(
+    "SELECT COUNT(*) FROM product_lots
+     WHERE expiration_date < CURDATE()
+       AND quantity > 0"
+)->fetchColumn();
+
 jsonResponse([
     'stats' => [
         'total_products'  => (int)$totalProducts,
@@ -67,6 +79,8 @@ jsonResponse([
         'out_of_stock'    => (int)$outOfStock,
         'total_suppliers' => (int)$totalSuppliers,
         'stock_value'     => (float)$stockValue,
+        'expiring_count'  => $expiringCount,
+        'expired_count'   => $expiredCount,
     ],
     'low_stock_products' => $lowStockProducts,
     'recent_movements'   => $recentMovements,
