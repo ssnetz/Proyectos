@@ -8,18 +8,19 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers = config.headers ?? {};
     config.headers['Authorization'] = `Bearer ${token}`;
+    // X-Token: fallback para XAMPP/Apache que bloquea el header Authorization
+    config.headers['X-Token'] = token;
   }
   return config;
 });
 
-// On 401, clean up token and redirect to /login
+// On 401, clean up token and emit event (no redirect brusco)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('sc_token');
-      // Redirect to login (works even without React Router context)
-      window.location.href = '/stock-control/login';
+      window.dispatchEvent(new Event('auth:logout'));
     }
     return Promise.reject(error);
   }

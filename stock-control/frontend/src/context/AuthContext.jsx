@@ -42,6 +42,16 @@ export function AuthProvider({ children }) {
     return newUser;
   }, []);
 
+  // Escucha el evento de 401 de cualquier endpoint
+  useEffect(() => {
+    const handle = () => {
+      setToken(null);
+      setUser(null);
+    };
+    window.addEventListener('auth:logout', handle);
+    return () => window.removeEventListener('auth:logout', handle);
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await axios.post(

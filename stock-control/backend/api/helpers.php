@@ -76,19 +76,20 @@ function jwtDecode(string $token, string $secret): ?array {
 }
 
 function getAuthHeader(): string {
-    // Apache en Windows (XAMPP) suele eliminar el header Authorization.
-    // Lo recuperamos desde las variables de entorno que pone el .htaccess
-    // o desde apache_request_headers() como último recurso.
-    if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
-        return $_SERVER['HTTP_AUTHORIZATION'];
-    }
-    if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
-        return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-    }
+    // 1. Variables estándar de Apache/mod_php
+    if (!empty($_SERVER['HTTP_AUTHORIZATION']))          return $_SERVER['HTTP_AUTHORIZATION'];
+    if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+
+    // 2. apache_request_headers() — más confiable que $_SERVER en XAMPP
     if (function_exists('apache_request_headers')) {
         $headers = apache_request_headers();
-        return $headers['Authorization'] ?? $headers['authorization'] ?? '';
+        if (!empty($headers['Authorization']))  return $headers['Authorization'];
+        if (!empty($headers['authorization']))  return $headers['authorization'];
     }
+
+    // 3. Header X-Token — fallback para cuando Apache bloquea Authorization
+    if (!empty($_SERVER['HTTP_X_TOKEN'])) return 'Bearer ' . $_SERVER['HTTP_X_TOKEN'];
+
     return '';
 }
 
