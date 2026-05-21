@@ -174,7 +174,9 @@ run($pdo, "CREATE TABLE IF NOT EXISTS users (
 run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS location_id    INT AFTER product_id",   "Columna stock_movements.location_id");
 run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS beneficiary_id INT AFTER location_id",  "Columna stock_movements.beneficiary_id");
 run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS user_id        INT AFTER user",         "Columna stock_movements.user_id");
-run($pdo, "ALTER TABLE products        ADD COLUMN IF NOT EXISTS therapeutic_action VARCHAR(200) AFTER unit", "Columna products.therapeutic_action");
+run($pdo, "ALTER TABLE products        ADD COLUMN IF NOT EXISTS therapeutic_action VARCHAR(200)   AFTER unit",         "Columna products.therapeutic_action");
+run($pdo, "ALTER TABLE products        ADD COLUMN IF NOT EXISTS purchase_price    DECIMAL(10,2) DEFAULT 0 AFTER therapeutic_action", "Columna products.purchase_price");
+run($pdo, "ALTER TABLE products        ADD COLUMN IF NOT EXISTS sale_price        DECIMAL(10,2) DEFAULT 0 AFTER purchase_price",     "Columna products.sale_price");
 
 // ── Ampliar ENUM type si falta 'dispensa' ────────────────────────────────────
 run($pdo, "ALTER TABLE stock_movements MODIFY COLUMN type ENUM('entrada','salida','ajuste','dispensa') NOT NULL",

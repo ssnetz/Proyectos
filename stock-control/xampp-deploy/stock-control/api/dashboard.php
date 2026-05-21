@@ -13,9 +13,13 @@ $lowStockCount  = $db->query("SELECT COUNT(*) FROM products WHERE active = 1 AND
 $outOfStock     = $db->query("SELECT COUNT(*) FROM products WHERE active = 1 AND stock = 0")->fetchColumn();
 $totalSuppliers = $db->query("SELECT COUNT(*) FROM suppliers")->fetchColumn();
 
-$stockValue = $db->query(
-    "SELECT COALESCE(SUM(stock * purchase_price), 0) FROM products WHERE active = 1"
-)->fetchColumn();
+try {
+    $stockValue = $db->query(
+        "SELECT COALESCE(SUM(stock * purchase_price), 0) FROM products WHERE active = 1"
+    )->fetchColumn();
+} catch (Exception $e) {
+    $stockValue = 0;
+}
 
 $lowStockProducts = $db->query(
     "SELECT p.id, p.code, p.name, p.stock, p.min_stock, c.name AS category_name

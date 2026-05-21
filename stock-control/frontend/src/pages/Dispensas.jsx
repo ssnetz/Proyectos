@@ -12,7 +12,6 @@ export default function Dispensas() {
   const locationsApi = useLocations();
 
   const [dispensas, setDispensas]     = useState([]);
-  const [personas, setPersonas]       = useState([]);
   const [products, setProducts]       = useState([]);
   const [locations, setLocations]     = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -24,6 +23,7 @@ export default function Dispensas() {
   const [saving, setSaving]               = useState(false);
   const [formError, setFormError]         = useState('');
   const [personaSearch, setPersonaSearch] = useState('');
+  const [filteredPersonas, setFilteredPersonas] = useState([]);
   const [showDrop, setShowDrop]           = useState(false);
   const [selectedPersona, setSelectedPersona] = useState(null);
   const [locationId, setLocationId]       = useState('');
@@ -41,17 +41,26 @@ export default function Dispensas() {
   useEffect(() => {
     Promise.all([
       load(),
-      personasApi.list({ active_only: '1' }),
       productsApi.list(),
       locationsApi.list(),
-    ]).then(([, pers, prods, locs]) => {
-      setPersonas(pers.data);
+    ]).then(([, prods, locs]) => {
       setProducts(prods.data.filter((p) => p.active));
       setLocations(locs.data);
       if (locs.data.length === 1) setLocationId(String(locs.data[0].id));
     }).catch(() => setError('Error cargando datos'))
       .finally(() => setLoading(false));
   }, []);
+
+  // Búsqueda de personas server-side con debounce (evita cargar todas al inicio)
+  useEffect(() => {
+    if (personaSearch.length < 2) { setFilteredPersonas([]); return; }
+    const t = setTimeout(() => {
+      personasApi.list({ search: personaSearch, active_only: '1' })
+        .then((r) => setFilteredPersonas((r.data || []).slice(0, 8)))
+        .catch(() => {});
+    }, 300);
+    return () => clearTimeout(t);
+  }, [personaSearch]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -62,17 +71,7 @@ export default function Dispensas() {
 
   const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3500); };
 
-  // ─── Persona search ────────────────────────────────────────────────────────
-  const filteredPersonas = personaSearch.length >= 1
-    ? personas.filter((p) => {
-        const q = personaSearch.toLowerCase();
-        return p.documento.includes(q)
-          || p.apellido.toLowerCase().includes(q)
-          || (p.nombre ?? '').toLowerCase().includes(q);
-      }).slice(0, 8)
-    : [];
-
-  const selectPersona = (p) => { setSelectedPersona(p); setPersonaSearch(''); setShowDrop(false); };
+  const selectPersona = (p) => { setSelectedPersona(p); setPersonaSearch(''); setShowDrop(false); setFilteredPersonas([]); };
   const clearPersona  = () => { setSelectedPersona(null); setPersonaSearch(''); };
 
   // ─── Items ─────────────────────────────────────────────────────────────────
@@ -205,19 +204,19 @@ export default function Dispensas() {
           {formError && <div className="alert alert-danger">{formError}</div>}
 
           {/* Persona */}
-          <fieldset style={{ border: '1px solid var(--gray-700)', borderRadius: 8, padding: '12px 16px', marginBottom: 14 }}>
-            <legend style={{ fontSize: '.75rem', color: 'var(--gray-400)', padding: '0 6px', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+          <fieldset style={{ border: '1px solid var(--gray-200)', borderRadius: 8, padding: '12px 16px', marginBottom: 14 }}>
+            <legend style={{ fontSize: '.75rem', color: 'var(--gray-500)', padding: '0 6px', textTransform: 'uppercase', letterSpacing: '.05em' }}>
               Persona
             </legend>
             {selectedPersona ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--gray-800)', borderRadius: 6, padding: '8px 12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--gray-100)', borderRadius: 6, padding: '8px 12px', border: '1px solid var(--gray-200)' }}>
                 <div>
                   <strong>{selectedPersona.apellido}</strong>{selectedPersona.nombre ? `, ${selectedPersona.nombre}` : ''}
-                  <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-400)' }}>
+                  <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-500)' }}>
                     Doc. {selectedPersona.documento}
                   </span>
                   {selectedPersona.barrio && (
-                    <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-400)' }}>
+                    <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-500)' }}>
                       {selectedPersona.barrio}
                     </span>
                   )}
@@ -239,30 +238,30 @@ export default function Dispensas() {
                 {showDrop && filteredPersonas.length > 0 && (
                   <div style={{
                     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
-                    background: 'var(--gray-800)', border: '1px solid var(--gray-700)',
-                    borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,.5)',
+                    background: '#fff', border: '1px solid var(--gray-200)',
+                    borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,.15)',
                     maxHeight: 240, overflowY: 'auto',
                   }}>
                     {filteredPersonas.map((p) => (
                       <div
                         key={p.id}
                         onMouseDown={() => selectPersona(p)}
-                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--gray-700)' }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-700)'}
+                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--gray-100)', color: 'var(--gray-800)' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-50)'}
                         onMouseLeave={(e) => e.currentTarget.style.background = ''}
                       >
                         <strong>{p.apellido}</strong>{p.nombre ? `, ${p.nombre}` : ''}
-                        <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-400)' }}>Doc. {p.documento}</span>
-                        {p.barrio && <span style={{ marginLeft: 8, fontSize: '.75rem', color: 'var(--gray-500)' }}>{p.barrio}</span>}
+                        <span style={{ marginLeft: 10, fontSize: '.8rem', color: 'var(--gray-500)' }}>Doc. {p.documento}</span>
+                        {p.barrio && <span style={{ marginLeft: 8, fontSize: '.75rem', color: 'var(--gray-400)' }}>{p.barrio}</span>}
                       </div>
                     ))}
                   </div>
                 )}
-                {showDrop && personaSearch.length >= 1 && filteredPersonas.length === 0 && (
+                {showDrop && personaSearch.length >= 2 && filteredPersonas.length === 0 && (
                   <div style={{
                     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
-                    background: 'var(--gray-800)', border: '1px solid var(--gray-700)',
-                    borderRadius: 6, padding: '10px 12px', fontSize: '.875rem', color: 'var(--gray-400)',
+                    background: '#fff', border: '1px solid var(--gray-200)',
+                    borderRadius: 6, padding: '10px 12px', fontSize: '.875rem', color: 'var(--gray-500)',
                   }}>
                     Sin resultados
                   </div>
@@ -296,8 +295,8 @@ export default function Dispensas() {
           </div>
 
           {/* Medicamentos */}
-          <fieldset style={{ border: '1px solid var(--gray-700)', borderRadius: 8, padding: '12px 16px' }}>
-            <legend style={{ fontSize: '.75rem', color: 'var(--gray-400)', padding: '0 6px', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+          <fieldset style={{ border: '1px solid var(--gray-200)', borderRadius: 8, padding: '12px 16px' }}>
+            <legend style={{ fontSize: '.75rem', color: 'var(--gray-500)', padding: '0 6px', textTransform: 'uppercase', letterSpacing: '.05em' }}>
               Medicamentos
             </legend>
             {items.length === 0 && (
