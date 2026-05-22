@@ -89,13 +89,14 @@ function createMovimiento(PDO $db, array $auth): void {
         $qtyStored = $type === 'ajuste' ? abs($newStock - $prevStock) : $qty;
         $stmt = $db->prepare(
             "INSERT INTO stock_movements
-             (product_id, location_id, to_location_id, type, quantity, previous_stock, new_stock, reason, reference, user, user_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+             (product_id, location_id, to_location_id, category_id, type, quantity, previous_stock, new_stock, reason, reference, user, user_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
             $productId,
             !empty($data['location_id'])    ? (int)$data['location_id']    : null,
             !empty($data['to_location_id']) ? (int)$data['to_location_id'] : null,
+            !empty($data['category_id'])    ? (int)$data['category_id']    : null,
             $type, $qtyStored, $prevStock, $newStock,
             $data['reason']    ?? null,
             $data['reference'] ?? null,

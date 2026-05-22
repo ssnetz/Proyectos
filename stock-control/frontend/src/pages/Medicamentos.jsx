@@ -36,7 +36,7 @@ export default function Medicamentos() {
   const [detailDistrib, setDetailDistrib] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [form, setForm]           = useState(emptyForm);
-  const [movForm, setMovForm]     = useState({ type: 'entrada', quantity: '', reason: '', reference: '', location_id: '', to_location_id: '' });
+  const [movForm, setMovForm]     = useState({ type: 'entrada', quantity: '', reason: '', reference: '', location_id: '', to_location_id: '', category_id: '' });
   const [saving, setSaving]       = useState(false);
 
   const loadItems = useCallback(() => {
@@ -144,7 +144,7 @@ export default function Medicamentos() {
 
   const openMovement = (p) => {
     setMovModal(p);
-    setMovForm({ type: 'entrada', quantity: '', reason: '', reference: '', location_id: '', to_location_id: '' });
+    setMovForm({ type: 'entrada', quantity: '', reason: '', reference: '', location_id: '', to_location_id: '', category_id: p.category_id ? String(p.category_id) : '' });
     setError('');
   };
 
@@ -451,6 +451,16 @@ export default function Medicamentos() {
             <input type="number" min="1" className="form-control"
               value={movForm.quantity} onChange={mfld('quantity')} />
           </div>
+
+          {movForm.type === 'entrada' && categorias.length > 0 && (
+            <div className="form-group">
+              <label className="form-label">Categoría</label>
+              <select className="form-control" value={movForm.category_id} onChange={mfld('category_id')}>
+                <option value="">— Sin categoría —</option>
+                {categorias.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
 
           {ubicaciones.length > 0 && (
             <div className="form-row">
