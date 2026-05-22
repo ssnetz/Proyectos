@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Diagrama BD — Stock Control Farmacia</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; background: #f0f4f9; margin: 0; padding: 20px; }
+  h1   { color: #1e3a5f; font-size: 1.3rem; margin-bottom: 4px; }
+  p    { color: #555; font-size: .85rem; margin-top: 0; margin-bottom: 20px; }
+  .wrap { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px #0001; overflow-x: auto; }
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; font-size: .8rem; color: #444; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+</style>
+</head>
+<body>
+<h1>📦 Diagrama de Base de Datos — Stock Control Farmacia</h1>
+<p>Municipalidad de la Ciudad de Cosquín · Base de datos: <code>stock_control</code></p>
+
+<div class="wrap">
+<pre class="mermaid">
+erDiagram
+
+  categories {
+    INT id PK
+    VARCHAR name
+    TEXT description
+  }
+
+  suppliers {
+    INT id PK
+    VARCHAR name
+    VARCHAR contact
+    VARCHAR email
+    VARCHAR phone
+    TEXT address
+    TIMESTAMP created_at
+    TIMESTAMP updated_at
+  }
+
+  locations {
+    INT id PK
+    VARCHAR name
+    VARCHAR type
+    TINYINT active
+    TIMESTAMP created_at
+  }
+
+  users {
+    INT id PK
+    VARCHAR username
+    VARCHAR email
+    VARCHAR password
+    ENUM role
+    TINYINT active
+    TIMESTAMP created_at
+    TIMESTAMP updated_at
+  }
+
+  personas {
+    INT id PK
+    TINYINT tipo_documento
+    VARCHAR documento
+    VARCHAR apellido
+    VARCHAR nombre
+    CHAR sexo
+    VARCHAR calle
+    VARCHAR numeracion
+    VARCHAR departamento
+    VARCHAR piso
+    VARCHAR barrio
+    VARCHAR cuit_cuil
+    TINYINT active
+    TIMESTAMP created_at
+    TIMESTAMP updated_at
+  }
+
+  products {
+    INT id PK
+    VARCHAR code
+    VARCHAR name
+    TEXT description
+    INT category_id FK
+    INT supplier_id FK
+    DECIMAL purchase_price
+    DECIMAL sale_price
+    INT stock
+    INT min_stock
+    VARCHAR unit
+    VARCHAR therapeutic_action
+    TINYINT active
+    TIMESTAMP created_at
+    TIMESTAMP updated_at
+  }
+
+  product_lots {
+    INT id PK
+    INT product_id FK
+    VARCHAR lot_number
+    DATE expiration_date
+    INT quantity
+    INT location_id FK
+    TIMESTAMP created_at
+  }
+
+  product_stock {
+    INT id PK
+    INT product_id FK
+    INT location_id FK
+    INT quantity
+    TIMESTAMP updated_at
+  }
+
+  stock_movements {
+    INT id PK
+    INT product_id FK
+    INT location_id FK
+    INT to_location_id FK
+    INT beneficiary_id FK
+    INT category_id FK
+    ENUM type
+    INT quantity
+    INT previous_stock
+    INT new_stock
+    VARCHAR reason
+    VARCHAR reference
+    VARCHAR user
+    INT user_id
+    TIMESTAMP created_at
+  }
+
+  %% Relaciones
+  products      }o--|| categories     : "pertenece a"
+  products      }o--|| suppliers      : "provisto por"
+
+  product_lots  }|--|| products       : "lote de"
+  product_lots  }o--|| locations      : "ubicado en"
+
+  product_stock }|--|| products       : "stock de"
+  product_stock }|--|| locations      : "en ubicación"
+
+  stock_movements }|--|| products     : "afecta a"
+  stock_movements }o--|| locations    : "origen"
+  stock_movements }o--|| locations    : "destino"
+  stock_movements }o--|| personas     : "beneficiario"
+  stock_movements }o--|| categories   : "categoría mov."
+</pre>
+</div>
+
+<div class="legend">
+  <strong>Tipos de movimiento (stock_movements.type):</strong>
+  <span><span class="dot" style="background:#16a34a"></span> entrada — ingreso de stock</span>
+  <span><span class="dot" style="background:#dc2626"></span> salida — egreso de stock</span>
+  <span><span class="dot" style="background:#d97706"></span> ajuste — corrección de inventario</span>
+  <span><span class="dot" style="background:#7c3aed"></span> dispensa — entrega a paciente (beneficiary_id → personas)</span>
+</div>
+
+<p style="margin-top:16px;font-size:.75rem;color:#999">
+  Las dispensas NO tienen tabla propia — se almacenan en <code>stock_movements</code> con <code>type = 'dispensa'</code>
+  y se agrupan por <code>reference</code> para representar una entrega completa con múltiples ítems.
+</p>
+
+<script>mermaid.initialize({ startOnLoad: true, theme: 'default', er: { layoutDirection: 'TB' } });</script>
+</body>
+</html>
