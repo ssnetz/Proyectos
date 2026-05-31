@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Documentación — Sistema de Control de Stock Farmacia</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  /* ── Reset & base ── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    color: #1e293b;
+    background: #fff;
+    padding: 32px 40px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  /* ── Encabezado institucional ── */
+  .inst-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 3px solid #1e3a5f;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+  }
+  .inst-header .inst-text { flex: 1; }
+  .inst-header .inst-muni {
+    font-size: 13px; font-weight: 700;
+    color: #1e3a5f; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .inst-header .inst-sub { font-size: 10px; color: #555; margin-top: 3px; }
+  .inst-header .inst-right {
+    text-align: right; font-size: 10px;
+    color: #1e3a5f; font-weight: 600; line-height: 1.5;
+  }
+
+  /* ── Título del documento ── */
+  .doc-title {
+    background: #1e3a5f;
+    color: #fff;
+    padding: 14px 20px;
+    border-radius: 6px;
+    margin-bottom: 24px;
+  }
+  .doc-title h1 { font-size: 16px; font-weight: 700; }
+  .doc-title p  { font-size: 10px; color: #93c5fd; margin-top: 4px; }
+
+  /* ── Secciones ── */
+  h2 {
+    font-size: 13px; color: #1e3a5f;
+    border-left: 4px solid #1e3a5f;
+    padding-left: 10px; margin: 22px 0 10px;
+  }
+  h3 { font-size: 11px; color: #334155; margin: 14px 0 6px; font-weight: 700; }
+  p  { line-height: 1.6; margin-bottom: 8px; color: #334155; }
+
+  /* ── Tablas ── */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 10px; }
+  th { background: #1e3a5f; color: #fff; padding: 6px 10px; text-align: left; }
+  td { padding: 5px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f0f4f9; }
+  td code { background: #e2e8f0; padding: 1px 5px; border-radius: 3px; font-size: 9.5px; font-family: monospace; }
+
+  /* ── Bloques de código / path ── */
+  pre {
+    background: #0f172a; color: #e2e8f0;
+    padding: 12px 16px; border-radius: 6px;
+    font-size: 9.5px; line-height: 1.7;
+    white-space: pre; overflow-x: auto;
+    margin-bottom: 14px; font-family: monospace;
+  }
+  code { font-family: monospace; font-size: 10px; }
+
+  /* ── Notas / callouts ── */
+  .note {
+    background: #fefce8; border-left: 4px solid #eab308;
+    padding: 8px 12px; border-radius: 0 6px 6px 0;
+    margin-bottom: 12px; font-size: 10px; color: #713f12;
+  }
+  .info {
+    background: #eff6ff; border-left: 4px solid #3b82f6;
+    padding: 8px 12px; border-radius: 0 6px 6px 0;
+    margin-bottom: 12px; font-size: 10px; color: #1e3a5f;
+  }
+
+  /* ── Grid de columnas ── */
+  .cols { display: flex; gap: 20px; margin-bottom: 12px; }
+  .col  { flex: 1; }
+
+  /* ── Diagrama ── */
+  .diagram-wrap {
+    border: 1px solid #e2e8f0; border-radius: 8px;
+    padding: 16px; margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .diagram-wrap svg { max-width: 100%; height: auto; }
+
+  /* ── Print ── */
+  @media print {
+    body { padding: 10mm; font-size: 10px; }
+    h2   { page-break-before: auto; }
+    .no-break { page-break-inside: avoid; }
+    .page-break { page-break-before: always; }
+    pre  { font-size: 8.5px; }
+  }
+  @page { margin: 15mm; size: A4; }
+
+  /* ── Footer ── */
+  .doc-footer {
+    border-top: 1px solid #e2e8f0; margin-top: 32px;
+    padding-top: 10px; font-size: 9px; color: #94a3b8;
+    display: flex; justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ Encabezado institucional ══════════════════════════════════════════════ -->
+<div class="inst-header">
+  <img src="/stock-control/assets/logo-cosquin.png"
+       onerror="this.style.display='none'" alt="" style="height:52px" />
+  <div class="inst-text">
+    <div class="inst-muni">Municipalidad de la Ciudad de Cosquín</div>
+    <div class="inst-sub">Secretaría de Salud — Farmacia Municipal</div>
+  </div>
+  <div class="inst-right">Intendente<br/><strong>Dr. Raúl Cardinali</strong></div>
+</div>
+
+<!-- ══ Título ════════════════════════════════════════════════════════════════ -->
+<div class="doc-title">
+  <h1>Sistema de Control de Stock — Documentación Técnica</h1>
+  <p>Descripción del sistema, estructura de archivos y diagrama de base de datos &nbsp;·&nbsp; Versión 11 &nbsp;·&nbsp; Mayo 2026</p>
+</div>
+
+<!-- ══ 1. Descripción general ════════════════════════════════════════════════ -->
+<h2>1. Descripción General</h2>
+<p>
+  El sistema de Control de Stock es una aplicación web que permite gestionar el inventario de medicamentos
+  de la Farmacia Municipal de Cosquín. Funciona localmente en el servidor XAMPP de la PC de la farmacia
+  y es accesible desde cualquier navegador de la red local (PC, notebook, tablet o celular).
+</p>
+<div class="info">
+  <strong>Arquitectura:</strong> Aplicación web de dos capas —
+  Frontend React (interfaz) ↔ API PHP (lógica y datos) ↔ Base de datos MariaDB (MySQL).
+  Corre en XAMPP sobre Windows.
+</div>
+
+<h3>Módulos disponibles</h3>
+<table class="no-break">
+  <thead><tr><th>Módulo</th><th>Función</th><th>Acceso</th></tr></thead>
+  <tbody>
+    <tr><td>📊 Dashboard</td><td>Estadísticas generales, alertas de stock bajo y vencimientos, gráfico de movimientos</td><td>Todos</td></tr>
+    <tr><td>💊 Medicamentos</td><td>CRUD de medicamentos. Detalle de lotes, distribución por ubicación, movimientos rápidos</td><td>Todos / Admin</td></tr>
+    <tr><td>📦 Lotes y Vencimientos</td><td>Registro de lotes con N° de lote, fecha de vencimiento y ubicación física</td><td>Todos</td></tr>
+    <tr><td>↕️ Movimientos</td><td>Historial de entradas, salidas y ajustes de stock por medicamento</td><td>Todos</td></tr>
+    <tr><td>👥 Personas</td><td>Padrón de pacientes/beneficiarios (~96.000 registros). Búsqueda por doc. o apellido</td><td>Todos</td></tr>
+    <tr><td>🩺 Dispensas</td><td>Registro de entregas de medicamentos a pacientes con referencia y observaciones</td><td>Todos</td></tr>
+    <tr><td>📈 Reportes</td><td>Reportes de stock, vencimientos, dispensas y movimientos. Exportación CSV y PDF</td><td>Todos</td></tr>
+    <tr><td>🏭 Proveedores</td><td>CRUD de proveedores de medicamentos</td><td>Todos</td></tr>
+    <tr><td>🏷️ Categorías</td><td>Categorías terapéuticas de medicamentos (Analgésico, Antibiótico, etc.)</td><td>Todos</td></tr>
+    <tr><td>📍 Ubicaciones</td><td>Ubicaciones físicas del stock (Guardia, Farmacia, UCI, etc.)</td><td>Solo Admin</td></tr>
+    <tr><td>👤 Usuarios</td><td>Gestión de usuarios del sistema con roles admin/operador</td><td>Solo Admin</td></tr>
+  </tbody>
+</table>
+
+<!-- ══ 2. Arquitectura ═══════════════════════════════════════════════════════ -->
+<h2>2. Arquitectura Técnica</h2>
+<pre>
+  Navegador / Celular
+       │
+       │  HTTP  (red local WiFi o directamente en la PC)
+       ▼
+  Apache (XAMPP)  →  C:\xampp\htdocs\stock-control\
+       │
+       ├──  index.html + assets/app.js    ← Frontend React (compilado)
+       │         React Router maneja las rutas en el navegador
+       │
+       └──  api/*.php                     ← Backend API REST en PHP
+                 │
+                 └──  MariaDB  →  Base de datos: stock_control
+</pre>
+
+<div class="cols no-break">
+  <div class="col">
+    <h3>Frontend</h3>
+    <table>
+      <tr><th>Tecnología</th><th>Versión</th></tr>
+      <tr><td>React</td><td>18</td></tr>
+      <tr><td>React Router</td><td>v6</td></tr>
+      <tr><td>Vite (bundler)</td><td>5</td></tr>
+      <tr><td>Axios (HTTP)</td><td>1.7</td></tr>
+      <tr><td>Recharts (gráficos)</td><td>2.12</td></tr>
+    </table>
+  </div>
+  <div class="col">
+    <h3>Backend</h3>
+    <table>
+      <tr><th>Tecnología</th><th>Versión</th></tr>
+      <tr><td>PHP</td><td>8.2</td></tr>
+      <tr><td>MariaDB (MySQL)</td><td>10.4</td></tr>
+      <tr><td>Apache</td><td>2.4 (XAMPP)</td></tr>
+      <tr><td>PDO (acceso BD)</td><td>nativo PHP</td></tr>
+      <tr><td>Autenticación</td><td>Sesiones PHP</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ══ 3. Estructura de archivos ════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>3. Estructura de Archivos y Extensiones</h2>
+
+<h3>Carpeta de despliegue — <code>C:\xampp\htdocs\stock-control\</code></h3>
+<pre>
+stock-control/
+│
+├── index.html              ← Punto de entrada de la aplicación React (compilada)
+├── install.php             ← Instalador/actualizador de la base de datos
+├── diag.php                ← Herramienta de diagnóstico del servidor
+├── .htaccess               ← Reglas Apache: redirige todas las rutas al index.html
+│
+├── assets/
+│   ├── app.js              ← Todo el código React compilado en un solo archivo
+│   ├── index.css           ← Estilos compilados
+│   └── logo-cosquin.png    ← Logo institucional (para encabezado de PDFs)
+│
+├── config/
+│   └── database.php        ← Cadena de conexión PDO a MySQL
+│
+└── api/                    ← Endpoints REST — uno por recurso
+    ├── helpers.php         ← Funciones comunes: auth, CORS, JSON, sesiones
+    ├── auth.php            ← POST login / POST logout / GET me
+    ├── medicamentos.php    ← GET/POST/PUT/DELETE medicamentos + distribución
+    ├── lotes.php           ← GET/POST/DELETE lotes con vencimientos
+    ├── movimientos.php     ← GET movimientos / POST registrar movimiento
+    ├── dispensas.php       ← GET/POST dispensas a pacientes
+    ├── personas.php        ← GET/POST/PUT/DELETE personas (padrón)
+    ├── categorias.php      ← GET/POST/PUT/DELETE categorías
+    ├── proveedores.php     ← GET/POST/PUT/DELETE proveedores
+    ├── ubicaciones.php     ← GET/POST/PUT/DELETE ubicaciones físicas
+    ├── usuarios.php        ← GET/POST/PUT/DELETE usuarios del sistema
+    ├── dashboard.php       ← GET estadísticas y resumen
+    └── reportes.php        ← GET reportes filtrables (stock/vencim./dispensas/movim.)
+</pre>
+
+<h3>Extensiones utilizadas</h3>
+<table class="no-break">
+  <thead><tr><th>Extensión</th><th>Tipo</th><th>Descripción</th></tr></thead>
+  <tbody>
+    <tr><td><code>.php</code></td><td>Backend</td><td>Endpoints de la API REST y archivos de configuración del servidor</td></tr>
+    <tr><td><code>.jsx</code></td><td>Frontend (fuente)</td><td>Componentes React — mezcla de JavaScript y sintaxis HTML/XML (JSX)</td></tr>
+    <tr><td><code>.js</code></td><td>Frontend (fuente y compilado)</td><td>Módulos JavaScript puros (hooks, config). También el bundle compilado final</td></tr>
+    <tr><td><code>.css</code></td><td>Estilos</td><td>Hoja de estilos globales de la interfaz</td></tr>
+    <tr><td><code>.html</code></td><td>Entrada web</td><td>Punto de entrada del navegador — carga el bundle React</td></tr>
+    <tr><td><code>.htaccess</code></td><td>Configuración Apache</td><td>Redirige todas las rutas al index.html para que React Router funcione</td></tr>
+    <tr><td><code>.sql</code></td><td>Base de datos</td><td>Esquema completo de la base de datos para importar en MySQL</td></tr>
+    <tr><td><code>.json</code></td><td>Configuración</td><td>Dependencias del proyecto Node.js (package.json)</td></tr>
+    <tr><td><code>.png</code></td><td>Imagen</td><td>Logo institucional utilizado en encabezados de reportes PDF</td></tr>
+  </tbody>
+</table>
+
+<!-- ══ 4. Código fuente ══════════════════════════════════════════════════════ -->
+<h2>4. Explicación del Código Fuente</h2>
+
+<h3>Backend PHP — Flujo de un request</h3>
+<pre>
+GET /stock-control/api/medicamentos.php?id=5
+        │
+        ├─ helpers.php → startSession()     // inicia sesión PHP
+        ├─ helpers.php → setCorsHeaders()   // permite requests desde React
+        ├─ helpers.php → requireAuth()      // verifica $_SESSION['user'], devuelve 401 si no hay sesión
+        │
+        ├─ getDB()   → conexión PDO singleton a MariaDB
+        ├─ getMethod() → 'GET'
+        ├─ getId()     → 5
+        │
+        └─ match($method) → getMedicamento($db, 5)
+                              └─ jsonResponse($data)  // header JSON + json_encode
+</pre>
+
+<h3>Funciones clave en <code>helpers.php</code></h3>
+<table class="no-break">
+  <thead><tr><th>Función</th><th>Descripción</th></tr></thead>
+  <tbody>
+    <tr><td><code>startSession()</code></td><td>Inicia la sesión PHP si no está activa</td></tr>
+    <tr><td><code>requireAuth()</code></td><td>Verifica la sesión y devuelve 401 si el usuario no está logueado</td></tr>
+    <tr><td><code>setCorsHeaders()</code></td><td>Agrega headers para permitir requests cross-origin desde el frontend</td></tr>
+    <tr><td><code>getDB()</code></td><td>Devuelve una conexión PDO reutilizable a MySQL</td></tr>
+    <tr><td><code>jsonResponse($data)</code></td><td>Envía la respuesta como JSON con el código HTTP correspondiente</td></tr>
+    <tr><td><code>jsonError($msg, $code)</code></td><td>Envía un error en formato JSON</td></tr>
+    <tr><td><code>getBody()</code></td><td>Lee y decodifica el cuerpo JSON del request (POST/PUT)</td></tr>
+    <tr><td><code>getId()</code></td><td>Lee el parámetro <code>?id=</code> de la URL como entero</td></tr>
+  </tbody>
+</table>
+
+<h3>Frontend React — Flujo de una pantalla</h3>
+<pre>
+main.jsx         → monta BrowserRouter con basename="/stock-control"
+   └─ App.jsx    → AuthProvider (sesión global) + sidebar + rutas protegidas
+         └─ Medicamentos.jsx (página)
+               ├─ useApi.js → useMedicamentos()  // llama a la API con axios
+               ├─ useState / useEffect           // estado local y carga de datos
+               ├─ tabla con datos del backend
+               └─ &lt;Modal&gt; para altas y ediciones
+</pre>
+
+<h3>Autenticación</h3>
+<p>
+  Utiliza <strong>sesiones PHP</strong> (<code>$_SESSION</code>) en lugar de JWT porque Apache en Windows
+  filtra el header <code>Authorization: Bearer</code>. El frontend usa <code>withCredentials: true</code>
+  en axios para enviar la cookie de sesión en cada request. El contexto <code>AuthContext.jsx</code>
+  mantiene el estado del usuario en React y redirige al login si la sesión expira.
+</p>
+
+<div class="note">
+  <strong>Nota importante sobre el stock:</strong>
+  <code>products.stock</code> es el valor autoritativo del stock total (se actualiza en cada operación).
+  <code>product_lots.quantity</code> es la cantidad <em>original</em> del lote y nunca se decrementa.
+  La distribución por ubicación se calcula en tiempo real desde <code>stock_movements</code>.
+</div>
+
+<!-- ══ 5. Diagrama DER ═══════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>5. Diagrama Entidad-Relación (DER)</h2>
+<p>Estructura de la base de datos <code>stock_control</code> con todas sus tablas y relaciones.</p>
+
+<div class="diagram-wrap">
+<pre class="mermaid">
+erDiagram
+  categories {
+    INT id PK
+    VARCHAR name
+    TEXT description
+  }
+  suppliers {
+    INT id PK
+    VARCHAR name
+    VARCHAR contact
+    VARCHAR email
+    VARCHAR phone
+    TEXT address
+  }
+  locations {
+    INT id PK
+    VARCHAR name
+    VARCHAR type
+    TINYINT active
+  }
+  users {
+    INT id PK
+    VARCHAR username
+    VARCHAR email
+    ENUM role
+    TINYINT active
+  }
+  personas {
+    INT id PK
+    VARCHAR documento
+    VARCHAR apellido
+    VARCHAR nombre
+    CHAR sexo
+    VARCHAR barrio
+    VARCHAR cuit_cuil
+    TINYINT active
+  }
+  products {
+    INT id PK
+    VARCHAR code
+    VARCHAR name
+    INT category_id FK
+    INT supplier_id FK
+    DECIMAL purchase_price
+    DECIMAL sale_price
+    INT stock
+    INT min_stock
+    VARCHAR unit
+    VARCHAR therapeutic_action
+    TINYINT active
+  }
+  product_lots {
+    INT id PK
+    INT product_id FK
+    VARCHAR lot_number
+    DATE expiration_date
+    INT quantity
+    INT location_id FK
+  }
+  product_stock {
+    INT id PK
+    INT product_id FK
+    INT location_id FK
+    INT quantity
+  }
+  stock_movements {
+    INT id PK
+    INT product_id FK
+    INT location_id FK
+    INT to_location_id FK
+    INT beneficiary_id FK
+    INT category_id FK
+    ENUM type
+    INT quantity
+    INT previous_stock
+    INT new_stock
+    VARCHAR reason
+    VARCHAR reference
+    VARCHAR user
+  }
+
+  products      }o--|| categories     : "pertenece a"
+  products      }o--|| suppliers      : "provisto por"
+  product_lots  }|--|| products       : "lote de"
+  product_lots  }o--|| locations      : "ubicado en"
+  product_stock }|--|| products       : "stock de"
+  product_stock }|--|| locations      : "en ubicación"
+  stock_movements }|--|| products     : "afecta a"
+  stock_movements }o--|| locations    : "origen"
+  stock_movements }o--|| locations    : "destino"
+  stock_movements }o--|| personas     : "beneficiario"
+  stock_movements }o--|| categories   : "categoría mov."
+</pre>
+</div>
+
+<h3>Referencia de la tabla principal — <code>stock_movements</code></h3>
+<table class="no-break">
+  <thead><tr><th>Campo <code>type</code></th><th>Descripción</th><th>Campos relevantes</th></tr></thead>
+  <tbody>
+    <tr><td><code>entrada</code></td><td>Ingreso de stock (compra, donación, transferencia)</td><td>location_id (destino), category_id</td></tr>
+    <tr><td><code>salida</code></td><td>Egreso de stock</td><td>location_id (origen), to_location_id (destino)</td></tr>
+    <tr><td><code>ajuste</code></td><td>Corrección de inventario</td><td>previous_stock, new_stock</td></tr>
+    <tr><td><code>dispensa</code></td><td>Entrega a paciente — agrupa ítems por <code>reference</code></td><td>beneficiary_id → personas</td></tr>
+  </tbody>
+</table>
+
+<!-- ══ 6. Proceso de actualización ══════════════════════════════════════════ -->
+<h2>6. Proceso de Actualización del Sistema</h2>
+<pre>
+1.  Desarrollador edita archivos fuente en:
+      frontend/src/           (páginas React .jsx, hooks .js, estilos .css)
+      xampp-deploy/api/       (endpoints .php)
+
+2.  Compilar el frontend:
+      cd frontend/
+      npm run build           → genera frontend/dist/
+
+3.  Copiar el build al deploy:
+      dist/assets/* → xampp-deploy/stock-control/assets/
+      dist/index.html → xampp-deploy/stock-control/index.html
+
+4.  Empaquetar:
+      Comprimir xampp-deploy/ → stock-control-vXX.zip
+
+5.  Instalar en el servidor XAMPP:
+      Extraer el ZIP en C:\xampp\htdocs\  (reemplaza archivos)
+
+6.  Si hay cambios en la base de datos:
+      Abrir en el navegador: http://localhost/stock-control/install.php
+      (el instalador aplica ALTER TABLE de forma segura sin borrar datos)
+</pre>
+
+<!-- ══ Footer ═══════════════════════════════════════════════════════════════ -->
+<div class="doc-footer">
+  <span>Municipalidad de la Ciudad de Cosquín — Secretaría de Salud</span>
+  <span>Sistema de Control de Stock Farmacia · v11 · Mayo 2026</span>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    er: { layoutDirection: 'TB', useMaxWidth: true }
+  });
+</script>
+
+</body>
+</html>
