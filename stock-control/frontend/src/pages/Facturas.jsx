@@ -19,38 +19,46 @@ function fmtDate(iso) {
   return `${d}/${m}/${y}`;
 }
 
-// ─── PDF text extraction ──────────────────────────────────────────────────────
-async function extractPdfText(file) {
+// ─── PDF text extraction + page rendering ────────────────────────────────────
+async function processPdf(file) {
   const lib = await getPdfjs();
   const buf = await file.arrayBuffer();
   const pdf = await lib.getDocument({ data: buf }).promise;
-  const allLines = [];
+
+  const allLines  = [];
+  const pageImages = [];
 
   for (let p = 1; p <= pdf.numPages; p++) {
-    const page    = await pdf.getPage(p);
-    const content = await page.getTextContent();
+    const page = await pdf.getPage(p);
 
-    // Agrupar por coordenada Y para reconstruir filas de tabla
+    // ── Renderizar página a imagen para el visor visual ──
+    const scale    = 1.5;
+    const viewport = page.getViewport({ scale });
+    const canvas   = document.createElement('canvas');
+    canvas.width   = viewport.width;
+    canvas.height  = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    pageImages.push(canvas.toDataURL('image/jpeg', 0.85));
+
+    // ── Extraer texto (solo funciona para PDFs con texto) ──
+    const content = await page.getTextContent();
     const byY = {};
     for (const item of content.items) {
       if (!item.str?.trim()) continue;
       const y = Math.round(item.transform[5] / 5) * 5;
       (byY[y] ??= []).push({ x: item.transform[4], text: item.str });
     }
-
     const lines = Object.entries(byY)
       .sort(([ya], [yb]) => +yb - +ya)
       .map(([, items]) => items.sort((a, b) => a.x - b.x).map(i => i.text).join('  ').trim())
       .filter(Boolean);
-
-    if (lines.length > 0) {
-      allLines.push(`--- Página ${p} ---`, ...lines);
-    }
+    if (lines.length > 0) allLines.push(`--- Página ${p} ---`, ...lines);
   }
 
-  const text = allLines.join('\n');
-  if (!text.trim()) throw new Error('El PDF no contiene texto extraíble. Es posible que sea una imagen escaneada.');
-  return text;
+  return {
+    text:   allLines.join('\n'),
+    images: pageImages,
+  };
 }
 
 // ─── Pattern-based item detection ────────────────────────────────────────────
@@ -163,9 +171,10 @@ export default function Facturas() {
   // PDF state
   const [pdfFile,     setPdfFile]     = useState(null);
   const [pdfText,     setPdfText]     = useState('');
+  const [pdfImages,   setPdfImages]   = useState([]);   // páginas renderizadas
   const [pdfError,    setPdfError]    = useState('');
   const [pdfLoading,  setPdfLoading]  = useState(false);
-  const [showText,    setShowText]    = useState(true);
+  const [showText,    setShowText]    = useState(false);
   const [dragOver,    setDragOver]    = useState(false);
   const fileInputRef = useRef();
 
@@ -220,8 +229,9 @@ export default function Facturas() {
     setSuggestions([null]);
     setPdfFile(null);
     setPdfText('');
+    setPdfImages([]);
     setPdfError('');
-    setShowText(true);
+    setShowText(false);
     setError('');
     setShowCreate(true);
   }
@@ -236,11 +246,15 @@ export default function Facturas() {
     setPdfFile(file);
     setPdfLoading(true);
     setPdfText('');
+    setPdfImages([]);
     setPdfError('');
     try {
-      const text = await extractPdfText(file);
-      setPdfText(text);
-      setShowText(true);
+      const { text, images } = await processPdf(file);
+      setPdfImages(images);
+      if (text.trim()) {
+        setPdfText(text);
+      }
+      // No error si no hay texto — simplemente es escaneado; el visor muestra la imagen
     } catch (e) {
       setPdfError(e.message || 'Error al procesar el PDF.');
     }
@@ -492,10 +506,10 @@ export default function Facturas() {
             <div className="modal-body" style={{ flex: 1, overflow: 'auto', display: 'flex', gap: '1.5rem', padding: '1rem 1.5rem' }}>
 
               {/* ── LEFT: PDF panel ── */}
-              <div style={{ width: 320, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
+              <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
                 <p style={{ fontWeight: 600, marginBottom: 0 }}>PDF de la factura</p>
 
-                {/* Drop zone */}
+                {/* Drop zone (compacto si ya hay PDF cargado) */}
                 <div
                   onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
@@ -504,13 +518,13 @@ export default function Facturas() {
                   style={{
                     border: `2px dashed ${dragOver ? 'var(--primary)' : 'var(--gray-600)'}`,
                     borderRadius: 8,
-                    padding: '1.5rem 1rem',
+                    padding: pdfImages.length ? '.6rem 1rem' : '1.5rem 1rem',
                     textAlign: 'center',
                     cursor: 'pointer',
                     background: dragOver ? 'var(--gray-800)' : 'transparent',
                     transition: 'all .2s',
                     color: 'var(--gray-400)',
-                    fontSize: '.9rem',
+                    fontSize: '.85rem',
                   }}
                 >
                   <input
@@ -521,14 +535,14 @@ export default function Facturas() {
                     onChange={e => handlePdfFile(e.target.files?.[0])}
                   />
                   {pdfFile ? (
-                    <>
-                      <div style={{ fontSize: '2rem', marginBottom: '.5rem' }}>📄</div>
-                      <div style={{ color: 'var(--gray-200)', fontWeight: 600, wordBreak: 'break-all' }}>{pdfFile.name}</div>
-                      <div style={{ fontSize: '.8rem', marginTop: '.25rem' }}>Hacé clic para cambiar</div>
-                    </>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', justifyContent: 'center' }}>
+                      <span>📄</span>
+                      <span style={{ color: 'var(--gray-200)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{pdfFile.name}</span>
+                      <span style={{ fontSize: '.75rem', flexShrink: 0 }}>· cambiar</span>
+                    </div>
                   ) : (
                     <>
-                      <div style={{ fontSize: '2.5rem', marginBottom: '.5rem' }}>📂</div>
+                      <div style={{ fontSize: '2rem', marginBottom: '.4rem' }}>📂</div>
                       <div>Arrastrá el PDF aquí<br />o hacé clic para seleccionar</div>
                     </>
                   )}
@@ -536,56 +550,77 @@ export default function Facturas() {
 
                 {pdfLoading && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', color: 'var(--gray-400)' }}>
-                    <div className="spinner" style={{ width: 18, height: 18 }} /> Leyendo PDF…
+                    <div className="spinner" style={{ width: 16, height: 16 }} /> Procesando PDF…
                   </div>
                 )}
 
                 {pdfError && !pdfLoading && (
-                  <div style={{ background: '#450a0a', border: '1px solid #b91c1c', borderRadius: 6, padding: '.75rem', color: '#fca5a5', fontSize: '.85rem' }}>
-                    <strong>Error:</strong> {pdfError}
-                    {pdfError.includes('imagen') && (
-                      <div style={{ marginTop: '.4rem', color: '#fca5a5' }}>
-                        Los PDFs escaneados no son compatibles con la extracción de texto. Cargá los ítems manualmente.
-                      </div>
-                    )}
+                  <div style={{ background: '#450a0a', border: '1px solid #b91c1c', borderRadius: 6, padding: '.6rem', color: '#fca5a5', fontSize: '.82rem' }}>
+                    {pdfError}
                   </div>
                 )}
 
+                {/* Visor de páginas (funciona para texto Y escaneados) */}
+                {pdfImages.length > 0 && !pdfLoading && (
+                  <div style={{
+                    flex: 1, overflowY: 'auto', border: '1px solid var(--gray-700)',
+                    borderRadius: 8, background: 'var(--gray-900)',
+                    display: 'flex', flexDirection: 'column', gap: 4, padding: 4,
+                    maxHeight: 420,
+                  }}>
+                    {pdfImages.map((src, i) => (
+                      <div key={i}>
+                        {pdfImages.length > 1 && (
+                          <div style={{ fontSize: '.7rem', color: 'var(--gray-500)', textAlign: 'center', padding: '2px 0' }}>
+                            Página {i + 1}
+                          </div>
+                        )}
+                        <img
+                          src={src}
+                          alt={`Página ${i + 1}`}
+                          style={{ width: '100%', display: 'block', borderRadius: 4 }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Botón de detección + texto (solo si hay texto extraíble) */}
                 {pdfText && !pdfLoading && (
                   <>
-                    <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <button className="btn btn-primary btn-sm" onClick={applyDetected} style={{ flex: 1 }}>
-                        ✨ Detectar ítems automáticamente
-                      </button>
-                    </div>
-                    <div style={{ fontSize: '.8rem', color: 'var(--gray-400)' }}>
-                      {pdfText.split('\n').filter(l => l && !l.startsWith('---')).length} líneas extraídas
-                    </div>
+                    <button className="btn btn-primary btn-sm" onClick={applyDetected}>
+                      ✨ Detectar ítems automáticamente
+                    </button>
                     <div>
                       <button
                         className="btn btn-ghost btn-sm"
-                        style={{ width: '100%', justifyContent: 'space-between', marginBottom: showText ? '.25rem' : 0 }}
+                        style={{ width: '100%', justifyContent: 'space-between' }}
                         onClick={() => setShowText(v => !v)}
                       >
-                        Texto extraído {showText ? '▲ ocultar' : '▼ ver'}
+                        Texto extraído ({pdfText.split('\n').filter(l => l && !l.startsWith('---')).length} líneas) {showText ? '▲' : '▼'}
                       </button>
                       {showText && (
                         <textarea
                           readOnly
                           value={pdfText}
                           style={{
-                            width: '100%', height: 280, fontFamily: 'monospace', fontSize: '.72rem',
+                            width: '100%', height: 200, fontFamily: 'monospace', fontSize: '.7rem',
                             background: 'var(--gray-900)', border: '1px solid var(--gray-700)',
                             borderRadius: 6, padding: '.5rem', color: 'var(--gray-300)',
-                            resize: 'vertical', boxSizing: 'border-box', display: 'block',
+                            resize: 'vertical', boxSizing: 'border-box', display: 'block', marginTop: '.25rem',
                           }}
                         />
                       )}
                     </div>
-                    <p style={{ fontSize: '.78rem', color: 'var(--gray-500)', margin: 0 }}>
-                      La detección automática es orientativa. Revisá y corregí los ítems antes de guardar.
-                    </p>
                   </>
+                )}
+
+                {/* Aviso para PDFs escaneados sin texto */}
+                {pdfImages.length > 0 && !pdfText && !pdfLoading && (
+                  <p style={{ fontSize: '.8rem', color: 'var(--gray-400)', margin: 0, background: 'var(--gray-800)', borderRadius: 6, padding: '.6rem' }}>
+                    PDF escaneado — la detección automática no está disponible.<br />
+                    Usá el visor como referencia y completá los ítems manualmente.
+                  </p>
                 )}
               </div>
 
