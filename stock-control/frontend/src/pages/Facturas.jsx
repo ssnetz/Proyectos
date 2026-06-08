@@ -26,13 +26,12 @@ async function processPdf(file) {
   const buf = await file.arrayBuffer();
   const pdf = await lib.getDocument({ data: buf }).promise;
 
-  const allLines  = [];
+  const allLines   = [];
   const pageImages = [];
 
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
 
-    // ── Renderizar página a imagen para el visor visual ──
     const scale    = 1.5;
     const viewport = page.getViewport({ scale });
     const canvas   = document.createElement('canvas');
@@ -41,7 +40,6 @@ async function processPdf(file) {
     await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
     pageImages.push(canvas.toDataURL('image/jpeg', 0.85));
 
-    // ── Extraer texto (solo funciona para PDFs con texto) ──
     const content = await page.getTextContent();
     const byY = {};
     for (const item of content.items) {
@@ -56,10 +54,7 @@ async function processPdf(file) {
     if (lines.length > 0) allLines.push(`--- Página ${p} ---`, ...lines);
   }
 
-  return {
-    text:   allLines.join('\n'),
-    images: pageImages,
-  };
+  return { text: allLines.join('\n'), images: pageImages };
 }
 
 // ─── OCR con Tesseract.js ─────────────────────────────────────────────────────
@@ -87,19 +82,15 @@ async function runOcr(images, onProgress) {
 function normalizeDate(str) {
   if (!str) return '';
   str = str.trim();
-  // DD/MM/YYYY
   let m = str.match(/^(\d{1,2})[\/\-](\d{2})[\/\-](\d{4})$/);
   if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  // MM/YYYY o MM-YYYY
   m = str.match(/^(\d{1,2})[\/\-](\d{4})$/);
   if (m) return `${m[2]}-${m[1].padStart(2,'0')}-01`;
-  // MM/YY
   m = str.match(/^(\d{1,2})[\/\-](\d{2})$/);
   if (m) return `20${m[2]}-${m[1].padStart(2,'0')}-01`;
   return '';
 }
 
-// Extraer todas las fechas que parezcan vencimientos (año >= actual)
 function findDates(text) {
   const currentYear = new Date().getFullYear();
   const pattern = /\b(\d{1,2}[\/\-]\d{2}[\/\-]\d{4}|\d{1,2}[\/\-]\d{4}|\d{1,2}[\/\-]\d{2})\b/g;
@@ -109,7 +100,6 @@ function findDates(text) {
     const norm = normalizeDate(m[1]);
     if (!norm) continue;
     const year = parseInt(norm.slice(0, 4), 10);
-    // Solo fechas futuras o del año actual (son vencimientos)
     if (year >= currentYear) found.push({ raw: m[1], norm, idx: m.index });
   }
   return found;
@@ -121,36 +111,28 @@ function detectItems(text) {
   const used = new Set();
 
   for (let i = 0; i < lines.length; i++) {
-    // Contexto amplio: línea anterior, actual y 3 siguientes
     const ctxLines = lines.slice(Math.max(0, i - 1), i + 4);
     const ctx = ctxLines.join(' ');
 
-    // ── 1. Buscar fecha de vencimiento con etiqueta ──
     const labeledExpiry =
       ctx.match(/(?:vto\.?|venc(?:imiento)?\.?|f\.?\s*vto\.?|exp\.?)[\s:]*(\d{1,2}[\/\-]\d{2}[\/\-]\d{4}|\d{1,2}[\/\-]\d{4}|\d{1,2}[\/\-]\d{2})/i);
-
-    // ── 2. Cualquier fecha futura en el contexto ──
     const allDatesInCtx = findDates(ctx);
-
     const expiryRaw = labeledExpiry?.[1] || allDatesInCtx[0]?.raw;
     if (!expiryRaw) continue;
 
     const expDate = normalizeDate(expiryRaw);
     if (!expDate) continue;
 
-    // ── 3. Número de lote ──
     const lotMatch =
       ctx.match(/(?:lote|lot\.?|n[°º]?\s*lote|nro\.?\s*lote)[\s.:]*([A-Z0-9][A-Z0-9\-\.\/]{1,25})/i) ||
       ctx.match(/\b([A-Z]{1,4}[0-9]{3,12}[A-Z0-9]*)\b/) ||
       ctx.match(/\b([0-9]{5,15})\b/);
 
-    // ── 4. Cantidad (número razonable que no sea el año) ──
     const allNums = (ctx.match(/\b\d{1,6}\b/g) || [])
       .map(Number)
       .filter(n => n >= 1 && n <= 99999 && n < 1900);
     const qty = allNums[0] || 1;
 
-    // ── 5. Nombre sugerido del producto (línea más informativa del contexto) ──
     const nameLine = ctxLines
       .filter(l => l.length > 5 && l.length < 150 && !/^\d/.test(l.trim()))
       .sort((a, b) => b.length - a.length)[0] || lines[i];
@@ -176,7 +158,6 @@ const EMPTY_ITEM = { product_id: '', product_search: '', lot_number: '', expiry_
 
 export default function Facturas() {
   const facApi  = useFacturas();
-  const medApi  = useMedicamentos();
   const provApi = useProveedores();
   const locApi  = useUbicaciones();
 
@@ -193,7 +174,7 @@ export default function Facturas() {
   // PDF state
   const [pdfFile,     setPdfFile]     = useState(null);
   const [pdfText,     setPdfText]     = useState('');
-  const [pdfImages,   setPdfImages]   = useState([]);   // páginas renderizadas
+  const [pdfImages,   setPdfImages]   = useState([]);
   const [pdfError,    setPdfError]    = useState('');
   const [pdfLoading,  setPdfLoading]  = useState(false);
   const [ocrLoading,  setOcrLoading]  = useState(false);
@@ -212,21 +193,12 @@ export default function Facturas() {
     items:          [{ ...EMPTY_ITEM }],
   });
 
-  // Product search state per row
-  const [searches,    setSearches]    = useState(['']);
-  const [suggestions, setSuggestions] = useState([null]);
-  const searchTimers = useRef([]);
-
   useEffect(() => { loadAll(); }, []);
 
   async function loadAll() {
     setLoading(true);
     try {
-      const [f, s, l] = await Promise.all([
-        facApi.list(),
-        provApi.list(),
-        locApi.list(),
-      ]);
+      const [f, s, l] = await Promise.all([facApi.list(), provApi.list(), locApi.list()]);
       setFacturas(f.data);
       setSuppliers(s.data);
       setLocations(l.data);
@@ -249,8 +221,6 @@ export default function Facturas() {
       notes:          '',
       items:          [{ ...EMPTY_ITEM }],
     });
-    setSearches(['']);
-    setSuggestions([null]);
     setPdfFile(null);
     setPdfText('');
     setPdfImages([]);
@@ -262,7 +232,6 @@ export default function Facturas() {
     setShowCreate(true);
   }
 
-  // ── OCR ─────────────────────────────────────────────────────────────────────
   async function handleOcr() {
     if (!pdfImages.length) return;
     setOcrLoading(true);
@@ -283,7 +252,6 @@ export default function Facturas() {
     setOcrProgress(0);
   }
 
-  // ── PDF handling ────────────────────────────────────────────────────────────
   async function handlePdfFile(file) {
     if (!file) return;
     if (file.type !== 'application/pdf') {
@@ -298,10 +266,7 @@ export default function Facturas() {
     try {
       const { text, images } = await processPdf(file);
       setPdfImages(images);
-      if (text.trim()) {
-        setPdfText(text);
-      }
-      // No error si no hay texto — simplemente es escaneado; el visor muestra la imagen
+      if (text.trim()) setPdfText(text);
     } catch (e) {
       setPdfError(e.message || 'Error al procesar el PDF.');
     }
@@ -321,60 +286,25 @@ export default function Facturas() {
       alert('No se detectaron ítems con lote/vencimiento en el PDF.\nRevisá el texto extraído y cargá los ítems manualmente.');
       return;
     }
-    const newItems = detected.map(d => ({
-      product_id:     '',
-      product_search: d.suggested_name,
-      lot_number:     d.lot_number,
-      expiry_date:    d.expiry_date,
-      quantity:       d.quantity,
-      location_id:    '',
+    setForm(f => ({
+      ...f,
+      items: detected.map(d => ({
+        product_id:     '',
+        product_search: d.suggested_name,
+        lot_number:     d.lot_number,
+        expiry_date:    d.expiry_date,
+        quantity:       d.quantity,
+        location_id:    '',
+      })),
     }));
-    setForm(f => ({ ...f, items: newItems }));
-    setSearches(detected.map(d => d.suggested_name));
-    setSuggestions(detected.map(() => null));
-    // Trigger product search for each
-    detected.forEach((d, idx) => {
-      if (d.suggested_name.length >= 3) searchProduct(d.suggested_name, idx, newItems);
-    });
   }
 
-  // ── Product search per row ──────────────────────────────────────────────────
-  function searchProduct(query, idx, currentItems) {
-    clearTimeout(searchTimers.current[idx]);
-    setSearches(s => { const n=[...s]; n[idx]=query; return n; });
-    if (query.length < 2) {
-      setSuggestions(s => { const n=[...s]; n[idx]=null; return n; });
-      return;
-    }
-    searchTimers.current[idx] = setTimeout(async () => {
-      try {
-        const res = await medApi.list({ search: query, limit: 8 });
-        setSuggestions(s => { const n=[...s]; n[idx]=res.data; return n; });
-      } catch { /* ignore */ }
-    }, 300);
-  }
-
-  function selectProduct(idx, product) {
-    setForm(f => {
-      const items = [...f.items];
-      items[idx] = { ...items[idx], product_id: product.id, product_search: product.name };
-      return { ...f, items };
-    });
-    setSearches(s => { const n=[...s]; n[idx]=product.name; return n; });
-    setSuggestions(s => { const n=[...s]; n[idx]=null; return n; });
-  }
-
-  // ── Items table ─────────────────────────────────────────────────────────────
   function addItem() {
     setForm(f => ({ ...f, items: [...f.items, { ...EMPTY_ITEM }] }));
-    setSearches(s => [...s, '']);
-    setSuggestions(s => [...s, null]);
   }
 
   function removeItem(idx) {
     setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
-    setSearches(s => s.filter((_, i) => i !== idx));
-    setSuggestions(s => s.filter((_, i) => i !== idx));
   }
 
   function updateItem(idx, field, value) {
@@ -385,16 +315,16 @@ export default function Facturas() {
     });
   }
 
-  // ── Save ────────────────────────────────────────────────────────────────────
   async function handleSave() {
     setError('');
-    const incomplete = form.items.some(it => !it.product_id || !it.quantity);
-    if (incomplete) { setError('Completá el producto y cantidad de cada ítem.'); return; }
     if (!form.invoice_number.trim()) { setError('Ingresá el número de factura.'); return; }
-
+    if (form.items.some(it => !it.product_id || !it.quantity)) {
+      setError('Completá el producto y cantidad de cada ítem.');
+      return;
+    }
     setSaving(true);
     try {
-      const payload = {
+      await facApi.create({
         invoice_number: form.invoice_number.trim(),
         supplier_id:    form.supplier_id   || null,
         invoice_date:   form.invoice_date,
@@ -407,8 +337,7 @@ export default function Facturas() {
           quantity:    parseInt(it.quantity, 10),
           location_id: it.location_id || null,
         })),
-      };
-      await facApi.create(payload);
+      });
       setShowCreate(false);
       loadAll();
     } catch (e) {
@@ -429,7 +358,6 @@ export default function Facturas() {
     }
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
   if (loading) return <div className="spinner" style={{ marginTop: 60 }} />;
 
   return (
@@ -484,15 +412,11 @@ export default function Facturas() {
         <div className="modal-overlay" onClick={() => { setDetailId(null); setDetail(null); }}>
           <div className="modal" style={{ maxWidth: 800 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">
-                Factura {detail?.invoice_number || '…'}
-              </h3>
+              <h3 className="modal-title">Factura {detail?.invoice_number || '…'}</h3>
               <button className="btn btn-ghost btn-sm btn-icon" onClick={() => { setDetailId(null); setDetail(null); }}>✕</button>
             </div>
             <div className="modal-body">
-              {!detail ? (
-                <div className="spinner" />
-              ) : (
+              {!detail ? <div className="spinner" /> : (
                 <>
                   <div style={{ display: 'flex', gap: '2rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                     <div><span style={{ color: 'var(--gray-400)', fontSize: '.85rem' }}>Proveedor</span><br /><strong>{detail.supplier_name || '—'}</strong></div>
@@ -500,16 +424,11 @@ export default function Facturas() {
                     <div><span style={{ color: 'var(--gray-400)', fontSize: '.85rem' }}>Registrado por</span><br /><strong>{detail.user}</strong></div>
                   </div>
                   {detail.notes && <p style={{ color: 'var(--gray-400)', marginBottom: '1rem' }}>{detail.notes}</p>}
-
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Medicamento</th>
-                        <th>Código</th>
-                        <th>Lote</th>
-                        <th>Vencimiento</th>
-                        <th style={{ textAlign: 'center' }}>Cantidad</th>
-                        <th>Ubicación</th>
+                        <th>Medicamento</th><th>Código</th><th>Lote</th>
+                        <th>Vencimiento</th><th style={{ textAlign: 'center' }}>Cantidad</th><th>Ubicación</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -529,10 +448,7 @@ export default function Facturas() {
               )}
             </div>
             <div className="modal-footer">
-              <button
-                className="btn btn-danger btn-sm"
-                onClick={() => handleDelete(detailId)}
-              >
+              <button className="btn btn-danger btn-sm" onClick={() => handleDelete(detailId)}>
                 Eliminar y revertir stock
               </button>
               <button className="btn btn-ghost" onClick={() => { setDetailId(null); setDetail(null); }}>Cerrar</button>
@@ -556,7 +472,6 @@ export default function Facturas() {
               <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
                 <p style={{ fontWeight: 600, marginBottom: 0 }}>PDF de la factura</p>
 
-                {/* Drop zone (compacto si ya hay PDF cargado) */}
                 <div
                   onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
@@ -607,7 +522,6 @@ export default function Facturas() {
                   </div>
                 )}
 
-                {/* Visor de páginas (funciona para texto Y escaneados) */}
                 {pdfImages.length > 0 && !pdfLoading && (
                   <div style={{
                     flex: 1, overflowY: 'auto', border: '1px solid var(--gray-700)',
@@ -622,17 +536,12 @@ export default function Facturas() {
                             Página {i + 1}
                           </div>
                         )}
-                        <img
-                          src={src}
-                          alt={`Página ${i + 1}`}
-                          style={{ width: '100%', display: 'block', borderRadius: 4 }}
-                        />
+                        <img src={src} alt={`Página ${i + 1}`} style={{ width: '100%', display: 'block', borderRadius: 4 }} />
                       </div>
                     ))}
                   </div>
                 )}
 
-                {/* Botón de detección + texto (solo si hay texto extraíble) */}
                 {pdfText && !pdfLoading && (
                   <>
                     <button className="btn btn-primary btn-sm" onClick={applyDetected}>
@@ -662,30 +571,16 @@ export default function Facturas() {
                   </>
                 )}
 
-                {/* OCR para PDFs escaneados */}
                 {pdfImages.length > 0 && !pdfText && !pdfLoading && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={handleOcr}
-                      disabled={ocrLoading}
-                    >
-                      {ocrLoading
-                        ? `🔄 Leyendo… ${ocrProgress}%`
-                        : '🔍 Leer texto con OCR'}
+                    <button className="btn btn-primary btn-sm" onClick={handleOcr} disabled={ocrLoading}>
+                      {ocrLoading ? `🔄 Leyendo… ${ocrProgress}%` : '🔍 Leer texto con OCR'}
                     </button>
-
                     {ocrLoading && (
                       <div style={{ background: 'var(--gray-700)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%', borderRadius: 99,
-                          background: 'var(--primary)',
-                          width: `${ocrProgress}%`,
-                          transition: 'width .3s',
-                        }} />
+                        <div style={{ height: '100%', borderRadius: 99, background: 'var(--primary)', width: `${ocrProgress}%`, transition: 'width .3s' }} />
                       </div>
                     )}
-
                     {!ocrLoading && (
                       <p style={{ fontSize: '.78rem', color: 'var(--gray-500)', margin: 0 }}>
                         Reconoce texto en la imagen del PDF.<br />
@@ -699,7 +594,6 @@ export default function Facturas() {
               {/* ── RIGHT: Form ── */}
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-                {/* Header fields */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '.75rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">N° Factura *</label>
@@ -752,7 +646,6 @@ export default function Facturas() {
                   </div>
                 </div>
 
-                {/* Items table */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.5rem' }}>
                     <p style={{ fontWeight: 600, margin: 0 }}>Medicamentos ({form.items.length})</p>
@@ -775,18 +668,15 @@ export default function Facturas() {
                         {form.items.map((item, idx) => (
                           <ItemRow
                             key={idx}
-                            idx={idx}
                             item={item}
-                            search={searches[idx] || ''}
-                            suggs={suggestions[idx]}
                             locations={locations}
-                            onSearchChange={(q) => {
-                              updateItem(idx, 'product_search', q);
-                              updateItem(idx, 'product_id', '');
-                              searchProduct(q, idx, form.items);
+                            onSelectProduct={p => {
+                              setForm(f => {
+                                const items = [...f.items];
+                                items[idx] = { ...items[idx], product_id: p.id, product_search: p.name };
+                                return { ...f, items };
+                              });
                             }}
-                            onSelectProduct={(p) => selectProduct(idx, p)}
-                            onCloseSugg={() => setSuggestions(s => { const n=[...s]; n[idx]=null; return n; })}
                             onUpdate={(field, val) => updateItem(idx, field, val)}
                             onRemove={() => removeItem(idx)}
                             canRemove={form.items.length > 1}
@@ -818,29 +708,56 @@ export default function Facturas() {
   );
 }
 
-// ─── ItemRow component ────────────────────────────────────────────────────────
-function ItemRow({ idx, item, search, suggs, locations, onSearchChange, onSelectProduct, onCloseSugg, onUpdate, onRemove, canRemove }) {
-  const wrapRef = useRef();
+// ─── ItemRow: search state is fully contained here ───────────────────────────
+function ItemRow({ item, locations, onSelectProduct, onUpdate, onRemove, canRemove }) {
+  const medApi   = useMedicamentos();
+  const [query,  setQuery] = useState(item.product_search || '');
+  const [suggs,  setSuggs] = useState(null);
+  const timerRef = useRef();
+  const wrapRef  = useRef();
 
   useEffect(() => {
     function handler(e) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) onCloseSugg();
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setSuggs(null);
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  function doSearch(q) {
+    clearTimeout(timerRef.current);
+    if (q.length < 2) { setSuggs(null); return; }
+    timerRef.current = setTimeout(async () => {
+      try {
+        const res = await medApi.list({ search: q, limit: 8 });
+        setSuggs(res.data);
+      } catch { setSuggs([]); }
+    }, 300);
+  }
+
+  function handleChange(q) {
+    setQuery(q);
+    onUpdate('product_id', '');
+    onUpdate('product_search', q);
+    doSearch(q);
+  }
+
+  function handleSelect(p) {
+    setQuery(p.name);
+    setSuggs(null);
+    onSelectProduct(p);
+  }
+
   return (
     <tr>
-      {/* Product search */}
       <td ref={wrapRef} style={{ position: 'relative' }}>
         <input
           className="form-input"
           style={{ fontSize: '.85rem' }}
           placeholder="Buscar medicamento…"
-          value={item.product_id ? (item.product_search || search) : search}
-          onChange={e => onSearchChange(e.target.value)}
-          onFocus={() => search.length >= 2 && !item.product_id && onSearchChange(search)}
+          value={query}
+          onChange={e => handleChange(e.target.value)}
+          onFocus={() => { if (query.length >= 2 && !item.product_id) doSearch(query); }}
         />
         {item.product_id && (
           <div style={{ fontSize: '.75rem', color: 'var(--primary)', marginTop: 2 }}>✓ seleccionado</div>
@@ -854,7 +771,7 @@ function ItemRow({ idx, item, search, suggs, locations, onSearchChange, onSelect
             {suggs.map(p => (
               <div
                 key={p.id}
-                onMouseDown={() => onSelectProduct(p)}
+                onMouseDown={() => handleSelect(p)}
                 style={{ padding: '.5rem .75rem', cursor: 'pointer', fontSize: '.85rem', borderBottom: '1px solid #e2e8f0', color: '#1e293b' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
                 onMouseLeave={e => e.currentTarget.style.background = '#fff'}
@@ -877,7 +794,6 @@ function ItemRow({ idx, item, search, suggs, locations, onSearchChange, onSelect
         )}
       </td>
 
-      {/* Lot number */}
       <td>
         <input
           className="form-input"
@@ -888,7 +804,6 @@ function ItemRow({ idx, item, search, suggs, locations, onSearchChange, onSelect
         />
       </td>
 
-      {/* Expiry date */}
       <td>
         <input
           type="date"
@@ -899,7 +814,6 @@ function ItemRow({ idx, item, search, suggs, locations, onSearchChange, onSelect
         />
       </td>
 
-      {/* Quantity */}
       <td>
         <input
           type="number"
@@ -911,7 +825,6 @@ function ItemRow({ idx, item, search, suggs, locations, onSearchChange, onSelect
         />
       </td>
 
-      {/* Location override */}
       <td>
         <select
           className="form-input"
@@ -924,7 +837,6 @@ function ItemRow({ idx, item, search, suggs, locations, onSearchChange, onSelect
         </select>
       </td>
 
-      {/* Remove */}
       <td>
         {canRemove && (
           <button
