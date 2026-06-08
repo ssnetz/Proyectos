@@ -848,20 +848,20 @@ function ItemRow({ idx, item, search, suggs, locations, onSearchChange, onSelect
         {suggs && suggs.length > 0 && !item.product_id && (
           <div style={{
             position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-            background: 'var(--gray-800)', border: '1px solid var(--gray-600)',
-            borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,.4)', maxHeight: 200, overflowY: 'auto',
+            background: '#fff', border: '1px solid #cbd5e1',
+            borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,.18)', maxHeight: 220, overflowY: 'auto',
           }}>
             {suggs.map(p => (
               <div
                 key={p.id}
                 onMouseDown={() => onSelectProduct(p)}
-                style={{ padding: '.5rem .75rem', cursor: 'pointer', fontSize: '.85rem', borderBottom: '1px solid var(--gray-700)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-700)'}
-                onMouseLeave={e => e.currentTarget.style.background = ''}
+                style={{ padding: '.5rem .75rem', cursor: 'pointer', fontSize: '.85rem', borderBottom: '1px solid #e2e8f0', color: '#1e293b' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
               >
-                <span style={{ fontWeight: 600 }}>{p.name}</span>
-                <span style={{ color: 'var(--gray-400)', marginLeft: '.5rem' }}>{p.code}</span>
-                <span style={{ color: 'var(--gray-500)', marginLeft: '.5rem', fontSize: '.8rem' }}>Stock: {p.stock}</span>
+                <span style={{ fontWeight: 600, color: '#0f172a' }}>{p.name}</span>
+                <span style={{ color: '#64748b', marginLeft: '.5rem' }}>{p.code}</span>
+                <span style={{ color: '#94a3b8', marginLeft: '.5rem', fontSize: '.8rem' }}>Stock: {p.stock}</span>
               </div>
             ))}
           </div>
@@ -869,8 +869,8 @@ function ItemRow({ idx, item, search, suggs, locations, onSearchChange, onSelect
         {suggs && suggs.length === 0 && !item.product_id && (
           <div style={{
             position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-            background: 'var(--gray-800)', border: '1px solid var(--gray-600)',
-            borderRadius: 6, padding: '.5rem .75rem', fontSize: '.85rem', color: 'var(--gray-400)',
+            background: '#fff', border: '1px solid #cbd5e1',
+            borderRadius: 6, padding: '.5rem .75rem', fontSize: '.85rem', color: '#64748b',
           }}>
             Sin resultados
           </div>
