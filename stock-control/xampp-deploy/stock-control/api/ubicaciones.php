@@ -45,7 +45,30 @@ function stockByLocation(PDO $db): void {
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
-    jsonResponse($stmt->fetchAll());
+    $rows = $stmt->fetchAll();
+
+    // Calcular remanente sin ubicación para que el total cierre con products.stock
+    if ($productId) {
+        $s = $db->prepare("SELECT stock FROM products WHERE id = ?");
+        $s->execute([$productId]);
+        $totalStock = (int)($s->fetchColumn() ?: 0);
+    } else {
+        $totalStock = (int)$db->query("SELECT COALESCE(SUM(stock),0) FROM products WHERE active = 1")->fetchColumn();
+    }
+
+    $locatedTotal = array_sum(array_column($rows, 'net_qty'));
+    $unlocated    = $totalStock - $locatedTotal;
+
+    if ($unlocated > 0) {
+        $rows[] = [
+            'location_id'   => null,
+            'location_name' => 'Sin ubicación asignada',
+            'location_type' => null,
+            'net_qty'        => $unlocated,
+        ];
+    }
+
+    jsonResponse($rows);
 }
 
 function listUbicaciones(PDO $db): void {

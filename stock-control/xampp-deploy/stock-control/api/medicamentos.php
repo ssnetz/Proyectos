@@ -223,6 +223,7 @@ function updateMedicamento(PDO $db, int $id, array $auth): void {
 }
 
 function getDistribucion(PDO $db, int $productId): void {
+    // Stock neto por ubicación desde movimientos
     $stmt = $db->prepare("
         SELECT
             COALESCE(l.name, 'Sin ubicación') AS location_name,
@@ -240,7 +241,25 @@ function getDistribucion(PDO $db, int $productId): void {
         ORDER BY net_qty DESC
     ");
     $stmt->execute([$productId]);
-    jsonResponse($stmt->fetchAll());
+    $rows = $stmt->fetchAll();
+
+    // Stock total autoritativo
+    $s = $db->prepare("SELECT stock FROM products WHERE id = ?");
+    $s->execute([$productId]);
+    $totalStock = (int)($s->fetchColumn() ?: 0);
+
+    $locatedTotal = array_sum(array_column($rows, 'net_qty'));
+    $unlocated    = $totalStock - $locatedTotal;
+
+    if ($unlocated > 0) {
+        $rows[] = [
+            'location_name' => 'Sin ubicación asignada',
+            'location_id'   => null,
+            'net_qty'        => $unlocated,
+        ];
+    }
+
+    jsonResponse($rows);
 }
 
 function deleteMedicamento(PDO $db, int $id, array $auth): void {
