@@ -129,6 +129,19 @@ run($pdo, "CREATE TABLE IF NOT EXISTS product_lots (
     FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL
 )", "Tabla product_lots");
 
+run($pdo, "CREATE TABLE IF NOT EXISTS purchase_invoices (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    invoice_number  VARCHAR(100) NOT NULL,
+    supplier_id     INT,
+    invoice_date    DATE,
+    notes           TEXT,
+    user            VARCHAR(80),
+    user_id         INT,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+)", "Tabla purchase_invoices");
+
 run($pdo, "CREATE TABLE IF NOT EXISTS product_stock (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     product_id  INT NOT NULL,
@@ -171,6 +184,7 @@ run($pdo, "CREATE TABLE IF NOT EXISTS users (
 )", "Tabla users");
 
 // ── Columnas que pueden faltar en tablas existentes ──────────────────────────
+run($pdo, "ALTER TABLE product_lots ADD COLUMN IF NOT EXISTS invoice_id INT AFTER location_id", "Columna product_lots.invoice_id");
 run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS location_id    INT AFTER product_id",   "Columna stock_movements.location_id");
 run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS beneficiary_id INT AFTER location_id",  "Columna stock_movements.beneficiary_id");
 run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS user_id        INT AFTER user",         "Columna stock_movements.user_id");

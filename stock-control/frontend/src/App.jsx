@@ -11,6 +11,7 @@ import Proveedores  from './pages/Proveedores';
 import Categorias   from './pages/Categorias';
 import Ubicaciones  from './pages/Ubicaciones';
 import Usuarios     from './pages/Usuarios';
+import Facturas     from './pages/Facturas';
 import Login        from './pages/Login';
 
 // ─── Protected route ─────────────────────────────────────────────────────────
@@ -61,6 +62,7 @@ const pageTitles = {
   '/categorias':     'Categorías',
   '/ubicaciones':    'Ubicaciones',
   '/usuarios':       'Usuarios',
+  '/facturas':       'Facturas de Compra',
 };
 
 // ─── Main layout ─────────────────────────────────────────────────────────────
@@ -78,6 +80,7 @@ function AppLayout() {
     { to: '/personas',     icon: '👥', label: 'Personas' },
     { to: '/dispensas',    icon: '🩺', label: 'Dispensas' },
     { to: '/reportes',     icon: '📈', label: 'Reportes' },
+    { to: '/facturas',     icon: '🧾', label: 'Facturas de Compra' },
     { to: '/proveedores',  icon: '🏭', label: 'Proveedores' },
     { to: '/categorias',   icon: '🏷️', label: 'Categorías' },
     ...(isAdmin ? [
@@ -122,6 +125,7 @@ function AppLayout() {
             <Route path="/personas"     element={<ProtectedRoute><Personas /></ProtectedRoute>} />
             <Route path="/dispensas"    element={<ProtectedRoute><Dispensas /></ProtectedRoute>} />
             <Route path="/reportes"     element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+            <Route path="/facturas"     element={<ProtectedRoute><Facturas /></ProtectedRoute>} />
             <Route path="/proveedores"  element={<ProtectedRoute><Proveedores /></ProtectedRoute>} />
             <Route path="/categorias"   element={<ProtectedRoute><Categorias /></ProtectedRoute>} />
             <Route path="/ubicaciones"  element={<ProtectedRoute adminOnly><Ubicaciones /></ProtectedRoute>} />

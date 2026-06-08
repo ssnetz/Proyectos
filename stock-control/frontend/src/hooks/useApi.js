@@ -129,3 +129,11 @@ export function useReportes() {
   const get = (params) => api.get('/reportes.php', { params });
   return { get };
 }
+
+export function useFacturas() {
+  const list   = ()           => api.get('/facturas.php');
+  const get    = (id)         => api.get('/facturas.php', { params: { id } });
+  const create = (data)       => api.post('/facturas.php', data);
+  const remove = (id)         => api.delete(`/facturas.php?id=${id}`);
+  return { list, get, create, remove };
+}
