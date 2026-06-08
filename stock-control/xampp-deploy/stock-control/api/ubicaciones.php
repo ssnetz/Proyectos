@@ -22,32 +22,26 @@ function stockByLocation(PDO $db): void {
 
     $sql = "
         SELECT
-            l.id AS location_id,
+            l.id   AS location_id,
             l.name AS location_name,
             l.type AS location_type,
-            GREATEST(0, SUM(CASE
-                WHEN m.type = 'entrada'              THEN m.quantity
-                WHEN m.type IN ('salida','dispensa') THEN -m.quantity
-                ELSE 0
-            END)) AS net_qty
-        FROM stock_movements m
-        JOIN locations l ON m.location_id = l.id
-        WHERE m.location_id IS NOT NULL
+            SUM(ps.quantity) AS net_qty
+        FROM product_stock ps
+        JOIN locations l ON ps.location_id = l.id
+        WHERE ps.quantity > 0
     ";
     $params = [];
     if ($productId) {
-        $sql .= " AND m.product_id = ?";
+        $sql .= " AND ps.product_id = ?";
         $params[] = (int)$productId;
     }
     $sql .= " GROUP BY l.id, l.name, l.type
-              HAVING net_qty > 0
               ORDER BY net_qty DESC";
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 
-    // Calcular remanente sin ubicación para que el total cierre con products.stock
     if ($productId) {
         $s = $db->prepare("SELECT stock FROM products WHERE id = ?");
         $s->execute([$productId]);

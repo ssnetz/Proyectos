@@ -143,14 +143,8 @@ function createDispensa(PDO $db, array $auth): void {
             $stmt = $db->prepare("UPDATE products SET stock = ?, updated_at = NOW() WHERE id = ?");
             $stmt->execute([$item['stock_nuevo'], $item['product_id']]);
 
-            // Also reduce product_stock for the location if an entry exists
-            if ($locationId) {
-                $stmt = $db->prepare(
-                    "UPDATE product_stock SET quantity = GREATEST(0, quantity - ?)
-                     WHERE product_id = ? AND location_id = ?"
-                );
-                $stmt->execute([$item['cantidad'], $item['product_id'], $locationId]);
-            }
+            // Actualizar stock por ubicación
+            adjustProductStock($db, $item['product_id'], $locationId, -$item['cantidad']);
 
             // Record movement with type='dispensa'
             $stmt = $db->prepare(

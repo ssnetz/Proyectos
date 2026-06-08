@@ -223,27 +223,16 @@ function updateMedicamento(PDO $db, int $id, array $auth): void {
 }
 
 function getDistribucion(PDO $db, int $productId): void {
-    // Stock neto por ubicación desde movimientos
     $stmt = $db->prepare("
-        SELECT
-            COALESCE(l.name, 'Sin ubicación') AS location_name,
-            m.location_id,
-            GREATEST(0, SUM(CASE
-                WHEN m.type = 'entrada' THEN m.quantity
-                WHEN m.type IN ('salida', 'dispensa') THEN -m.quantity
-                ELSE 0
-            END)) AS net_qty
-        FROM stock_movements m
-        LEFT JOIN locations l ON m.location_id = l.id
-        WHERE m.product_id = ? AND m.location_id IS NOT NULL
-        GROUP BY m.location_id, l.name
-        HAVING net_qty > 0
-        ORDER BY net_qty DESC
+        SELECT ps.quantity AS net_qty, l.name AS location_name, ps.location_id
+        FROM product_stock ps
+        JOIN locations l ON ps.location_id = l.id
+        WHERE ps.product_id = ? AND ps.quantity > 0
+        ORDER BY ps.quantity DESC
     ");
     $stmt->execute([$productId]);
     $rows = $stmt->fetchAll();
 
-    // Stock total autoritativo
     $s = $db->prepare("SELECT stock FROM products WHERE id = ?");
     $s->execute([$productId]);
     $totalStock = (int)($s->fetchColumn() ?: 0);

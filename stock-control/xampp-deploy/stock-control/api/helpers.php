@@ -58,3 +58,17 @@ function requireAdmin(): array {
     }
     return $user;
 }
+
+/**
+ * Ajusta el stock de un producto en una ubicación específica.
+ * $delta > 0 = suma, $delta < 0 = resta (no baja de 0).
+ * Si $locationId es null no hace nada.
+ */
+function adjustProductStock(PDO $db, int $productId, ?int $locationId, int $delta): void {
+    if ($locationId === null || $delta === 0) return;
+    $db->prepare(
+        "INSERT INTO product_stock (product_id, location_id, quantity)
+         VALUES (?, ?, GREATEST(0, ?))
+         ON DUPLICATE KEY UPDATE quantity = GREATEST(0, quantity + ?)"
+    )->execute([$productId, $locationId, $delta, $delta]);
+}

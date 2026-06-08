@@ -81,10 +81,22 @@ function createMovimiento(PDO $db, array $auth): void {
         'ajuste'  => $qty,
     };
 
+    $locationId   = !empty($data['location_id'])    ? (int)$data['location_id']    : null;
+    $toLocationId = !empty($data['to_location_id']) ? (int)$data['to_location_id'] : null;
+
     $db->beginTransaction();
     try {
         $stmt = $db->prepare("UPDATE products SET stock = ?, updated_at = NOW() WHERE id = ?");
         $stmt->execute([$newStock, $productId]);
+
+        // Actualizar stock por ubicación
+        if ($type === 'entrada') {
+            adjustProductStock($db, $productId, $locationId, $qty);
+        } elseif ($type === 'salida') {
+            adjustProductStock($db, $productId, $locationId, -$qty);
+        }
+        // ajuste: solo cambia el total (products.stock), la distribución
+        // por ubicación no se toca — el remanente "sin ubicación" absorbe.
 
         $qtyStored = $type === 'ajuste' ? abs($newStock - $prevStock) : $qty;
         $stmt = $db->prepare(
@@ -93,10 +105,8 @@ function createMovimiento(PDO $db, array $auth): void {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
-            $productId,
-            !empty($data['location_id'])    ? (int)$data['location_id']    : null,
-            !empty($data['to_location_id']) ? (int)$data['to_location_id'] : null,
-            !empty($data['category_id'])    ? (int)$data['category_id']    : null,
+            $productId, $locationId, $toLocationId,
+            !empty($data['category_id']) ? (int)$data['category_id'] : null,
             $type, $qtyStored, $prevStock, $newStock,
             $data['reason']    ?? null,
             $data['reference'] ?? null,

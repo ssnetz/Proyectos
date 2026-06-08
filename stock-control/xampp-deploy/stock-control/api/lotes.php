@@ -111,6 +111,9 @@ function createLote(PDO $db, array $auth): void {
         $stmt = $db->prepare("UPDATE products SET stock = ?, updated_at = NOW() WHERE id = ?");
         $stmt->execute([$newStock, $productId]);
 
+        // Actualizar stock por ubicación
+        adjustProductStock($db, $productId, $locationId, $quantity);
+
         // Record stock movement
         $stmt = $db->prepare(
             "INSERT INTO stock_movements
@@ -172,6 +175,10 @@ function deleteLote(PDO $db, int $id, array $auth): void {
         $newStock  = max(0, $prevStock - (int)$lote['quantity']);
         $stmt = $db->prepare("UPDATE products SET stock = ?, updated_at = NOW() WHERE id = ?");
         $stmt->execute([$newStock, $lote['product_id']]);
+
+        // Actualizar stock por ubicación
+        $lotLocationId = !empty($lote['location_id']) ? (int)$lote['location_id'] : null;
+        adjustProductStock($db, $lote['product_id'], $lotLocationId, -(int)$lote['quantity']);
 
         $db->commit();
         jsonResponse(['message' => 'Lote eliminado']);

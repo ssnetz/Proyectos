@@ -184,6 +184,24 @@ run($pdo, "ALTER TABLE products        ADD COLUMN IF NOT EXISTS sale_price      
 run($pdo, "ALTER TABLE stock_movements MODIFY COLUMN type ENUM('entrada','salida','ajuste','dispensa') NOT NULL",
     "ENUM stock_movements.type incluye 'dispensa'");
 
+// ── Migración: poblar product_stock desde stock_movements (idempotente) ─────
+run($pdo, "
+    INSERT INTO product_stock (product_id, location_id, quantity)
+    SELECT
+        m.product_id,
+        m.location_id,
+        GREATEST(0, SUM(CASE
+            WHEN m.type = 'entrada'              THEN  m.quantity
+            WHEN m.type IN ('salida','dispensa') THEN -m.quantity
+            ELSE 0
+        END)) AS qty
+    FROM stock_movements m
+    WHERE m.location_id IS NOT NULL
+    GROUP BY m.product_id, m.location_id
+    HAVING qty > 0
+    ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)
+", "Migración product_stock desde movimientos históricos");
+
 // ── Vista consolidada ────────────────────────────────────────────────────────
 run($pdo, "CREATE OR REPLACE VIEW v_stock_consolidado AS
     SELECT
