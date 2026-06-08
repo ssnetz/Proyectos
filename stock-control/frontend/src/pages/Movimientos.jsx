@@ -165,7 +165,7 @@ export default function Movimientos() {
           <div className="form-group">
             <label className="form-label">Tipo *</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              {[['entrada','⬆ Entrada'],['salida','⬇ Salida'],['ajuste','⚙ Ajuste']].map(([t, lbl]) => (
+              {[['entrada','⬆ Entrada'],['ajuste','⚙ Ajuste']].map(([t, lbl]) => (
                 <button key={t} type="button"
                   className={`btn ${form.type === t ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setForm((f) => ({ ...f, type: t }))}

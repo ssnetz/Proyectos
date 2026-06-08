@@ -301,14 +301,14 @@ export default function Products() {
           <div className="form-group">
             <label className="form-label">Tipo de movimiento</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              {['entrada', 'salida', 'ajuste'].map((t) => (
+              {['entrada', 'ajuste'].map((t) => (
                 <button
                   key={t} type="button"
                   className={`btn ${movForm.type === t ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setMovForm({ ...movForm, type: t })}
                   style={{ textTransform: 'capitalize', flex: 1 }}
                 >
-                  {t === 'entrada' ? '⬆ Entrada' : t === 'salida' ? '⬇ Salida' : '⚙ Ajuste'}
+                  {t === 'entrada' ? '⬆ Entrada' : '⚙ Ajuste'}
                 </button>
               ))}
             </div>

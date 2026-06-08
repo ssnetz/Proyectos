@@ -436,7 +436,7 @@ export default function Medicamentos() {
           <div className="form-group">
             <label className="form-label">Tipo de movimiento</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              {[['entrada','⬆ Entrada'],['salida','⬇ Salida'],['ajuste','⚙ Ajuste']].map(([t, lbl]) => (
+              {[['entrada','⬆ Entrada'],['ajuste','⚙ Ajuste']].map(([t, lbl]) => (
                 <button key={t} type="button"
                   className={`btn ${movForm.type === t ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setMovForm((f) => ({ ...f, type: t }))}
@@ -463,33 +463,12 @@ export default function Medicamentos() {
           )}
 
           {ubicaciones.length > 0 && (
-            <div className="form-row">
-              {movForm.type === 'salida' ? (
-                <>
-                  <div className="form-group">
-                    <label className="form-label">Ubicación origen</label>
-                    <select className="form-control" value={movForm.location_id} onChange={mfld('location_id')}>
-                      <option value="">— Sin especificar —</option>
-                      {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Destino / Servicio</label>
-                    <select className="form-control" value={movForm.to_location_id} onChange={mfld('to_location_id')}>
-                      <option value="">— Sin especificar —</option>
-                      {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                  </div>
-                </>
-              ) : (
-                <div className="form-group">
-                  <label className="form-label">{movForm.type === 'entrada' ? 'Depositar en' : 'Ubicación'}</label>
-                  <select className="form-control" value={movForm.location_id} onChange={mfld('location_id')}>
-                    <option value="">— Sin especificar —</option>
-                    {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </select>
-                </div>
-              )}
+            <div className="form-group">
+              <label className="form-label">{movForm.type === 'entrada' ? 'Depositar en' : 'Ubicación'}</label>
+              <select className="form-control" value={movForm.location_id} onChange={mfld('location_id')}>
+                <option value="">— Sin especificar —</option>
+                {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
             </div>
           )}
 

@@ -62,7 +62,7 @@ function createMovement(PDO $db, array $authPayload): void {
     $qty = (int)$data['quantity'];
 
     if ($qty <= 0) jsonError('La cantidad debe ser mayor a 0');
-    if (!in_array($type, ['entrada', 'salida', 'ajuste'])) jsonError('Tipo de movimiento inválido');
+    if (!in_array($type, ['entrada', 'ajuste'])) jsonError('Tipo de movimiento inválido');
 
     $stmt = $db->prepare("SELECT stock FROM products WHERE id = ? AND active = 1");
     $stmt->execute([$productId]);
@@ -71,13 +71,8 @@ function createMovement(PDO $db, array $authPayload): void {
 
     $prevStock = (int)$product['stock'];
 
-    if ($type === 'salida' && $qty > $prevStock) {
-        jsonError("Stock insuficiente. Disponible: $prevStock");
-    }
-
     $newStock = match($type) {
         'entrada' => $prevStock + $qty,
-        'salida'  => $prevStock - $qty,
         'ajuste'  => $qty,
     };
 

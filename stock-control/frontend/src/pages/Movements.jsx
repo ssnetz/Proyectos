@@ -20,7 +20,7 @@ export default function Movements() {
   }, [filterType, limit]);
 
   const typeLabel = (t) => {
-    const map = { entrada: '⬆ Entrada', salida: '⬇ Salida', ajuste: '⚙ Ajuste' };
+    const map = { entrada: '⬆ Entrada', salida: '⬇ Salida', ajuste: '⚙ Ajuste', dispensa: '💊 Dispensa' };
     return map[t] || t;
   };
 

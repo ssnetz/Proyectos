@@ -63,7 +63,7 @@ function createMovimiento(PDO $db, array $auth): void {
     $qty       = (int)$data['quantity'];
 
     if ($qty <= 0) jsonError('La cantidad debe ser mayor a 0');
-    if (!in_array($type, ['entrada', 'salida', 'ajuste'])) jsonError('Tipo inválido. Use: entrada, salida, ajuste');
+    if (!in_array($type, ['entrada', 'ajuste'])) jsonError('Tipo inválido. Use: entrada, ajuste');
 
     $stmt = $db->prepare("SELECT stock FROM products WHERE id = ? AND active = 1");
     $stmt->execute([$productId]);
@@ -71,13 +71,9 @@ function createMovimiento(PDO $db, array $auth): void {
     if (!$product) jsonError('Medicamento no encontrado', 404);
 
     $prevStock = (int)$product['stock'];
-    if ($type === 'salida' && $qty > $prevStock) {
-        jsonError("Stock insuficiente. Disponible: $prevStock");
-    }
 
     $newStock = match($type) {
         'entrada' => $prevStock + $qty,
-        'salida'  => $prevStock - $qty,
         'ajuste'  => $qty,
     };
 
@@ -89,14 +85,10 @@ function createMovimiento(PDO $db, array $auth): void {
         $stmt = $db->prepare("UPDATE products SET stock = ?, updated_at = NOW() WHERE id = ?");
         $stmt->execute([$newStock, $productId]);
 
-        // Actualizar stock por ubicación
         if ($type === 'entrada') {
             adjustProductStock($db, $productId, $locationId, $qty);
-        } elseif ($type === 'salida') {
-            adjustProductStock($db, $productId, $locationId, -$qty);
         }
-        // ajuste: solo cambia el total (products.stock), la distribución
-        // por ubicación no se toca — el remanente "sin ubicación" absorbe.
+        // ajuste: solo cambia el total (products.stock), distribución no se toca
 
         $qtyStored = $type === 'ajuste' ? abs($newStock - $prevStock) : $qty;
         $stmt = $db->prepare(
