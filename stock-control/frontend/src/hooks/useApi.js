@@ -94,11 +94,12 @@ export function useCategories() {
 }
 
 export function useUbicaciones() {
-  const list   = (params)     => api.get('/ubicaciones.php', { params });
-  const create = (data)       => api.post('/ubicaciones.php', data);
-  const update = (id, data)   => api.put(`/ubicaciones.php?id=${id}`, data);
-  const remove = (id)         => api.delete(`/ubicaciones.php?id=${id}`);
-  return { list, create, update, remove };
+  const list            = (params)   => api.get('/ubicaciones.php', { params });
+  const stockByLocation = (params)   => api.get('/ubicaciones.php', { params: { stock: 1, ...params } });
+  const create          = (data)     => api.post('/ubicaciones.php', data);
+  const update          = (id, data) => api.put(`/ubicaciones.php?id=${id}`, data);
+  const remove          = (id)       => api.delete(`/ubicaciones.php?id=${id}`);
+  return { list, stockByLocation, create, update, remove };
 }
 
 // Alias

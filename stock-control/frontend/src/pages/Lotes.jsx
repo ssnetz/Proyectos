@@ -22,10 +22,12 @@ export default function Lotes() {
   const [lotes, setLotes]               = useState([]);
   const [medicamentos, setMedicamentos] = useState([]);
   const [ubicaciones, setUbicaciones]   = useState([]);
+  const [distrib, setDistrib]           = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState('');
   const [success, setSuccess]           = useState('');
   const [filtro, setFiltro]             = useState('todos');
+  const [filterLoc, setFilterLoc]       = useState('');
   const [modal, setModal]               = useState(false);
   const [form, setForm]                 = useState(emptyForm);
   const [saving, setSaving]             = useState(false);
@@ -37,11 +39,15 @@ export default function Lotes() {
     return lotesApi.list(params).then((r) => setLotes(r.data));
   };
 
+  const loadDistrib = () =>
+    ubApi.stockByLocation().then((r) => setDistrib(r.data)).catch(() => {});
+
   useEffect(() => {
-    Promise.all([loadLotes('todos'), medApi.list({ active: '1' }), ubApi.list()])
-      .then(([, meds, ubs]) => {
+    Promise.all([loadLotes('todos'), medApi.list({ active: '1' }), ubApi.list(), ubApi.stockByLocation()])
+      .then(([, meds, ubs, dist]) => {
         setMedicamentos(meds.data);
         setUbicaciones(ubs.data);
+        setDistrib(dist.data);
       })
       .catch(() => setError('Error al cargar datos'))
       .finally(() => setLoading(false));
@@ -60,7 +66,7 @@ export default function Lotes() {
       await lotesApi.create(form);
       notify('Lote creado y stock actualizado');
       setModal(false);
-      await loadLotes(filtro);
+      await Promise.all([loadLotes(filtro), loadDistrib()]);
     } catch (e) {
       setError(e.response?.data?.error || 'Error al crear lote');
     } finally { setSaving(false); }
@@ -71,15 +77,63 @@ export default function Lotes() {
     try {
       await lotesApi.remove(id);
       notify('Lote eliminado');
-      await loadLotes(filtro);
+      await Promise.all([loadLotes(filtro), loadDistrib()]);
     } catch (e) { setError(e.response?.data?.error || 'Error al eliminar'); }
   };
+
+  // Filtrar por ubicación seleccionada
+  const lotesFiltrados = filterLoc
+    ? lotes.filter((l) => String(l.location_id) === filterLoc)
+    : lotes;
+
+  const totalStock = distrib.reduce((s, d) => s + Number(d.net_qty), 0);
 
   return (
     <div>
       {error   && <div className="alert alert-danger">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
+      {/* ── Panel distribución por ubicación ── */}
+      {!loading && distrib.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header">
+            <span className="card-title">📍 Stock distribuido por ubicación</span>
+            <span style={{ fontSize: '.8rem', color: 'var(--gray-500)' }}>
+              Total: <strong>{totalStock}</strong> unidades en {distrib.length} ubicación{distrib.length !== 1 ? 'es' : ''}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '8px 0 4px' }}>
+            {distrib.map((d) => (
+              <div
+                key={d.location_id}
+                onClick={() => setFilterLoc(filterLoc === String(d.location_id) ? '' : String(d.location_id))}
+                style={{
+                  background: filterLoc === String(d.location_id) ? 'var(--primary)' : 'var(--gray-50)',
+                  color:      filterLoc === String(d.location_id) ? '#fff' : 'inherit',
+                  border: `1px solid ${filterLoc === String(d.location_id) ? 'var(--primary)' : 'var(--gray-200)'}`,
+                  borderRadius: 8, padding: '10px 16px', textAlign: 'center',
+                  cursor: 'pointer', transition: 'all .15s',
+                  minWidth: 100,
+                }}
+              >
+                <div style={{ fontWeight: 700, fontSize: '1.3rem' }}>{d.net_qty}</div>
+                <div style={{ fontSize: '.75rem', marginTop: 2, opacity: .8 }}>{d.location_name}</div>
+                {d.location_type && (
+                  <div style={{ fontSize: '.7rem', marginTop: 1, opacity: .6 }}>{d.location_type}</div>
+                )}
+              </div>
+            ))}
+          </div>
+          {filterLoc && (
+            <p style={{ marginTop: 8, fontSize: '.8rem', color: 'var(--primary)', cursor: 'pointer' }}
+               onClick={() => setFilterLoc('')}>
+              ✕ Quitar filtro por ubicación
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── Tabla de lotes ── */}
       <div className="card">
         <div className="table-actions">
           <div className="filters">
@@ -90,24 +144,34 @@ export default function Lotes() {
                 {lbl}
               </button>
             ))}
+            {ubicaciones.length > 0 && (
+              <select className="form-control" style={{ width: 180 }}
+                value={filterLoc} onChange={(e) => setFilterLoc(e.target.value)}>
+                <option value="">Todas las ubicaciones</option>
+                {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            )}
           </div>
           <button className="btn btn-primary" onClick={openModal}>+ Nuevo lote</button>
         </div>
 
-        {loading ? <div className="spinner" /> : lotes.length === 0 ? (
-          <div className="empty"><div className="empty-icon">📦</div><p>No hay lotes para mostrar</p></div>
+        {loading ? <div className="spinner" /> : lotesFiltrados.length === 0 ? (
+          <div className="empty">
+            <div className="empty-icon">📦</div>
+            <p>{filterLoc ? 'No hay lotes en esta ubicación' : 'No hay lotes para mostrar'}</p>
+          </div>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Medicamento</th><th>N° Lote</th><th>Vencimiento</th>
-                  <th>Cantidad</th><th>Ubicación</th><th>Días hasta venc.</th>
+                  <th>Cantidad orig.</th><th>Ubicación</th><th>Días hasta venc.</th>
                   <th>Estado</th><th></th>
                 </tr>
               </thead>
               <tbody>
-                {lotes.map((l) => (
+                {lotesFiltrados.map((l) => (
                   <tr key={l.id}>
                     <td><strong>{l.product_name}</strong></td>
                     <td><code style={{ fontSize: '.8rem' }}>{l.lot_number}</code></td>
@@ -134,6 +198,12 @@ export default function Lotes() {
               </tbody>
             </table>
           </div>
+        )}
+        {!loading && lotesFiltrados.length > 0 && (
+          <p style={{ marginTop: 8, fontSize: '.8rem', color: 'var(--gray-400)' }}>
+            {lotesFiltrados.length} lote{lotesFiltrados.length !== 1 ? 's' : ''}
+            {filterLoc ? ` en ${distrib.find(d => String(d.location_id) === filterLoc)?.location_name || 'ubicación seleccionada'}` : ''}
+          </p>
         )}
       </div>
 

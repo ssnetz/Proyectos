@@ -10,12 +10,43 @@ $method = getMethod();
 $id     = getId();
 
 match ($method) {
-    'GET'    => (requireAuth() && listUbicaciones($db)),
+    'GET'    => (requireAuth() && (isset($_GET['stock']) ? stockByLocation($db) : listUbicaciones($db))),
     'POST'   => (requireAdmin() && createUbicacion($db)),
     'PUT'    => (requireAdmin() && ($id ? updateUbicacion($db, $id) : jsonError('ID requerido', 400))),
     'DELETE' => (requireAdmin() && ($id ? deleteUbicacion($db, $id) : jsonError('ID requerido', 400))),
     default  => jsonError('Método no permitido', 405),
 };
+
+function stockByLocation(PDO $db): void {
+    $productId = $_GET['product_id'] ?? null;
+
+    $sql = "
+        SELECT
+            l.id AS location_id,
+            l.name AS location_name,
+            l.type AS location_type,
+            GREATEST(0, SUM(CASE
+                WHEN m.type = 'entrada'              THEN m.quantity
+                WHEN m.type IN ('salida','dispensa') THEN -m.quantity
+                ELSE 0
+            END)) AS net_qty
+        FROM stock_movements m
+        JOIN locations l ON m.location_id = l.id
+        WHERE m.location_id IS NOT NULL
+    ";
+    $params = [];
+    if ($productId) {
+        $sql .= " AND m.product_id = ?";
+        $params[] = (int)$productId;
+    }
+    $sql .= " GROUP BY l.id, l.name, l.type
+              HAVING net_qty > 0
+              ORDER BY net_qty DESC";
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    jsonResponse($stmt->fetchAll());
+}
 
 function listUbicaciones(PDO $db): void {
     $activeOnly = ($_GET['active_only'] ?? '1') !== '0';
