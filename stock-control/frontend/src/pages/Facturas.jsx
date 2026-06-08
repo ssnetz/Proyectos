@@ -1,27 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFacturas, useMedicamentos, useProveedores, useUbicaciones } from '../hooks/useApi';
+// Worker URL resuelto en build-time por Vite (evita problemas de MIME en XAMPP)
+import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// ─── PDF.js setup ────────────────────────────────────────────────────────────
+// ─── PDF.js setup (lazy-load de la lib, worker URL estático) ─────────────────
 let pdfjsLib = null;
 async function getPdfjs() {
   if (pdfjsLib) return pdfjsLib;
-  const mod = await import('pdfjs-dist');
-  const workerMod = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
-  mod.GlobalWorkerOptions.workerSrc = workerMod.default;
-  pdfjsLib = mod;
+  const lib = await import('pdfjs-dist');
+  lib.GlobalWorkerOptions.workerSrc = workerUrl;
+  pdfjsLib = lib;
   return pdfjsLib;
-}
-
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-function normalizeDate(str) {
-  if (!str) return '';
-  let m = str.match(/^(\d{1,2})\/(\d{2})\/(\d{4})$/);
-  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  m = str.match(/^(\d{1,2})\/(\d{4})$/);
-  if (m) return `${m[2]}-${m[1].padStart(2,'0')}-01`;
-  m = str.match(/^(\d{1,2})\/(\d{2})$/);
-  if (m) return `20${m[2]}-${m[1].padStart(2,'0')}-01`;
-  return '';
 }
 
 function fmtDate(iso) {
@@ -35,64 +24,120 @@ async function extractPdfText(file) {
   const lib = await getPdfjs();
   const buf = await file.arrayBuffer();
   const pdf = await lib.getDocument({ data: buf }).promise;
-  const pages = [];
+  const allLines = [];
 
   for (let p = 1; p <= pdf.numPages; p++) {
     const page    = await pdf.getPage(p);
     const content = await page.getTextContent();
+
+    // Agrupar por coordenada Y para reconstruir filas de tabla
     const byY = {};
     for (const item of content.items) {
       if (!item.str?.trim()) continue;
-      const y = Math.round(item.transform[5] / 4) * 4;
+      const y = Math.round(item.transform[5] / 5) * 5;
       (byY[y] ??= []).push({ x: item.transform[4], text: item.str });
     }
+
     const lines = Object.entries(byY)
       .sort(([ya], [yb]) => +yb - +ya)
-      .map(([, items]) => items.sort((a,b) => a.x - b.x).map(i => i.text).join(' ').trim())
+      .map(([, items]) => items.sort((a, b) => a.x - b.x).map(i => i.text).join('  ').trim())
       .filter(Boolean);
-    pages.push(lines);
+
+    if (lines.length > 0) {
+      allLines.push(`--- Página ${p} ---`, ...lines);
+    }
   }
-  return pages.flat().join('\n');
+
+  const text = allLines.join('\n');
+  if (!text.trim()) throw new Error('El PDF no contiene texto extraíble. Es posible que sea una imagen escaneada.');
+  return text;
 }
 
 // ─── Pattern-based item detection ────────────────────────────────────────────
+function normalizeDate(str) {
+  if (!str) return '';
+  str = str.trim();
+  // DD/MM/YYYY
+  let m = str.match(/^(\d{1,2})[\/\-](\d{2})[\/\-](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  // MM/YYYY o MM-YYYY
+  m = str.match(/^(\d{1,2})[\/\-](\d{4})$/);
+  if (m) return `${m[2]}-${m[1].padStart(2,'0')}-01`;
+  // MM/YY
+  m = str.match(/^(\d{1,2})[\/\-](\d{2})$/);
+  if (m) return `20${m[2]}-${m[1].padStart(2,'0')}-01`;
+  return '';
+}
+
+// Extraer todas las fechas que parezcan vencimientos (año >= actual)
+function findDates(text) {
+  const currentYear = new Date().getFullYear();
+  const pattern = /\b(\d{1,2}[\/\-]\d{2}[\/\-]\d{4}|\d{1,2}[\/\-]\d{4}|\d{1,2}[\/\-]\d{2})\b/g;
+  const found = [];
+  let m;
+  while ((m = pattern.exec(text)) !== null) {
+    const norm = normalizeDate(m[1]);
+    if (!norm) continue;
+    const year = parseInt(norm.slice(0, 4), 10);
+    // Solo fechas futuras o del año actual (son vencimientos)
+    if (year >= currentYear) found.push({ raw: m[1], norm, idx: m.index });
+  }
+  return found;
+}
+
 function detectItems(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('---'));
   const results = [];
   const used = new Set();
 
   for (let i = 0; i < lines.length; i++) {
-    const ctx = lines.slice(Math.max(0, i - 1), i + 4).join(' ');
+    // Contexto amplio: línea anterior, actual y 3 siguientes
+    const ctxLines = lines.slice(Math.max(0, i - 1), i + 4);
+    const ctx = ctxLines.join(' ');
 
-    const expiryMatch =
-      ctx.match(/(?:vto|venc(?:imiento)?|exp(?:iry|ira)?)[\s.:]*(\d{1,2}\/(?:\d{2}\/\d{4}|\d{4}|\d{2}))/i) ||
-      ctx.match(/\b(\d{2}\/\d{2}\/\d{4})\b/);
-    if (!expiryMatch) continue;
+    // ── 1. Buscar fecha de vencimiento con etiqueta ──
+    const labeledExpiry =
+      ctx.match(/(?:vto\.?|venc(?:imiento)?\.?|f\.?\s*vto\.?|exp\.?)[\s:]*(\d{1,2}[\/\-]\d{2}[\/\-]\d{4}|\d{1,2}[\/\-]\d{4}|\d{1,2}[\/\-]\d{2})/i);
 
-    const expDate = normalizeDate(expiryMatch[1]);
+    // ── 2. Cualquier fecha futura en el contexto ──
+    const allDatesInCtx = findDates(ctx);
+
+    const expiryRaw = labeledExpiry?.[1] || allDatesInCtx[0]?.raw;
+    if (!expiryRaw) continue;
+
+    const expDate = normalizeDate(expiryRaw);
     if (!expDate) continue;
 
+    // ── 3. Número de lote ──
     const lotMatch =
-      ctx.match(/(?:lote|lot|n[°º°]?\s*lote)[\s.:]*([A-Z0-9][A-Z0-9\-\.]{2,20})/i) ||
-      ctx.match(/\b([A-Z]{1,4}[0-9]{4,10})\b/) ||
-      ctx.match(/\b([0-9]{5,12})\b/);
+      ctx.match(/(?:lote|lot\.?|n[°º]?\s*lote|nro\.?\s*lote)[\s.:]*([A-Z0-9][A-Z0-9\-\.\/]{1,25})/i) ||
+      ctx.match(/\b([A-Z]{1,4}[0-9]{3,12}[A-Z0-9]*)\b/) ||
+      ctx.match(/\b([0-9]{5,15})\b/);
 
-    const qtyNums = (lines[i].match(/\b(\d{1,6})\b/g) || [])
-      .map(Number).filter(n => n >= 1 && n <= 99999).sort((a,b) => b - a);
+    // ── 4. Cantidad (número razonable que no sea el año) ──
+    const allNums = (ctx.match(/\b\d{1,6}\b/g) || [])
+      .map(Number)
+      .filter(n => n >= 1 && n <= 99999 && n < 1900);
+    const qty = allNums[0] || 1;
 
-    // Skip duplicate detections
-    const key = `${expDate}-${lotMatch?.[1] || ''}`;
+    // ── 5. Nombre sugerido del producto (línea más informativa del contexto) ──
+    const nameLine = ctxLines
+      .filter(l => l.length > 5 && l.length < 150 && !/^\d/.test(l.trim()))
+      .sort((a, b) => b.length - a.length)[0] || lines[i];
+
+    const key = `${expDate}|${lotMatch?.[1] || ''}`;
     if (used.has(key)) continue;
     used.add(key);
 
     results.push({
-      suggested_name: lines[i].length > 5 && lines[i].length < 120 ? lines[i] : (lines[Math.max(0,i-1)] || ''),
-      lot_number:  lotMatch?.[1] || '',
-      expiry_date: expDate,
-      quantity:    qtyNums[0] || 1,
-      product_id:  '',
+      suggested_name: nameLine,
+      lot_number:     lotMatch?.[1] || '',
+      expiry_date:    expDate,
+      quantity:       qty,
+      product_id:     '',
     });
   }
+
   return results;
 }
 
@@ -118,8 +163,9 @@ export default function Facturas() {
   // PDF state
   const [pdfFile,     setPdfFile]     = useState(null);
   const [pdfText,     setPdfText]     = useState('');
+  const [pdfError,    setPdfError]    = useState('');
   const [pdfLoading,  setPdfLoading]  = useState(false);
-  const [showText,    setShowText]    = useState(false);
+  const [showText,    setShowText]    = useState(true);
   const [dragOver,    setDragOver]    = useState(false);
   const fileInputRef = useRef();
 
@@ -174,22 +220,29 @@ export default function Facturas() {
     setSuggestions([null]);
     setPdfFile(null);
     setPdfText('');
-    setShowText(false);
+    setPdfError('');
+    setShowText(true);
     setError('');
     setShowCreate(true);
   }
 
   // ── PDF handling ────────────────────────────────────────────────────────────
   async function handlePdfFile(file) {
-    if (!file || file.type !== 'application/pdf') return;
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      setPdfError('El archivo seleccionado no es un PDF.');
+      return;
+    }
     setPdfFile(file);
     setPdfLoading(true);
     setPdfText('');
+    setPdfError('');
     try {
       const text = await extractPdfText(file);
       setPdfText(text);
+      setShowText(true);
     } catch (e) {
-      setPdfText('No se pudo extraer el texto del PDF: ' + e.message);
+      setPdfError(e.message || 'Error al procesar el PDF.');
     }
     setPdfLoading(false);
   }
@@ -487,35 +540,50 @@ export default function Facturas() {
                   </div>
                 )}
 
+                {pdfError && !pdfLoading && (
+                  <div style={{ background: '#450a0a', border: '1px solid #b91c1c', borderRadius: 6, padding: '.75rem', color: '#fca5a5', fontSize: '.85rem' }}>
+                    <strong>Error:</strong> {pdfError}
+                    {pdfError.includes('imagen') && (
+                      <div style={{ marginTop: '.4rem', color: '#fca5a5' }}>
+                        Los PDFs escaneados no son compatibles con la extracción de texto. Cargá los ítems manualmente.
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {pdfText && !pdfLoading && (
                   <>
-                    <button className="btn btn-primary btn-sm" onClick={applyDetected}>
-                      ✨ Detectar ítems del PDF
-                    </button>
+                    <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button className="btn btn-primary btn-sm" onClick={applyDetected} style={{ flex: 1 }}>
+                        ✨ Detectar ítems automáticamente
+                      </button>
+                    </div>
+                    <div style={{ fontSize: '.8rem', color: 'var(--gray-400)' }}>
+                      {pdfText.split('\n').filter(l => l && !l.startsWith('---')).length} líneas extraídas
+                    </div>
                     <div>
                       <button
                         className="btn btn-ghost btn-sm"
-                        style={{ width: '100%', justifyContent: 'space-between' }}
+                        style={{ width: '100%', justifyContent: 'space-between', marginBottom: showText ? '.25rem' : 0 }}
                         onClick={() => setShowText(v => !v)}
                       >
-                        Texto extraído {showText ? '▲' : '▼'}
+                        Texto extraído {showText ? '▲ ocultar' : '▼ ver'}
                       </button>
                       {showText && (
                         <textarea
                           readOnly
                           value={pdfText}
                           style={{
-                            width: '100%', height: 300, marginTop: '.5rem',
-                            fontFamily: 'monospace', fontSize: '.75rem',
+                            width: '100%', height: 280, fontFamily: 'monospace', fontSize: '.72rem',
                             background: 'var(--gray-900)', border: '1px solid var(--gray-700)',
                             borderRadius: 6, padding: '.5rem', color: 'var(--gray-300)',
-                            resize: 'vertical', boxSizing: 'border-box',
+                            resize: 'vertical', boxSizing: 'border-box', display: 'block',
                           }}
                         />
                       )}
                     </div>
-                    <p style={{ fontSize: '.8rem', color: 'var(--gray-400)', margin: 0 }}>
-                      La detección es orientativa. Revisá y corregí los ítems antes de guardar.
+                    <p style={{ fontSize: '.78rem', color: 'var(--gray-500)', margin: 0 }}>
+                      La detección automática es orientativa. Revisá y corregí los ítems antes de guardar.
                     </p>
                   </>
                 )}
