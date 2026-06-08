@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFacturas, useMedicamentos, useProveedores, useUbicaciones } from '../hooks/useApi';
-// Worker URL resuelto en build-time por Vite (evita problemas de MIME en XAMPP)
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+// Worker URLs resueltos en build-time por Vite
+import pdfWorkerUrl  from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import tessWorkerUrl from 'tesseract.js/dist/worker.min.js?url';
 
-// ─── PDF.js setup (lazy-load de la lib, worker URL estático) ─────────────────
+// ─── PDF.js setup ─────────────────────────────────────────────────────────────
 let pdfjsLib = null;
 async function getPdfjs() {
   if (pdfjsLib) return pdfjsLib;
   const lib = await import('pdfjs-dist');
-  lib.GlobalWorkerOptions.workerSrc = workerUrl;
+  lib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
   pdfjsLib = lib;
   return pdfjsLib;
 }
@@ -59,6 +60,27 @@ async function processPdf(file) {
     text:   allLines.join('\n'),
     images: pageImages,
   };
+}
+
+// ─── OCR con Tesseract.js ─────────────────────────────────────────────────────
+async function runOcr(images, onProgress) {
+  const { createWorker } = await import('tesseract.js');
+  const worker = await createWorker('spa', 1, {
+    workerPath: tessWorkerUrl,
+    logger: m => {
+      if (m.status === 'recognizing text' && onProgress) {
+        onProgress(Math.round(m.progress * 100));
+      }
+    },
+  });
+  const texts = [];
+  for (let i = 0; i < images.length; i++) {
+    onProgress && onProgress(0);
+    const { data: { text } } = await worker.recognize(images[i]);
+    texts.push(text);
+  }
+  await worker.terminate();
+  return texts.join('\n--- Página ---\n');
 }
 
 // ─── Pattern-based item detection ────────────────────────────────────────────
@@ -174,6 +196,8 @@ export default function Facturas() {
   const [pdfImages,   setPdfImages]   = useState([]);   // páginas renderizadas
   const [pdfError,    setPdfError]    = useState('');
   const [pdfLoading,  setPdfLoading]  = useState(false);
+  const [ocrLoading,  setOcrLoading]  = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
   const [showText,    setShowText]    = useState(false);
   const [dragOver,    setDragOver]    = useState(false);
   const fileInputRef = useRef();
@@ -231,9 +255,32 @@ export default function Facturas() {
     setPdfText('');
     setPdfImages([]);
     setPdfError('');
+    setOcrLoading(false);
+    setOcrProgress(0);
     setShowText(false);
     setError('');
     setShowCreate(true);
+  }
+
+  // ── OCR ─────────────────────────────────────────────────────────────────────
+  async function handleOcr() {
+    if (!pdfImages.length) return;
+    setOcrLoading(true);
+    setOcrProgress(0);
+    setPdfError('');
+    try {
+      const text = await runOcr(pdfImages, setOcrProgress);
+      if (text.trim()) {
+        setPdfText(text);
+        setShowText(true);
+      } else {
+        setPdfError('El OCR no pudo extraer texto. La imagen puede ser de baja calidad.');
+      }
+    } catch (e) {
+      setPdfError('Error en OCR: ' + e.message);
+    }
+    setOcrLoading(false);
+    setOcrProgress(0);
   }
 
   // ── PDF handling ────────────────────────────────────────────────────────────
@@ -615,12 +662,37 @@ export default function Facturas() {
                   </>
                 )}
 
-                {/* Aviso para PDFs escaneados sin texto */}
+                {/* OCR para PDFs escaneados */}
                 {pdfImages.length > 0 && !pdfText && !pdfLoading && (
-                  <p style={{ fontSize: '.8rem', color: 'var(--gray-400)', margin: 0, background: 'var(--gray-800)', borderRadius: 6, padding: '.6rem' }}>
-                    PDF escaneado — la detección automática no está disponible.<br />
-                    Usá el visor como referencia y completá los ítems manualmente.
-                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleOcr}
+                      disabled={ocrLoading}
+                    >
+                      {ocrLoading
+                        ? `🔄 Leyendo… ${ocrProgress}%`
+                        : '🔍 Leer texto con OCR'}
+                    </button>
+
+                    {ocrLoading && (
+                      <div style={{ background: 'var(--gray-700)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 99,
+                          background: 'var(--primary)',
+                          width: `${ocrProgress}%`,
+                          transition: 'width .3s',
+                        }} />
+                      </div>
+                    )}
+
+                    {!ocrLoading && (
+                      <p style={{ fontSize: '.78rem', color: 'var(--gray-500)', margin: 0 }}>
+                        Reconoce texto en la imagen del PDF.<br />
+                        Requiere internet la primera vez (~4 MB de datos de idioma).
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
