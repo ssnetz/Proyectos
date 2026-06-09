@@ -327,8 +327,13 @@ export default function Facturas() {
     setOcrLoading(true); setOcrProgress(0); setPdfError('');
     try {
       const text = await runOcr(pdfImages, setOcrProgress);
-      if (text.trim()) { setPdfText(text); setShowText(true); }
-      else setPdfError('El OCR no pudo extraer texto. La imagen puede ser de baja calidad.');
+      if (text.trim()) {
+        setPdfText(text);
+        setShowText(false);
+        applyDetectedFromText(text);
+      } else {
+        setPdfError('El OCR no pudo extraer texto. La imagen puede ser de baja calidad.');
+      }
     } catch (e) {
       setPdfError('Error en OCR: ' + e.message);
     }
@@ -342,7 +347,10 @@ export default function Facturas() {
     try {
       const { text, images } = await processPdf(file);
       setPdfImages(images);
-      if (text.trim()) setPdfText(text);
+      if (text.trim()) {
+        setPdfText(text);
+        applyDetectedFromText(text);
+      }
     } catch (e) {
       setPdfError(e.message || 'Error al procesar el PDF.');
     }
@@ -355,15 +363,11 @@ export default function Facturas() {
     if (file) handlePdfFile(file);
   }
 
-  function applyDetected() {
-    // Intentar primero el parser de remito (código 6 dígitos + fecha al final)
-    const remitoItems = detectItemsFromRemito(pdfText);
-    const detected    = remitoItems.length > 0 ? remitoItems : detectItems(pdfText);
+  function applyDetectedFromText(text) {
+    const remitoItems = detectItemsFromRemito(text);
+    const detected    = remitoItems.length > 0 ? remitoItems : detectItems(text);
 
-    if (detected.length === 0) {
-      alert('No se detectaron ítems en el PDF.\nRevisá el texto extraído y cargá los ítems manualmente.');
-      return;
-    }
+    if (detected.length === 0) return;   // sin ítems: no tocar la tabla
 
     const newItems = detected.map(d => ({
       ...EMPTY_ITEM,
@@ -376,9 +380,8 @@ export default function Facturas() {
       quantity:            d.quantity       || 1,
     }));
 
-    // Si es remito, pre-rellenar número y fecha del encabezado
     if (remitoItems.length > 0) {
-      const header = extractRemitoHeader(pdfText);
+      const header = extractRemitoHeader(text);
       setForm(f => ({
         ...f,
         invoice_number: header.invoice_number || f.invoice_number,
@@ -388,6 +391,18 @@ export default function Facturas() {
     } else {
       setForm(f => ({ ...f, items: newItems }));
     }
+  }
+
+  // Botón manual: re-detectar usando el texto ya extraído
+  function applyDetected() {
+    if (!pdfText) return;
+    const remitoItems = detectItemsFromRemito(pdfText);
+    const detected    = remitoItems.length > 0 ? remitoItems : detectItems(pdfText);
+    if (detected.length === 0) {
+      alert('No se detectaron ítems en el PDF.\nRevisá el texto extraído y cargá los ítems manualmente.');
+      return;
+    }
+    applyDetectedFromText(pdfText);
   }
 
   function addItem()      { setForm(f => ({ ...f, items: [...f.items, { ...EMPTY_ITEM }] })); }
@@ -602,9 +617,12 @@ export default function Facturas() {
                 )}
 
                 {pdfText && !pdfLoading && (
-                  <>
-                    <button className="btn btn-primary btn-sm" onClick={applyDetected}>
-                      ✨ Detectar ítems automáticamente
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
+                    <div style={{ fontSize: '.78rem', color: 'var(--green-400,#4ade80)', display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+                      ✓ Ítems detectados y volcados al detalle
+                    </div>
+                    <button className="btn btn-ghost btn-sm" onClick={applyDetected}>
+                      ↺ Re-detectar ítems
                     </button>
                     <div>
                       <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'space-between' }} onClick={() => setShowText(v => !v)}>
@@ -614,7 +632,7 @@ export default function Facturas() {
                         <textarea readOnly value={pdfText} style={{ width: '100%', height: 180, fontFamily: 'monospace', fontSize: '.7rem', background: 'var(--gray-900)', border: '1px solid var(--gray-700)', borderRadius: 6, padding: '.5rem', color: 'var(--gray-300)', resize: 'vertical', boxSizing: 'border-box', display: 'block', marginTop: '.25rem' }} />
                       )}
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {pdfImages.length > 0 && !pdfText && !pdfLoading && (
