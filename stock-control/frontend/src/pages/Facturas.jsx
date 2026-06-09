@@ -617,21 +617,13 @@ export default function Facturas() {
                 )}
 
                 {pdfText && !pdfLoading && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <div style={{ fontSize: '.78rem', color: 'var(--green-400,#4ade80)', display: 'flex', alignItems: 'center', gap: '.4rem' }}>
-                      ✓ Ítems detectados y volcados al detalle
-                    </div>
-                    <button className="btn btn-ghost btn-sm" onClick={applyDetected}>
-                      ↺ Re-detectar ítems
+                  <div>
+                    <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'space-between' }} onClick={() => setShowText(v => !v)}>
+                      Texto extraído ({pdfText.split('\n').filter(l => l && !l.startsWith('---')).length} líneas) {showText ? '▲' : '▼'}
                     </button>
-                    <div>
-                      <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'space-between' }} onClick={() => setShowText(v => !v)}>
-                        Texto extraído ({pdfText.split('\n').filter(l => l && !l.startsWith('---')).length} líneas) {showText ? '▲' : '▼'}
-                      </button>
-                      {showText && (
-                        <textarea readOnly value={pdfText} style={{ width: '100%', height: 180, fontFamily: 'monospace', fontSize: '.7rem', background: 'var(--gray-900)', border: '1px solid var(--gray-700)', borderRadius: 6, padding: '.5rem', color: 'var(--gray-300)', resize: 'vertical', boxSizing: 'border-box', display: 'block', marginTop: '.25rem' }} />
-                      )}
-                    </div>
+                    {showText && (
+                      <textarea readOnly value={pdfText} style={{ width: '100%', height: 180, fontFamily: 'monospace', fontSize: '.7rem', background: 'var(--gray-900)', border: '1px solid var(--gray-700)', borderRadius: 6, padding: '.5rem', color: 'var(--gray-300)', resize: 'vertical', boxSizing: 'border-box', display: 'block', marginTop: '.25rem' }} />
+                    )}
                   </div>
                 )}
 
@@ -693,7 +685,14 @@ export default function Facturas() {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.5rem' }}>
                     <p style={{ fontWeight: 600, margin: 0 }}>Ítems ({form.items.length})</p>
-                    <button className="btn btn-ghost btn-sm" onClick={addItem}>+ Agregar fila</button>
+                    <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+                      {pdfText && (
+                        <button className="btn btn-ghost btn-sm" onClick={applyDetected} title="Volver a detectar ítems del PDF">
+                          ↺ Re-detectar del PDF
+                        </button>
+                      )}
+                      <button className="btn btn-ghost btn-sm" onClick={addItem}>+ Agregar fila</button>
+                    </div>
                   </div>
                   <div style={{ overflowX: 'auto' }}>
                     <table className="table" style={{ fontSize: '.85rem' }}>
