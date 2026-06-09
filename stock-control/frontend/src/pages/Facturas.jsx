@@ -107,30 +107,42 @@ function findDates(text) {
 
 // ─── Parser específico para remitos (Trade Farma y similares) ─────────────────
 // Estructura por fila: CODIGO  CANTIDAD  DESCRIPCIÓN  MARCA  LOTE  DD/MM/YYYY
+// Tolera basura OCR antes del código (p.ej. "$ 169173" → código "169173",
+// "¿5 263357" → código "263357").
 function detectItemsFromRemito(text) {
   const results = [];
   const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-  // Unir líneas de continuación (las que no empiezan con código de 6 dígitos)
+  // Una fila de producto empieza con 0-4 chars de basura OCR + 5-7 dígitos + espacio
+  const PROD_RE = /^.{0,4}\d{5,7}\s/;
+
+  // Unir líneas de continuación
   const lines = [];
   for (const line of rawLines) {
-    if (/^\d{6}\b/.test(line)) {
+    if (line.startsWith('---')) continue;
+    if (PROD_RE.test(line)) {
       lines.push(line);
-    } else if (lines.length > 0 && !line.startsWith('---')) {
+    } else if (lines.length > 0) {
       lines[lines.length - 1] += ' ' + line;
     }
   }
 
   for (const line of lines) {
-    // 6 dígitos + flecha opcional + cantidad + resto
-    const rowMatch = line.match(/^(\d{6})\s+[←→\-—~<>=]?\s*(\d+)\s+(.*)/);
-    if (!rowMatch) continue;
+    // Extraer código: primer bloque de 5-7 dígitos (precedido por hasta 4 chars de basura)
+    const codeMatch = line.match(/^.{0,4}(\d{5,7})\s/);
+    if (!codeMatch) continue;
 
-    const productCode = rowMatch[1];
-    const quantity    = parseInt(rowMatch[2], 10);
+    const productCode = codeMatch[1];
+    const afterCode   = line.slice(codeMatch.index + codeMatch[0].length);
+
+    // Cantidad: número entero después de flecha/guión opcionales (artefactos OCR)
+    const qtyMatch = afterCode.match(/^[←→\-—~<>=\s]{0,6}(\d{1,5})\s+/);
+    if (!qtyMatch) continue;
+
+    const quantity = parseInt(qtyMatch[1], 10);
     if (quantity <= 0 || quantity > 99999) continue;
 
-    const rest = rowMatch[3];
+    const rest = afterCode.slice(qtyMatch[0].length);
 
     // Fecha al final: DD/MM/YYYY
     const dateMatch = rest.match(/(\d{1,2}\/\d{2}\/\d{4})\s*$/);
@@ -139,17 +151,16 @@ function detectItemsFromRemito(text) {
     const expiryDate = normalizeDate(dateMatch[1]);
     const beforeDate = rest.slice(0, dateMatch.index).trimEnd();
 
-    // Lote: último token alfanumérico (sin espacios) antes de la fecha
+    // Lote: último token alfanumérico antes de la fecha
     const lotMatch = beforeDate.match(/\s+([A-Z0-9]{2,20})\s*$/);
     if (!lotMatch) continue;
 
     const lot       = lotMatch[1];
     const beforeLot = beforeDate.slice(0, lotMatch.index).trimEnd();
 
-    // Marca: última(s) palabra(s) en MAYÚSCULAS puras antes del lote.
-    // Si la última palabra tiene ≤ 3 chars (ej: "ARG","PE","F"), se incluye
-    // la palabra anterior también (ej: "TEVA ARG", "SAENZ PE", "DENVER F").
-    const lastWordMatch = beforeLot.match(/([A-Z]+)\s*$/);
+    // Marca: última(s) palabra(s) ALL-CAPS antes del lote.
+    // Si ≤ 3 chars (ej: "ARG","PE","F") se incluye la anterior ("TEVA ARG").
+    const lastWordMatch = beforeLot.match(/([A-Z]{2,})\s*$/);
     let marca    = '';
     let descText = beforeLot;
 
@@ -157,7 +168,7 @@ function detectItemsFromRemito(text) {
       const word   = lastWordMatch[1];
       const endIdx = beforeLot.length - lastWordMatch[0].length;
       if (word.length <= 3) {
-        const preceding = beforeLot.slice(0, endIdx).match(/([A-Z]+)\s*$/);
+        const preceding = beforeLot.slice(0, endIdx).match(/([A-Z]{2,})\s*$/);
         if (preceding) {
           const preEnd = endIdx - preceding[0].length;
           marca    = preceding[1] + ' ' + word;
@@ -171,6 +182,8 @@ function detectItemsFromRemito(text) {
         descText = beforeLot.slice(0, endIdx).trimEnd();
       }
     }
+
+    if (!descText && !marca) continue;
 
     results.push({
       product_code:   productCode,
@@ -372,8 +385,8 @@ export default function Facturas() {
     const newItems = detected.map(d => ({
       ...EMPTY_ITEM,
       product_code:        d.product_code   || '',
-      product_search:      d.suggested_name || '',
-      product_description: '',
+      product_search:      '',                      // vacío: usuario busca el medicamento
+      product_description: d.suggested_name || '',  // descripción del remito
       marca:               d.marca          || '',
       lot_number:          d.lot_number     || '',
       expiry_date:         d.expiry_date    || '',
