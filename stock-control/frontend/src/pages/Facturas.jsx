@@ -78,7 +78,7 @@ async function runOcr(images, onProgress) {
   return texts.join('\n--- Página ---\n');
 }
 
-// ─── Pattern-based item detection ────────────────────────────────────────────
+// ─── Utilidades de fecha ──────────────────────────────────────────────────────
 function normalizeDate(str) {
   if (!str) return '';
   str = str.trim();
@@ -105,6 +105,98 @@ function findDates(text) {
   return found;
 }
 
+// ─── Parser específico para remitos (Trade Farma y similares) ─────────────────
+// Estructura por fila: CODIGO  CANTIDAD  DESCRIPCIÓN  MARCA  LOTE  DD/MM/YYYY
+function detectItemsFromRemito(text) {
+  const results = [];
+  const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Unir líneas de continuación (las que no empiezan con código de 6 dígitos)
+  const lines = [];
+  for (const line of rawLines) {
+    if (/^\d{6}\b/.test(line)) {
+      lines.push(line);
+    } else if (lines.length > 0 && !line.startsWith('---')) {
+      lines[lines.length - 1] += ' ' + line;
+    }
+  }
+
+  for (const line of lines) {
+    // 6 dígitos + flecha opcional + cantidad + resto
+    const rowMatch = line.match(/^(\d{6})\s+[←→\-—~<>=]?\s*(\d+)\s+(.*)/);
+    if (!rowMatch) continue;
+
+    const productCode = rowMatch[1];
+    const quantity    = parseInt(rowMatch[2], 10);
+    if (quantity <= 0 || quantity > 99999) continue;
+
+    const rest = rowMatch[3];
+
+    // Fecha al final: DD/MM/YYYY
+    const dateMatch = rest.match(/(\d{1,2}\/\d{2}\/\d{4})\s*$/);
+    if (!dateMatch) continue;
+
+    const expiryDate = normalizeDate(dateMatch[1]);
+    const beforeDate = rest.slice(0, dateMatch.index).trimEnd();
+
+    // Lote: último token alfanumérico (sin espacios) antes de la fecha
+    const lotMatch = beforeDate.match(/\s+([A-Z0-9]{2,20})\s*$/);
+    if (!lotMatch) continue;
+
+    const lot       = lotMatch[1];
+    const beforeLot = beforeDate.slice(0, lotMatch.index).trimEnd();
+
+    // Marca: última(s) palabra(s) en MAYÚSCULAS puras antes del lote.
+    // Si la última palabra tiene ≤ 3 chars (ej: "ARG","PE","F"), se incluye
+    // la palabra anterior también (ej: "TEVA ARG", "SAENZ PE", "DENVER F").
+    const lastWordMatch = beforeLot.match(/([A-Z]+)\s*$/);
+    let marca    = '';
+    let descText = beforeLot;
+
+    if (lastWordMatch) {
+      const word   = lastWordMatch[1];
+      const endIdx = beforeLot.length - lastWordMatch[0].length;
+      if (word.length <= 3) {
+        const preceding = beforeLot.slice(0, endIdx).match(/([A-Z]+)\s*$/);
+        if (preceding) {
+          const preEnd = endIdx - preceding[0].length;
+          marca    = preceding[1] + ' ' + word;
+          descText = beforeLot.slice(0, preEnd).trimEnd();
+        } else {
+          marca    = word;
+          descText = beforeLot.slice(0, endIdx).trimEnd();
+        }
+      } else {
+        marca    = word;
+        descText = beforeLot.slice(0, endIdx).trimEnd();
+      }
+    }
+
+    results.push({
+      product_code:   productCode,
+      suggested_name: descText || rest,
+      marca,
+      lot_number:     lot,
+      expiry_date:    expiryDate,
+      quantity,
+      product_id:     '',
+    });
+  }
+
+  return results;
+}
+
+// Extrae número de remito y fecha del encabezado
+function extractRemitoHeader(text) {
+  const info = {};
+  const numMatch = text.match(/REMITO\s+N[°º]?\s*([\d\s\-\.]+\d)/i);
+  if (numMatch) info.invoice_number = numMatch[1].trim().replace(/\s+/g, '');
+  const firstDate = text.match(/(\d{1,2}\/\d{2}\/\d{4})/);
+  if (firstDate) info.invoice_date = normalizeDate(firstDate[1]);
+  return info;
+}
+
+// ─── Parser genérico (fallback para PDFs sin estructura de remito) ────────────
 function detectItems(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('---'));
   const results = [];
@@ -142,7 +234,9 @@ function detectItems(text) {
     used.add(key);
 
     results.push({
+      product_code:   '',
       suggested_name: nameLine,
+      marca:          '',
       lot_number:     lotMatch?.[1] || '',
       expiry_date:    expDate,
       quantity:       qty,
@@ -154,7 +248,10 @@ function detectItems(text) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-const EMPTY_ITEM = { product_id: '', product_search: '', lot_number: '', expiry_date: '', quantity: 1, location_id: '' };
+const EMPTY_ITEM = {
+  product_id: '', product_search: '', product_code: '', product_description: '',
+  marca: '', lot_number: '', expiry_date: '', quantity: 1, location_id: '',
+};
 
 export default function Facturas() {
   const facApi  = useFacturas();
@@ -183,7 +280,6 @@ export default function Facturas() {
   const [dragOver,    setDragOver]    = useState(false);
   const fileInputRef = useRef();
 
-  // Form state
   const [form, setForm] = useState({
     invoice_number: '',
     supplier_id:    '',
@@ -221,48 +317,28 @@ export default function Facturas() {
       notes:          '',
       items:          [{ ...EMPTY_ITEM }],
     });
-    setPdfFile(null);
-    setPdfText('');
-    setPdfImages([]);
-    setPdfError('');
-    setOcrLoading(false);
-    setOcrProgress(0);
-    setShowText(false);
-    setError('');
+    setPdfFile(null); setPdfText(''); setPdfImages([]); setPdfError('');
+    setOcrLoading(false); setOcrProgress(0); setShowText(false); setError('');
     setShowCreate(true);
   }
 
   async function handleOcr() {
     if (!pdfImages.length) return;
-    setOcrLoading(true);
-    setOcrProgress(0);
-    setPdfError('');
+    setOcrLoading(true); setOcrProgress(0); setPdfError('');
     try {
       const text = await runOcr(pdfImages, setOcrProgress);
-      if (text.trim()) {
-        setPdfText(text);
-        setShowText(true);
-      } else {
-        setPdfError('El OCR no pudo extraer texto. La imagen puede ser de baja calidad.');
-      }
+      if (text.trim()) { setPdfText(text); setShowText(true); }
+      else setPdfError('El OCR no pudo extraer texto. La imagen puede ser de baja calidad.');
     } catch (e) {
       setPdfError('Error en OCR: ' + e.message);
     }
-    setOcrLoading(false);
-    setOcrProgress(0);
+    setOcrLoading(false); setOcrProgress(0);
   }
 
   async function handlePdfFile(file) {
     if (!file) return;
-    if (file.type !== 'application/pdf') {
-      setPdfError('El archivo seleccionado no es un PDF.');
-      return;
-    }
-    setPdfFile(file);
-    setPdfLoading(true);
-    setPdfText('');
-    setPdfImages([]);
-    setPdfError('');
+    if (file.type !== 'application/pdf') { setPdfError('El archivo no es un PDF.'); return; }
+    setPdfFile(file); setPdfLoading(true); setPdfText(''); setPdfImages([]); setPdfError('');
     try {
       const { text, images } = await processPdf(file);
       setPdfImages(images);
@@ -274,43 +350,52 @@ export default function Facturas() {
   }
 
   function handleFileDrop(e) {
-    e.preventDefault();
-    setDragOver(false);
+    e.preventDefault(); setDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (file) handlePdfFile(file);
   }
 
   function applyDetected() {
-    const detected = detectItems(pdfText);
+    // Intentar primero el parser de remito (código 6 dígitos + fecha al final)
+    const remitoItems = detectItemsFromRemito(pdfText);
+    const detected    = remitoItems.length > 0 ? remitoItems : detectItems(pdfText);
+
     if (detected.length === 0) {
-      alert('No se detectaron ítems con lote/vencimiento en el PDF.\nRevisá el texto extraído y cargá los ítems manualmente.');
+      alert('No se detectaron ítems en el PDF.\nRevisá el texto extraído y cargá los ítems manualmente.');
       return;
     }
-    setForm(f => ({
-      ...f,
-      items: detected.map(d => ({
-        product_id:     '',
-        product_search: d.suggested_name,
-        lot_number:     d.lot_number,
-        expiry_date:    d.expiry_date,
-        quantity:       d.quantity,
-        location_id:    '',
-      })),
+
+    const newItems = detected.map(d => ({
+      ...EMPTY_ITEM,
+      product_code:        d.product_code   || '',
+      product_search:      d.suggested_name || '',
+      product_description: '',
+      marca:               d.marca          || '',
+      lot_number:          d.lot_number     || '',
+      expiry_date:         d.expiry_date    || '',
+      quantity:            d.quantity       || 1,
     }));
+
+    // Si es remito, pre-rellenar número y fecha del encabezado
+    if (remitoItems.length > 0) {
+      const header = extractRemitoHeader(pdfText);
+      setForm(f => ({
+        ...f,
+        invoice_number: header.invoice_number || f.invoice_number,
+        invoice_date:   header.invoice_date   || f.invoice_date,
+        items:          newItems,
+      }));
+    } else {
+      setForm(f => ({ ...f, items: newItems }));
+    }
   }
 
-  function addItem() {
-    setForm(f => ({ ...f, items: [...f.items, { ...EMPTY_ITEM }] }));
-  }
-
-  function removeItem(idx) {
-    setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
-  }
-
-  function updateItem(idx, field, value) {
+  function addItem()      { setForm(f => ({ ...f, items: [...f.items, { ...EMPTY_ITEM }] })); }
+  function removeItem(i)  { setForm(f => ({ ...f, items: f.items.filter((_, j) => j !== i) })); }
+  function updateItem(i, field, value) {
     setForm(f => {
       const items = [...f.items];
-      items[idx] = { ...items[idx], [field]: value };
+      items[i] = { ...items[i], [field]: value };
       return { ...f, items };
     });
   }
@@ -319,8 +404,7 @@ export default function Facturas() {
     setError('');
     if (!form.invoice_number.trim()) { setError('Ingresá el número de factura.'); return; }
     if (form.items.some(it => !it.product_id || !it.quantity)) {
-      setError('Completá el producto y cantidad de cada ítem.');
-      return;
+      setError('Completá el producto y cantidad de cada ítem.'); return;
     }
     setSaving(true);
     try {
@@ -333,6 +417,7 @@ export default function Facturas() {
         items: form.items.map(it => ({
           product_id:  it.product_id,
           lot_number:  it.lot_number,
+          marca:       it.marca,
           expiry_date: it.expiry_date || null,
           quantity:    parseInt(it.quantity, 10),
           location_id: it.location_id || null,
@@ -350,9 +435,7 @@ export default function Facturas() {
     if (!confirm('¿Eliminar esta factura? Se revertirá el stock de todos sus lotes.')) return;
     try {
       await facApi.remove(id);
-      setDetailId(null);
-      setDetail(null);
-      loadAll();
+      setDetailId(null); setDetail(null); loadAll();
     } catch (e) {
       alert(e.response?.data?.error || 'Error al eliminar');
     }
@@ -368,7 +451,6 @@ export default function Facturas() {
           <h2 className="card-title">Facturas de Compra</h2>
           <button className="btn btn-primary" onClick={openCreate}>+ Nueva Factura</button>
         </div>
-
         {facturas.length === 0 ? (
           <p style={{ padding: '2rem', color: 'var(--gray-400)', textAlign: 'center' }}>
             No hay facturas registradas.
@@ -377,13 +459,10 @@ export default function Facturas() {
           <table className="table">
             <thead>
               <tr>
-                <th>N° Factura</th>
-                <th>Proveedor</th>
-                <th>Fecha</th>
+                <th>N° Factura</th><th>Proveedor</th><th>Fecha</th>
                 <th style={{ textAlign: 'center' }}>Lotes</th>
                 <th style={{ textAlign: 'center' }}>Unidades</th>
-                <th>Registrado por</th>
-                <th></th>
+                <th>Registrado por</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -395,11 +474,7 @@ export default function Facturas() {
                   <td style={{ textAlign: 'center' }}>{f.total_lotes}</td>
                   <td style={{ textAlign: 'center' }}>{f.total_unidades}</td>
                   <td style={{ fontSize: '.85rem', color: 'var(--gray-400)' }}>{f.user}</td>
-                  <td>
-                    <button className="btn btn-ghost btn-sm" onClick={() => openDetail(f.id)}>
-                      Ver detalle
-                    </button>
-                  </td>
+                  <td><button className="btn btn-ghost btn-sm" onClick={() => openDetail(f.id)}>Ver detalle</button></td>
                 </tr>
               ))}
             </tbody>
@@ -410,7 +485,7 @@ export default function Facturas() {
       {/* ── Detail modal ── */}
       {detailId && (
         <div className="modal-overlay" onClick={() => { setDetailId(null); setDetail(null); }}>
-          <div className="modal" style={{ maxWidth: 800 }} onClick={e => e.stopPropagation()}>
+          <div className="modal" style={{ maxWidth: 900 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Factura {detail?.invoice_number || '…'}</h3>
               <button className="btn btn-ghost btn-sm btn-icon" onClick={() => { setDetailId(null); setDetail(null); }}>✕</button>
@@ -427,15 +502,20 @@ export default function Facturas() {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Medicamento</th><th>Código</th><th>Lote</th>
-                        <th>Vencimiento</th><th style={{ textAlign: 'center' }}>Cantidad</th><th>Ubicación</th>
+                        <th>Código</th><th>Descripción</th><th>Marca</th>
+                        <th>Lote</th><th>Vencimiento</th>
+                        <th style={{ textAlign: 'center' }}>Cantidad</th><th>Ubicación</th>
                       </tr>
                     </thead>
                     <tbody>
                       {detail.lotes?.map(l => (
                         <tr key={l.id}>
-                          <td>{l.product_name}</td>
                           <td style={{ fontSize: '.85rem', color: 'var(--gray-400)' }}>{l.product_code}</td>
+                          <td>
+                            <strong>{l.product_name}</strong>
+                            {l.product_description && <div style={{ fontSize: '.78rem', color: 'var(--gray-500)' }}>{l.product_description}</div>}
+                          </td>
+                          <td>{l.marca || <span style={{ color: 'var(--gray-500)' }}>—</span>}</td>
                           <td>{l.lot_number || '—'}</td>
                           <td>{fmtDate(l.expiry_date)}</td>
                           <td style={{ textAlign: 'center' }}>{l.quantity} {l.unit}</td>
@@ -460,7 +540,7 @@ export default function Facturas() {
       {/* ── Create modal ── */}
       {showCreate && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '95vw', width: 1100, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="modal" style={{ maxWidth: '98vw', width: 1280, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <h3 className="modal-title">Nueva Factura de Compra</h3>
               <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setShowCreate(false)}>✕</button>
@@ -469,7 +549,7 @@ export default function Facturas() {
             <div className="modal-body" style={{ flex: 1, overflow: 'auto', display: 'flex', gap: '1.5rem', padding: '1rem 1.5rem' }}>
 
               {/* ── LEFT: PDF panel ── */}
-              <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
+              <div style={{ width: 320, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
                 <p style={{ fontWeight: 600, marginBottom: 0 }}>PDF de la factura</p>
 
                 <div
@@ -481,32 +561,21 @@ export default function Facturas() {
                     border: `2px dashed ${dragOver ? 'var(--primary)' : 'var(--gray-600)'}`,
                     borderRadius: 8,
                     padding: pdfImages.length ? '.6rem 1rem' : '1.5rem 1rem',
-                    textAlign: 'center',
-                    cursor: 'pointer',
+                    textAlign: 'center', cursor: 'pointer',
                     background: dragOver ? 'var(--gray-800)' : 'transparent',
-                    transition: 'all .2s',
-                    color: 'var(--gray-400)',
-                    fontSize: '.85rem',
+                    transition: 'all .2s', color: 'var(--gray-400)', fontSize: '.85rem',
                   }}
                 >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="application/pdf"
-                    style={{ display: 'none' }}
-                    onChange={e => handlePdfFile(e.target.files?.[0])}
-                  />
+                  <input ref={fileInputRef} type="file" accept="application/pdf" style={{ display: 'none' }}
+                    onChange={e => handlePdfFile(e.target.files?.[0])} />
                   {pdfFile ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', justifyContent: 'center' }}>
                       <span>📄</span>
-                      <span style={{ color: 'var(--gray-200)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{pdfFile.name}</span>
+                      <span style={{ color: 'var(--gray-200)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>{pdfFile.name}</span>
                       <span style={{ fontSize: '.75rem', flexShrink: 0 }}>· cambiar</span>
                     </div>
                   ) : (
-                    <>
-                      <div style={{ fontSize: '2rem', marginBottom: '.4rem' }}>📂</div>
-                      <div>Arrastrá el PDF aquí<br />o hacé clic para seleccionar</div>
-                    </>
+                    <><div style={{ fontSize: '2rem', marginBottom: '.4rem' }}>📂</div><div>Arrastrá el PDF aquí<br />o hacé clic para seleccionar</div></>
                   )}
                 </div>
 
@@ -515,7 +584,6 @@ export default function Facturas() {
                     <div className="spinner" style={{ width: 16, height: 16 }} /> Procesando PDF…
                   </div>
                 )}
-
                 {pdfError && !pdfLoading && (
                   <div style={{ background: '#450a0a', border: '1px solid #b91c1c', borderRadius: 6, padding: '.6rem', color: '#fca5a5', fontSize: '.82rem' }}>
                     {pdfError}
@@ -523,19 +591,10 @@ export default function Facturas() {
                 )}
 
                 {pdfImages.length > 0 && !pdfLoading && (
-                  <div style={{
-                    flex: 1, overflowY: 'auto', border: '1px solid var(--gray-700)',
-                    borderRadius: 8, background: 'var(--gray-900)',
-                    display: 'flex', flexDirection: 'column', gap: 4, padding: 4,
-                    maxHeight: 420,
-                  }}>
+                  <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--gray-700)', borderRadius: 8, background: 'var(--gray-900)', display: 'flex', flexDirection: 'column', gap: 4, padding: 4, maxHeight: 380 }}>
                     {pdfImages.map((src, i) => (
                       <div key={i}>
-                        {pdfImages.length > 1 && (
-                          <div style={{ fontSize: '.7rem', color: 'var(--gray-500)', textAlign: 'center', padding: '2px 0' }}>
-                            Página {i + 1}
-                          </div>
-                        )}
+                        {pdfImages.length > 1 && <div style={{ fontSize: '.7rem', color: 'var(--gray-500)', textAlign: 'center', padding: '2px 0' }}>Página {i + 1}</div>}
                         <img src={src} alt={`Página ${i + 1}`} style={{ width: '100%', display: 'block', borderRadius: 4 }} />
                       </div>
                     ))}
@@ -548,24 +607,11 @@ export default function Facturas() {
                       ✨ Detectar ítems automáticamente
                     </button>
                     <div>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        style={{ width: '100%', justifyContent: 'space-between' }}
-                        onClick={() => setShowText(v => !v)}
-                      >
+                      <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'space-between' }} onClick={() => setShowText(v => !v)}>
                         Texto extraído ({pdfText.split('\n').filter(l => l && !l.startsWith('---')).length} líneas) {showText ? '▲' : '▼'}
                       </button>
                       {showText && (
-                        <textarea
-                          readOnly
-                          value={pdfText}
-                          style={{
-                            width: '100%', height: 200, fontFamily: 'monospace', fontSize: '.7rem',
-                            background: 'var(--gray-900)', border: '1px solid var(--gray-700)',
-                            borderRadius: 6, padding: '.5rem', color: 'var(--gray-300)',
-                            resize: 'vertical', boxSizing: 'border-box', display: 'block', marginTop: '.25rem',
-                          }}
-                        />
+                        <textarea readOnly value={pdfText} style={{ width: '100%', height: 180, fontFamily: 'monospace', fontSize: '.7rem', background: 'var(--gray-900)', border: '1px solid var(--gray-700)', borderRadius: 6, padding: '.5rem', color: 'var(--gray-300)', resize: 'vertical', boxSizing: 'border-box', display: 'block', marginTop: '.25rem' }} />
                       )}
                     </div>
                   </>
@@ -581,12 +627,7 @@ export default function Facturas() {
                         <div style={{ height: '100%', borderRadius: 99, background: 'var(--primary)', width: `${ocrProgress}%`, transition: 'width .3s' }} />
                       </div>
                     )}
-                    {!ocrLoading && (
-                      <p style={{ fontSize: '.78rem', color: 'var(--gray-500)', margin: 0 }}>
-                        Reconoce texto en la imagen del PDF.<br />
-                        Requiere internet la primera vez (~4 MB de datos de idioma).
-                      </p>
-                    )}
+                    {!ocrLoading && <p style={{ fontSize: '.78rem', color: 'var(--gray-500)', margin: 0 }}>Reconoce texto en la imagen del PDF.<br />Requiere internet la primera vez (~4 MB).</p>}
                   </div>
                 )}
               </div>
@@ -594,73 +635,60 @@ export default function Facturas() {
               {/* ── RIGHT: Form ── */}
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
+                {/* Header fields */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '.75rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">N° Factura *</label>
-                    <input
-                      className="form-input"
-                      placeholder="Ej: 0001-00012345"
+                    <label className="form-label">N° Factura / Remito *</label>
+                    <input className="form-input" placeholder="Ej: 0001-00029491"
                       value={form.invoice_number}
-                      onChange={e => setForm(f => ({ ...f, invoice_number: e.target.value }))}
-                    />
+                      onChange={e => setForm(f => ({ ...f, invoice_number: e.target.value }))} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Fecha</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={form.invoice_date}
-                      onChange={e => setForm(f => ({ ...f, invoice_date: e.target.value }))}
-                    />
+                    <input type="date" className="form-input" value={form.invoice_date}
+                      onChange={e => setForm(f => ({ ...f, invoice_date: e.target.value }))} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Proveedor</label>
-                    <select
-                      className="form-input"
-                      value={form.supplier_id}
-                      onChange={e => setForm(f => ({ ...f, supplier_id: e.target.value }))}
-                    >
+                    <select className="form-input" value={form.supplier_id}
+                      onChange={e => setForm(f => ({ ...f, supplier_id: e.target.value }))}>
                       <option value="">— Sin especificar —</option>
                       {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Ubicación destino (default)</label>
-                    <select
-                      className="form-input"
-                      value={form.location_id}
-                      onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}
-                    >
+                    <select className="form-input" value={form.location_id}
+                      onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}>
                       <option value="">— Sin ubicación —</option>
                       {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group" style={{ margin: 0, gridColumn: '2 / 4' }}>
                     <label className="form-label">Observaciones</label>
-                    <input
-                      className="form-input"
-                      placeholder="Notas opcionales"
-                      value={form.notes}
-                      onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                    />
+                    <input className="form-input" placeholder="Notas opcionales" value={form.notes}
+                      onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
                   </div>
                 </div>
 
+                {/* Items table */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.5rem' }}>
-                    <p style={{ fontWeight: 600, margin: 0 }}>Medicamentos ({form.items.length})</p>
+                    <p style={{ fontWeight: 600, margin: 0 }}>Ítems ({form.items.length})</p>
                     <button className="btn btn-ghost btn-sm" onClick={addItem}>+ Agregar fila</button>
                   </div>
-
                   <div style={{ overflowX: 'auto' }}>
                     <table className="table" style={{ fontSize: '.85rem' }}>
                       <thead>
                         <tr>
-                          <th style={{ minWidth: 200 }}>Medicamento *</th>
+                          <th style={{ minWidth: 220 }}>Medicamento *</th>
+                          <th style={{ minWidth: 90 }}>Código</th>
+                          <th style={{ minWidth: 180 }}>Descripción</th>
+                          <th style={{ minWidth: 130 }}>Marca</th>
                           <th style={{ minWidth: 120 }}>N° Lote</th>
                           <th style={{ minWidth: 130 }}>Vencimiento</th>
                           <th style={{ minWidth: 80 }}>Cantidad *</th>
-                          <th style={{ minWidth: 140 }}>Ubicación</th>
+                          <th style={{ minWidth: 130 }}>Ubicación</th>
                           <th></th>
                         </tr>
                       </thead>
@@ -673,7 +701,13 @@ export default function Facturas() {
                             onSelectProduct={p => {
                               setForm(f => {
                                 const items = [...f.items];
-                                items[idx] = { ...items[idx], product_id: p.id, product_search: p.name };
+                                items[idx] = {
+                                  ...items[idx],
+                                  product_id:          p.id,
+                                  product_search:      p.name,
+                                  product_code:        p.code        || '',
+                                  product_description: p.description || '',
+                                };
                                 return { ...f, items };
                               });
                             }}
@@ -708,7 +742,7 @@ export default function Facturas() {
   );
 }
 
-// ─── ItemRow: search state is fully contained here ───────────────────────────
+// ─── ItemRow: búsqueda de medicamentos autónoma por fila ─────────────────────
 function ItemRow({ item, locations, onSelectProduct, onUpdate, onRemove, canRemove }) {
   const medApi   = useMedicamentos();
   const [query,  setQuery] = useState(item.product_search || '');
@@ -739,6 +773,8 @@ function ItemRow({ item, locations, onSelectProduct, onUpdate, onRemove, canRemo
     setQuery(q);
     onUpdate('product_id', '');
     onUpdate('product_search', q);
+    onUpdate('product_code', '');
+    onUpdate('product_description', '');
     doSearch(q);
   }
 
@@ -750,32 +786,20 @@ function ItemRow({ item, locations, onSelectProduct, onUpdate, onRemove, canRemo
 
   return (
     <tr>
+      {/* Medicamento */}
       <td ref={wrapRef} style={{ position: 'relative' }}>
-        <input
-          className="form-input"
-          style={{ fontSize: '.85rem' }}
-          placeholder="Buscar medicamento…"
+        <input className="form-input" style={{ fontSize: '.85rem' }} placeholder="Buscar medicamento…"
           value={query}
           onChange={e => handleChange(e.target.value)}
-          onFocus={() => { if (query.length >= 2 && !item.product_id) doSearch(query); }}
-        />
-        {item.product_id && (
-          <div style={{ fontSize: '.75rem', color: 'var(--primary)', marginTop: 2 }}>✓ seleccionado</div>
-        )}
+          onFocus={() => { if (query.length >= 2 && !item.product_id) doSearch(query); }} />
+        {item.product_id && <div style={{ fontSize: '.75rem', color: 'var(--primary)', marginTop: 2 }}>✓ seleccionado</div>}
         {suggs && suggs.length > 0 && !item.product_id && (
-          <div style={{
-            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-            background: '#fff', border: '1px solid #cbd5e1',
-            borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,.18)', maxHeight: 220, overflowY: 'auto',
-          }}>
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,.18)', maxHeight: 220, overflowY: 'auto' }}>
             {suggs.map(p => (
-              <div
-                key={p.id}
-                onMouseDown={() => handleSelect(p)}
+              <div key={p.id} onMouseDown={() => handleSelect(p)}
                 style={{ padding: '.5rem .75rem', cursor: 'pointer', fontSize: '.85rem', borderBottom: '1px solid #e2e8f0', color: '#1e293b' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-              >
+                onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
                 <span style={{ fontWeight: 600, color: '#0f172a' }}>{p.name}</span>
                 <span style={{ color: '#64748b', marginLeft: '.5rem' }}>{p.code}</span>
                 <span style={{ color: '#94a3b8', marginLeft: '.5rem', fontSize: '.8rem' }}>Stock: {p.stock}</span>
@@ -784,69 +808,68 @@ function ItemRow({ item, locations, onSelectProduct, onUpdate, onRemove, canRemo
           </div>
         )}
         {suggs && suggs.length === 0 && !item.product_id && (
-          <div style={{
-            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-            background: '#fff', border: '1px solid #cbd5e1',
-            borderRadius: 6, padding: '.5rem .75rem', fontSize: '.85rem', color: '#64748b',
-          }}>
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, padding: '.5rem .75rem', fontSize: '.85rem', color: '#64748b' }}>
             Sin resultados
           </div>
         )}
       </td>
 
+      {/* Código (read-only) */}
       <td>
-        <input
-          className="form-input"
-          style={{ fontSize: '.85rem' }}
-          placeholder="Nº Lote"
+        <input className="form-input" style={{ fontSize: '.85rem', color: 'var(--gray-400)', background: 'var(--gray-800)' }}
+          readOnly value={item.product_code} placeholder="—" tabIndex={-1} />
+      </td>
+
+      {/* Descripción */}
+      <td>
+        <input className="form-input" style={{ fontSize: '.85rem' }} placeholder="Descripción"
+          value={item.product_description}
+          onChange={e => onUpdate('product_description', e.target.value)} />
+      </td>
+
+      {/* Marca */}
+      <td>
+        <input className="form-input" style={{ fontSize: '.85rem' }} placeholder="Marca / Lab."
+          value={item.marca}
+          onChange={e => onUpdate('marca', e.target.value)} />
+      </td>
+
+      {/* Lote */}
+      <td>
+        <input className="form-input" style={{ fontSize: '.85rem' }} placeholder="Nº Lote"
           value={item.lot_number}
-          onChange={e => onUpdate('lot_number', e.target.value)}
-        />
+          onChange={e => onUpdate('lot_number', e.target.value)} />
       </td>
 
+      {/* Vencimiento */}
       <td>
-        <input
-          type="date"
-          className="form-input"
-          style={{ fontSize: '.85rem' }}
+        <input type="date" className="form-input" style={{ fontSize: '.85rem' }}
           value={item.expiry_date}
-          onChange={e => onUpdate('expiry_date', e.target.value)}
-        />
+          onChange={e => onUpdate('expiry_date', e.target.value)} />
       </td>
 
+      {/* Cantidad */}
       <td>
-        <input
-          type="number"
-          className="form-input"
-          style={{ fontSize: '.85rem' }}
-          min={1}
+        <input type="number" className="form-input" style={{ fontSize: '.85rem' }} min={1}
           value={item.quantity}
-          onChange={e => onUpdate('quantity', e.target.value)}
-        />
+          onChange={e => onUpdate('quantity', e.target.value)} />
       </td>
 
+      {/* Ubicación */}
       <td>
-        <select
-          className="form-input"
-          style={{ fontSize: '.85rem' }}
+        <select className="form-input" style={{ fontSize: '.85rem' }}
           value={item.location_id}
-          onChange={e => onUpdate('location_id', e.target.value)}
-        >
+          onChange={e => onUpdate('location_id', e.target.value)}>
           <option value="">Default</option>
           {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
       </td>
 
+      {/* Eliminar */}
       <td>
         {canRemove && (
-          <button
-            className="btn btn-ghost btn-sm btn-icon"
-            style={{ color: 'var(--red-400,#f87171)' }}
-            onClick={onRemove}
-            title="Eliminar fila"
-          >
-            ✕
-          </button>
+          <button className="btn btn-ghost btn-sm btn-icon" style={{ color: 'var(--red-400,#f87171)' }}
+            onClick={onRemove} title="Eliminar fila">✕</button>
         )}
       </td>
     </tr>
