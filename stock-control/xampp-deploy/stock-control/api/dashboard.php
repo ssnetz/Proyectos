@@ -72,6 +72,33 @@ $expiredCount = (int)$db->query(
        AND quantity > 0"
 )->fetchColumn();
 
+// Medicamentos activos con stock > 0 sin ningún lote con fecha de vencimiento cargada
+$sinLoteCount = (int)$db->query(
+    "SELECT COUNT(*) FROM products p
+     WHERE p.active = 1 AND p.stock > 0
+       AND NOT EXISTS (
+         SELECT 1 FROM product_lots pl
+         WHERE pl.product_id = p.id
+           AND pl.expiration_date IS NOT NULL
+           AND pl.quantity > 0
+       )"
+)->fetchColumn();
+
+$sinLoteProducts = $db->query(
+    "SELECT p.id, p.code, p.name, p.stock, c.name AS category_name
+     FROM products p
+     LEFT JOIN categories c ON p.category_id = c.id
+     WHERE p.active = 1 AND p.stock > 0
+       AND NOT EXISTS (
+         SELECT 1 FROM product_lots pl
+         WHERE pl.product_id = p.id
+           AND pl.expiration_date IS NOT NULL
+           AND pl.quantity > 0
+       )
+     ORDER BY p.name
+     LIMIT 50"
+)->fetchAll();
+
 jsonResponse([
     'stats' => [
         'total_products'  => (int)$totalProducts,
@@ -79,11 +106,13 @@ jsonResponse([
         'out_of_stock'    => (int)$outOfStock,
         'total_suppliers' => (int)$totalSuppliers,
         'stock_value'     => (float)$stockValue,
-        'expiring_count'  => $expiringCount,
-        'expired_count'   => $expiredCount,
+        'expiring_count'   => $expiringCount,
+        'expired_count'    => $expiredCount,
+        'sin_lote_count'   => $sinLoteCount,
     ],
     'low_stock_products' => $lowStockProducts,
     'recent_movements'   => $recentMovements,
     'movements_by_day'   => $movementsByDay,
     'expiring_soon'      => $expiringSoon,
+    'sin_lote_products'  => $sinLoteProducts,
 ]);

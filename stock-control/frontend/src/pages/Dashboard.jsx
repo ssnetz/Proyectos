@@ -21,7 +21,7 @@ export default function Dashboard() {
   if (error)   return <div className="alert alert-danger">{error}</div>;
   if (!data || !data.stats) return <div className="alert alert-danger">Error: respuesta inesperada del servidor.</div>;
 
-  const { stats, low_stock_products, recent_movements, movements_by_day, expiring_soon } = data;
+  const { stats, low_stock_products, recent_movements, movements_by_day, expiring_soon, sin_lote_products } = data;
 
   const formatCurrency = (v) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v);
@@ -94,6 +94,15 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+        <div className="stat-card">
+          <div className="stat-icon red">📋</div>
+          <div>
+            <div className="stat-value" style={{ color: (stats.sin_lote_count ?? 0) > 0 ? 'var(--warning)' : 'inherit' }}>
+              {stats.sin_lote_count ?? 0}
+            </div>
+            <div className="stat-label">Sin lote/vencimiento</div>
+          </div>
+        </div>
       </div>
 
       {/* Chart + recent movements */}
@@ -174,6 +183,33 @@ export default function Dashboard() {
                       {Number(l.days_left) < 0 ? `Vencido` : `${l.days_left} días`}
                     </td>
                     <td>{expiringBadge(l.days_left)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Medicamentos sin lote/vencimiento */}
+      {sin_lote_products && sin_lote_products.length > 0 && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-header">
+            <span className="card-title">📋 Medicamentos sin lote/vencimiento cargado</span>
+            <span className="badge badge-yellow">{sin_lote_products.length} medicamentos</span>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Código</th><th>Medicamento</th><th>Categoría</th><th>Stock actual</th></tr>
+              </thead>
+              <tbody>
+                {sin_lote_products.map((p) => (
+                  <tr key={p.id}>
+                    <td><code style={{ fontSize: '.8rem' }}>{p.code}</code></td>
+                    <td><strong>{p.name}</strong></td>
+                    <td style={{ color: 'var(--gray-400)' }}>{p.category_name || '—'}</td>
+                    <td><strong>{p.stock}</strong></td>
                   </tr>
                 ))}
               </tbody>
