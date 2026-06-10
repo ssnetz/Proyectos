@@ -105,16 +105,21 @@ function findDates(text) {
   return found;
 }
 
-// ─── Parser específico para remitos (Trade Farma y similares) ─────────────────
-// Estructura por fila: CODIGO  CANTIDAD  DESCRIPCIÓN  MARCA  LOTE  DD/MM/YYYY
-// Tolera basura OCR antes del código (p.ej. "$ 169173" → código "169173",
-// "¿5 263357" → código "263357").
+// ─── Parser específico para remitos Trade Farma ───────────────────────────────
+// Formato OCR real (Tesseract sobre escaneo CamScanner):
+//   CODIGO [junk] CANTIDAD DESCRIPCION MARCA LOTE DD/MM/YYYY
+//
+// "junk" entre código y cantidad varía mucho por artefactos OCR:
+//   «==   «$   »=   ==   <=   ...   .-.   ,   $   «  (vacío con solo espacio)
+//
+// Solución: regex único que acepta 1-12 caracteres no-dígito entre código y cantidad.
 function detectItemsFromRemito(text) {
   const results = [];
   const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-  // Una fila de producto empieza con 0-4 chars de basura OCR + 5-7 dígitos + espacio
-  const PROD_RE = /^.{0,4}\d{5,7}\s/;
+  // Línea de producto: [0-4 chars basura] + [5-7 dígitos] + [char no-dígito]
+  // Cubre también "002215, 300" donde hay coma pegada al código.
+  const PROD_RE = /^.{0,4}\d{5,7}[^0-9]/;
 
   // Unir líneas de continuación
   const lines = [];
@@ -128,21 +133,16 @@ function detectItemsFromRemito(text) {
   }
 
   for (const line of lines) {
-    // Extraer código: primer bloque de 5-7 dígitos (precedido por hasta 4 chars de basura)
-    const codeMatch = line.match(/^.{0,4}(\d{5,7})\s/);
-    if (!codeMatch) continue;
+    // Captura todo en una sola pasada:
+    // [basura 0-4] CÓDIGO(5-7 dig) [separador 1-12 no-dig] CANTIDAD(1-5 dig) [espacio] RESTO
+    const rowMatch = line.match(/^.{0,4}(\d{5,7})[^0-9]{1,12}(\d{1,5})\s+(.*)/);
+    if (!rowMatch) continue;
 
-    const productCode = codeMatch[1];
-    const afterCode   = line.slice(codeMatch.index + codeMatch[0].length);
-
-    // Cantidad: número entero después de flecha/guión opcionales (artefactos OCR)
-    const qtyMatch = afterCode.match(/^[←→\-—~<>=\s]{0,6}(\d{1,5})\s+/);
-    if (!qtyMatch) continue;
-
-    const quantity = parseInt(qtyMatch[1], 10);
+    const productCode = rowMatch[1];
+    const quantity    = parseInt(rowMatch[2], 10);
     if (quantity <= 0 || quantity > 99999) continue;
 
-    const rest = afterCode.slice(qtyMatch[0].length);
+    const rest = rowMatch[3];
 
     // Fecha al final: DD/MM/YYYY
     const dateMatch = rest.match(/(\d{1,2}\/\d{2}\/\d{4})\s*$/);
@@ -158,28 +158,29 @@ function detectItemsFromRemito(text) {
     const lot       = lotMatch[1];
     const beforeLot = beforeDate.slice(0, lotMatch.index).trimEnd();
 
-    // Marca: última(s) palabra(s) ALL-CAPS antes del lote.
-    // Si ≤ 3 chars (ej: "ARG","PE","F") se incluye la anterior ("TEVA ARG").
-    const lastWordMatch = beforeLot.match(/([A-Z]{2,})\s*$/);
+    // Limpiar símbolos finales sobrantes ej: "KLONAL —" → "KLONAL"
+    const cleanedBL = beforeLot.replace(/[^A-Za-z0-9]+$/, '').trimEnd();
+
+    // Marca: última(s) palabra(s) ALL-CAPS. Si ≤ 3 chars incluir la anterior.
+    const lastWordMatch = cleanedBL.match(/([A-Z]{2,})\s*$/);
     let marca    = '';
-    let descText = beforeLot;
+    let descText = cleanedBL;
 
     if (lastWordMatch) {
       const word   = lastWordMatch[1];
-      const endIdx = beforeLot.length - lastWordMatch[0].length;
+      const endIdx = cleanedBL.length - lastWordMatch[0].length;
       if (word.length <= 3) {
-        const preceding = beforeLot.slice(0, endIdx).match(/([A-Z]{2,})\s*$/);
-        if (preceding) {
-          const preEnd = endIdx - preceding[0].length;
-          marca    = preceding[1] + ' ' + word;
-          descText = beforeLot.slice(0, preEnd).trimEnd();
+        const prev = cleanedBL.slice(0, endIdx).match(/([A-Z]{2,})\s*$/);
+        if (prev) {
+          marca    = prev[1] + ' ' + word;
+          descText = cleanedBL.slice(0, endIdx - prev[0].length).trimEnd();
         } else {
           marca    = word;
-          descText = beforeLot.slice(0, endIdx).trimEnd();
+          descText = cleanedBL.slice(0, endIdx).trimEnd();
         }
       } else {
         marca    = word;
-        descText = beforeLot.slice(0, endIdx).trimEnd();
+        descText = cleanedBL.slice(0, endIdx).trimEnd();
       }
     }
 
@@ -200,10 +201,15 @@ function detectItemsFromRemito(text) {
 }
 
 // Extrae número de remito y fecha del encabezado
+// Cubre: "REMITO N° 0001-00029491", "REMITO N* 0001 - 00029491"
 function extractRemitoHeader(text) {
   const info = {};
-  const numMatch = text.match(/REMITO\s+N[°º]?\s*([\d\s\-\.]+\d)/i);
-  if (numMatch) info.invoice_number = numMatch[1].trim().replace(/\s+/g, '');
+  const numMatch = text.match(/REMITO\s+N[°º*#]?[:\s]*([\d][\d\s\-\.]+\d)/i);
+  if (numMatch) {
+    const parts = numMatch[1].match(/\d+/g);
+    info.invoice_number = parts ? parts.join('-') : numMatch[1].trim();
+  }
+  // Primera fecha DD/MM/YYYY del documento (suele ser la fecha de emisión)
   const firstDate = text.match(/(\d{1,2}\/\d{2}\/\d{4})/);
   if (firstDate) info.invoice_date = normalizeDate(firstDate[1]);
   return info;
