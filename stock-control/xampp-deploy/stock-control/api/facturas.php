@@ -47,7 +47,7 @@ function getFactura(PDO $db, int $id): void {
     if (!$factura) jsonError('Factura no encontrada', 404);
 
     $stmt = $db->prepare("
-        SELECT pl.id, pl.lot_number, pl.expiration_date AS expiry_date,
+        SELECT pl.id, pl.lot_number, pl.marca, pl.expiration_date AS expiry_date,
                pl.quantity, pl.location_id,
                p.id AS product_id, p.name AS product_name, p.code AS product_code, p.unit,
                l.name AS location_name
@@ -94,6 +94,7 @@ function createFactura(PDO $db, array $auth): void {
             $productId  = (int)($item['product_id']  ?? 0);
             $quantity   = (int)($item['quantity']    ?? 0);
             $lotNumber  = trim($item['lot_number']   ?? '');
+            $marca      = trim($item['marca']        ?? '') ?: null;
             $expiryDate = !empty($item['expiry_date']) ? $item['expiry_date'] : null;
             $itemLocId  = !empty($item['location_id']) ? (int)$item['location_id'] : $locationId;
 
@@ -111,12 +112,13 @@ function createFactura(PDO $db, array $auth): void {
             // Crear lote vinculado a la factura
             $s = $db->prepare(
                 "INSERT INTO product_lots
-                 (product_id, lot_number, expiration_date, quantity, location_id, invoice_id)
-                 VALUES (?, ?, ?, ?, ?, ?)"
+                 (product_id, lot_number, marca, expiration_date, quantity, location_id, invoice_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)"
             );
             $s->execute([
                 $productId,
                 $lotNumber ?: null,
+                $marca,
                 $expiryDate,
                 $quantity,
                 $itemLocId,
