@@ -1,0 +1,4 @@
+stock-control/
+node_modules/
+dist/
+*.zip
