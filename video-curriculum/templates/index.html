@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Galería de Video Currículums{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+  <h1>Video Currículums</h1>
+  <p>Conocé a nuestros alumnos y sus proyectos profesionales</p>
+</section>
+
+<div class="filters">
+  <form method="get" action="{{ url_for('index') }}" class="filter-form">
+    {% if anios %}
+    <select name="anio" onchange="this.form.submit()">
+      <option value="">Todos los años</option>
+      {% for a in anios %}
+      <option value="{{ a }}" {% if a == anio_sel %}selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+    {% if cursos %}
+    <select name="curso" onchange="this.form.submit()">
+      <option value="">Todos los cursos</option>
+      {% for c in cursos %}
+      <option value="{{ c }}" {% if c == curso_sel %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+  </form>
+  <span class="results-count">{{ alumnos|length }} alumno{{ 's' if alumnos|length != 1 }}</span>
+</div>
+
+{% if alumnos %}
+<div class="cards-grid">
+  {% for alumno in alumnos %}
+  <article class="card">
+    <a href="{{ url_for('ver_alumno', alumno_id=alumno.id) }}" class="card-media">
+      <img
+        src="{{ url_for('static', filename='uploads/' + alumno.foto) }}"
+        alt="Foto de {{ alumno.nombre_completo() }}"
+        onerror="this.src='{{ url_for('static', filename='uploads/default.png') }}'"
+      />
+      <div class="card-play">▶</div>
+    </a>
+    <div class="card-body">
+      <h2 class="card-name">{{ alumno.nombre_completo() }}</h2>
+      {% if alumno.curso %}
+      <span class="card-curso">{{ alumno.curso }}</span>
+      {% endif %}
+      {% if alumno.habilidades_lista() %}
+      <div class="card-skills">
+        {% for skill in alumno.habilidades_lista()[:4] %}
+        <span class="skill-tag">{{ skill }}</span>
+        {% endfor %}
+        {% if alumno.habilidades_lista()|length > 4 %}
+        <span class="skill-tag skill-more">+{{ alumno.habilidades_lista()|length - 4 }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
+      <div class="card-links">
+        {% if alumno.linkedin %}
+        <a href="{{ alumno.linkedin }}" target="_blank" rel="noopener" title="LinkedIn">in</a>
+        {% endif %}
+        {% if alumno.github %}
+        <a href="{{ alumno.github }}" target="_blank" rel="noopener" title="GitHub">gh</a>
+        {% endif %}
+        {% if alumno.portfolio %}
+        <a href="{{ alumno.portfolio }}" target="_blank" rel="noopener" title="Portfolio">🌐</a>
+        {% endif %}
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No hay alumnos cargados todavía.</p>
+  {% if session.get('admin') %}
+  <a href="{{ url_for('admin_nuevo') }}" class="btn">Agregar primer alumno</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if alumno else 'Nuevo' }} Alumno{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <h1>{{ 'Editar alumno' if alumno else 'Nuevo alumno' }}</h1>
+
+  <form method="post" enctype="multipart/form-data" class="form form-wide">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="nombre">Nombre *</label>
+        <input type="text" id="nombre" name="nombre" required
+               value="{{ alumno.nombre if alumno else '' }}" />
+      </div>
+      <div class="form-group">
+        <label for="apellido">Apellido *</label>
+        <input type="text" id="apellido" name="apellido" required
+               value="{{ alumno.apellido if alumno else '' }}" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="curso">Curso / División</label>
+        <input type="text" id="curso" name="curso" placeholder="Ej: 5to A"
+               value="{{ alumno.curso if alumno else '' }}" />
+      </div>
+      <div class="form-group">
+        <label for="anio">Año</label>
+        <input type="number" id="anio" name="anio" min="2020" max="2099"
+               value="{{ alumno.anio if alumno else 2026 }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="video_url">URL del Video (Google Drive o OneDrive) *</label>
+      <input type="url" id="video_url" name="video_url" required
+             placeholder="https://drive.google.com/file/d/.../view"
+             value="{{ alumno.video_url if alumno else '' }}" />
+      <small>Asegurate de que el archivo tenga acceso público "cualquier persona con el enlace".</small>
+    </div>
+
+    <div class="form-group">
+      <label for="foto">Foto de perfil (JPG/PNG, máx 2 MB)</label>
+      {% if alumno and alumno.foto != 'default.png' %}
+      <p class="current-foto">
+        <img src="{{ url_for('static', filename='uploads/' + alumno.foto) }}" alt="" class="thumb" />
+        Foto actual
+      </p>
+      {% endif %}
+      <input type="file" id="foto" name="foto" accept=".jpg,.jpeg,.png,.webp" />
+    </div>
+
+    <div class="form-group">
+      <label for="habilidades">Habilidades / Skills</label>
+      <input type="text" id="habilidades" name="habilidades"
+             placeholder="Python, HTML, CSS, JavaScript  (separadas por coma)"
+             value="{{ alumno.habilidades if alumno else '' }}" />
+    </div>
+
+    <div class="form-group">
+      <label for="descripcion">Descripción breve</label>
+      <textarea id="descripcion" name="descripcion" rows="3"
+                placeholder="Breve presentación del alumno...">{{ alumno.descripcion if alumno else '' }}</textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="linkedin">LinkedIn URL</label>
+        <input type="url" id="linkedin" name="linkedin"
+               placeholder="https://linkedin.com/in/..."
+               value="{{ alumno.linkedin if alumno else '' }}" />
+      </div>
+      <div class="form-group">
+        <label for="github">GitHub URL</label>
+        <input type="url" id="github" name="github"
+               placeholder="https://github.com/..."
+               value="{{ alumno.github if alumno else '' }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="portfolio">Portfolio / Sitio web</label>
+      <input type="url" id="portfolio" name="portfolio"
+             placeholder="https://..."
+             value="{{ alumno.portfolio if alumno else '' }}" />
+    </div>
+
+    {% if alumno %}
+    <div class="form-group form-check">
+      <label>
+        <input type="checkbox" name="activo" {{ 'checked' if alumno.activo }} />
+        Visible en la galería pública
+      </label>
+    </div>
+    {% endif %}
+
+    <div class="form-actions">
+      <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline">Cancelar</a>
+      <button type="submit" class="btn btn-primary">
+        {{ 'Guardar cambios' if alumno else 'Agregar alumno' }}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

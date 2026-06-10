@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ alumno.nombre_completo() }}{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('index') }}" class="back-link">← Volver a la galería</a>
+
+<div class="profile-layout">
+  <aside class="profile-sidebar">
+    <img
+      src="{{ url_for('static', filename='uploads/' + alumno.foto) }}"
+      alt="{{ alumno.nombre_completo() }}"
+      class="profile-photo"
+      onerror="this.src='{{ url_for('static', filename='uploads/default.png') }}'"
+    />
+    <h1 class="profile-name">{{ alumno.nombre_completo() }}</h1>
+    {% if alumno.curso %}
+    <p class="profile-curso">{{ alumno.curso }} — {{ alumno.anio }}</p>
+    {% endif %}
+
+    {% if alumno.descripcion %}
+    <p class="profile-bio">{{ alumno.descripcion }}</p>
+    {% endif %}
+
+    {% if alumno.habilidades_lista() %}
+    <div class="profile-section">
+      <h3>Habilidades</h3>
+      <div class="skills-list">
+        {% for skill in alumno.habilidades_lista() %}
+        <span class="skill-tag">{{ skill }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="profile-links">
+      {% if alumno.linkedin %}
+      <a href="{{ alumno.linkedin }}" target="_blank" rel="noopener" class="link-btn link-linkedin">
+        LinkedIn
+      </a>
+      {% endif %}
+      {% if alumno.github %}
+      <a href="{{ alumno.github }}" target="_blank" rel="noopener" class="link-btn link-github">
+        GitHub
+      </a>
+      {% endif %}
+      {% if alumno.portfolio %}
+      <a href="{{ alumno.portfolio }}" target="_blank" rel="noopener" class="link-btn link-portfolio">
+        Portfolio
+      </a>
+      {% endif %}
+    </div>
+  </aside>
+
+  <section class="profile-video">
+    <h2>Video Currículum</h2>
+    <div class="video-wrapper">
+      <iframe
+        src="{{ alumno.embed_url() }}"
+        frameborder="0"
+        allow="autoplay; encrypted-media"
+        allowfullscreen
+        title="Video currículum de {{ alumno.nombre_completo() }}"
+      ></iframe>
+    </div>
+  </section>
+</div>
+{% endblock %}

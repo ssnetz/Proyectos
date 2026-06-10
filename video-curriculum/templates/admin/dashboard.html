@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Panel Admin{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <h1>Panel de Administración</h1>
+  <div class="admin-actions">
+    <a href="{{ url_for('admin_nuevo') }}" class="btn btn-primary">+ Nuevo alumno</a>
+    <a href="{{ url_for('admin_logout') }}" class="btn btn-outline">Salir</a>
+  </div>
+</div>
+
+{% if alumnos %}
+<div class="admin-table-wrap">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Alumno</th>
+        <th>Curso</th>
+        <th>Año</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for alumno in alumnos %}
+      <tr class="{{ '' if alumno.activo else 'row-inactive' }}">
+        <td class="td-alumno">
+          <img
+            src="{{ url_for('static', filename='uploads/' + alumno.foto) }}"
+            alt=""
+            class="thumb"
+            onerror="this.src='{{ url_for('static', filename='uploads/default.png') }}'"
+          />
+          {{ alumno.nombre_completo() }}
+        </td>
+        <td>{{ alumno.curso or '—' }}</td>
+        <td>{{ alumno.anio }}</td>
+        <td>
+          <span class="badge {{ 'badge-active' if alumno.activo else 'badge-inactive' }}">
+            {{ 'Activo' if alumno.activo else 'Oculto' }}
+          </span>
+        </td>
+        <td class="td-actions">
+          <a href="{{ url_for('ver_alumno', alumno_id=alumno.id) }}" class="btn-sm">Ver</a>
+          <a href="{{ url_for('admin_editar', alumno_id=alumno.id) }}" class="btn-sm btn-sm-edit">Editar</a>
+          <form method="post" action="{{ url_for('admin_eliminar', alumno_id=alumno.id) }}"
+                onsubmit="return confirm('¿Eliminar a {{ alumno.nombre_completo() }}?')">
+            <button type="submit" class="btn-sm btn-sm-delete">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No hay alumnos cargados.</p>
+  <a href="{{ url_for('admin_nuevo') }}" class="btn btn-primary">Agregar el primero</a>
+</div>
+{% endif %}
+{% endblock %}
