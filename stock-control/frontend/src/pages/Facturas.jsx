@@ -288,15 +288,17 @@ export default function Facturas() {
   const [error,       setError]       = useState('');
 
   // PDF state
-  const [pdfFile,     setPdfFile]     = useState(null);
-  const [pdfText,     setPdfText]     = useState('');
-  const [pdfImages,   setPdfImages]   = useState([]);
-  const [pdfError,    setPdfError]    = useState('');
-  const [pdfLoading,  setPdfLoading]  = useState(false);
-  const [ocrLoading,  setOcrLoading]  = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
-  const [showText,    setShowText]    = useState(false);
-  const [dragOver,    setDragOver]    = useState(false);
+  const [pdfFile,       setPdfFile]       = useState(null);
+  const [pdfText,       setPdfText]       = useState('');
+  const [pdfImages,     setPdfImages]     = useState([]);
+  const [pdfError,      setPdfError]      = useState('');
+  const [pdfLoading,    setPdfLoading]    = useState(false);
+  const [ocrLoading,    setOcrLoading]    = useState(false);
+  const [ocrProgress,   setOcrProgress]   = useState(0);
+  const [showText,      setShowText]      = useState(false);
+  const [dragOver,      setDragOver]      = useState(false);
+  // true cuando el PDF tiene texto embebido (CamScanner) pero el parser no encontró ítems
+  const [needsOcr,      setNeedsOcr]      = useState(false);
   const fileInputRef = useRef();
 
   const [form, setForm] = useState({
@@ -337,13 +339,13 @@ export default function Facturas() {
       items:          [{ ...EMPTY_ITEM }],
     });
     setPdfFile(null); setPdfText(''); setPdfImages([]); setPdfError('');
-    setOcrLoading(false); setOcrProgress(0); setShowText(false); setError('');
+    setOcrLoading(false); setOcrProgress(0); setShowText(false); setError(''); setNeedsOcr(false);
     setShowCreate(true);
   }
 
   async function handleOcr() {
     if (!pdfImages.length) return;
-    setOcrLoading(true); setOcrProgress(0); setPdfError('');
+    setOcrLoading(true); setOcrProgress(0); setPdfError(''); setNeedsOcr(false);
     try {
       const text = await runOcr(pdfImages, setOcrProgress);
       if (text.trim()) {
@@ -362,13 +364,20 @@ export default function Facturas() {
   async function handlePdfFile(file) {
     if (!file) return;
     if (file.type !== 'application/pdf') { setPdfError('El archivo no es un PDF.'); return; }
-    setPdfFile(file); setPdfLoading(true); setPdfText(''); setPdfImages([]); setPdfError('');
+    setPdfFile(file); setPdfLoading(true); setPdfText(''); setPdfImages([]); setPdfError(''); setNeedsOcr(false);
     try {
       const { text, images } = await processPdf(file);
       setPdfImages(images);
       if (text.trim()) {
         setPdfText(text);
-        applyDetectedFromText(text);
+        // Solo auto-rellenar si el parser remito encuentra ítems en el texto embebido.
+        // PDFs de CamScanner tienen texto OCR propio de baja calidad → el parser trova 0.
+        const remitoItems = detectItemsFromRemito(text);
+        if (remitoItems.length > 0) {
+          applyDetectedFromText(text);
+        } else {
+          setNeedsOcr(true);   // avisar al usuario que necesita OCR
+        }
       }
     } catch (e) {
       setPdfError(e.message || 'Error al procesar el PDF.');
@@ -646,17 +655,34 @@ export default function Facturas() {
                   </div>
                 )}
 
-                {pdfImages.length > 0 && !pdfText && !pdfLoading && (
+                {pdfImages.length > 0 && !pdfLoading && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                    {needsOcr && !ocrLoading && (
+                      <div style={{ background: 'rgba(234,179,8,.12)', border: '1px solid rgba(234,179,8,.4)', borderRadius: 6, padding: '.5rem .75rem', fontSize: '.8rem', color: '#fbbf24' }}>
+                        ⚠️ Este PDF es un escaneo (CamScanner).<br />
+                        El texto embebido no es compatible con el parser.<br />
+                        <strong>Usá OCR para detectar ítems correctamente.</strong>
+                      </div>
+                    )}
                     <button className="btn btn-primary btn-sm" onClick={handleOcr} disabled={ocrLoading}>
-                      {ocrLoading ? `🔄 Leyendo… ${ocrProgress}%` : '🔍 Leer texto con OCR'}
+                      {ocrLoading
+                        ? `🔄 Leyendo… ${ocrProgress}%`
+                        : needsOcr
+                          ? '🔍 Leer con OCR (recomendado)'
+                          : pdfText
+                            ? '🔍 Releer con OCR'
+                            : '🔍 Leer texto con OCR'}
                     </button>
                     {ocrLoading && (
                       <div style={{ background: 'var(--gray-700)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
                         <div style={{ height: '100%', borderRadius: 99, background: 'var(--primary)', width: `${ocrProgress}%`, transition: 'width .3s' }} />
                       </div>
                     )}
-                    {!ocrLoading && <p style={{ fontSize: '.78rem', color: 'var(--gray-500)', margin: 0 }}>Reconoce texto en la imagen del PDF.<br />Requiere internet la primera vez (~4 MB).</p>}
+                    {!ocrLoading && !needsOcr && !pdfText && (
+                      <p style={{ fontSize: '.78rem', color: 'var(--gray-500)', margin: 0 }}>
+                        Reconoce texto en la imagen del PDF.<br />Requiere internet la primera vez (~4 MB).
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
