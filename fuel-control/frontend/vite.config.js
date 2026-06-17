@@ -5,8 +5,8 @@ export default defineConfig({
   plugins: [react()],
   base: '/fuel-control/',
   build: {
-    outDir: '../public',
-    emptyOutDir: true,
+    outDir: '../',
+    emptyOutDir: false,
   },
   server: {
     port: 3001,
