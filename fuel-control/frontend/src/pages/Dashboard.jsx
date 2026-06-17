@@ -10,7 +10,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get('/fuel-control/api/dashboard').then(r => {
+    axios.get('/fuel-control/backend/api/dashboard.php').then(r => {
       setData(r.data);
       setLoading(false);
     });

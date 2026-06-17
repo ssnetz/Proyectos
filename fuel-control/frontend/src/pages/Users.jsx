@@ -13,7 +13,7 @@ export default function Users() {
   const [error, setError]       = useState('');
 
   const load = () =>
-    axios.get('/fuel-control/api/users').then(r => { setUsers(r.data); setLoading(false); });
+    axios.get('/fuel-control/backend/api/users.php').then(r => { setUsers(r.data); setLoading(false); });
 
   useEffect(() => { load(); }, []);
 
@@ -31,9 +31,9 @@ export default function Users() {
     setError('');
     try {
       if (editing) {
-        await axios.put(`/fuel-control/api/users?id=${editing}`, form);
+        await axios.put(`/fuel-control/backend/api/users.php?id=${editing}`, form);
       } else {
-        await axios.post('/fuel-control/api/users', form);
+        await axios.post('/fuel-control/backend/api/users.php', form);
       }
       setShowForm(false);
       load();

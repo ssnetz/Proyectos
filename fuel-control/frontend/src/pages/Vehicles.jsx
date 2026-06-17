@@ -18,7 +18,7 @@ export default function Vehicles() {
   const isAdmin = user?.role === 'admin';
 
   const load = () =>
-    axios.get('/fuel-control/api/vehicles').then(r => { setVehicles(r.data); setLoading(false); });
+    axios.get('/fuel-control/backend/api/vehicles.php').then(r => { setVehicles(r.data); setLoading(false); });
 
   useEffect(() => { load(); }, []);
 
@@ -36,9 +36,9 @@ export default function Vehicles() {
     setError('');
     try {
       if (editing) {
-        await axios.put(`/fuel-control/api/vehicles?id=${editing}`, form);
+        await axios.put(`/fuel-control/backend/api/vehicles.php?id=${editing}`, form);
       } else {
-        await axios.post('/fuel-control/api/vehicles', form);
+        await axios.post('/fuel-control/backend/api/vehicles.php', form);
       }
       setShowForm(false);
       load();
@@ -50,7 +50,7 @@ export default function Vehicles() {
   };
 
   const handleToggle = async (v) => {
-    await axios.put(`/fuel-control/api/vehicles?id=${v.id}`, { ...v, active: !v.active });
+    await axios.put(`/fuel-control/backend/api/vehicles.php?id=${v.id}`, { ...v, active: !v.active });
     load();
   };
 

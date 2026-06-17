@@ -18,7 +18,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (username, password) => {
-    const res = await axios.post('/fuel-control/api/auth', { username, password });
+    const res = await axios.post('/fuel-control/backend/api/auth.php', { username, password });
     const { token, user: u } = res.data;
     localStorage.setItem('fuel_token', token);
     localStorage.setItem('fuel_user', JSON.stringify(u));

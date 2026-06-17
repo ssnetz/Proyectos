@@ -22,14 +22,14 @@ export default function Fueling() {
     if (filters.vehicle_id) params.vehicle_id = filters.vehicle_id;
     if (filters.from) params.from = filters.from;
     if (filters.to)   params.to   = filters.to;
-    axios.get('/fuel-control/api/fueling', { params }).then(r => {
+    axios.get('/fuel-control/backend/api/fueling.php', { params }).then(r => {
       setRecords(r.data);
       setLoading(false);
     });
   };
 
   useEffect(() => {
-    axios.get('/fuel-control/api/vehicles').then(r => setVehicles(r.data));
+    axios.get('/fuel-control/backend/api/vehicles.php').then(r => setVehicles(r.data));
     load();
   }, []);
 
@@ -40,7 +40,7 @@ export default function Fueling() {
     setSaving(true);
     setError('');
     try {
-      await axios.post('/fuel-control/api/fueling', {
+      await axios.post('/fuel-control/backend/api/fueling.php', {
         ...form,
         vehicle_id:     parseInt(form.vehicle_id),
         liters:         parseFloat(form.liters),
@@ -63,7 +63,7 @@ export default function Fueling() {
 
   const handleDelete = async (id) => {
     if (!confirm('¿Eliminar este registro?')) return;
-    await axios.delete(`/fuel-control/api/fueling?id=${id}`);
+    await axios.delete(`/fuel-control/backend/api/fueling.php?id=${id}`);
     load();
   };
 
