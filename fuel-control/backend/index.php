@@ -16,7 +16,7 @@ if (str_starts_with($requestUri, '/fuel-control/api/')) {
 }
 
 // Servir assets estáticos del build de React
-$distDir  = __DIR__ . '/../frontend/dist';
+$distDir  = __DIR__ . '/../public';
 $relative = str_replace('/fuel-control', '', $requestUri);
 $filePath = realpath($distDir . $relative);
 
