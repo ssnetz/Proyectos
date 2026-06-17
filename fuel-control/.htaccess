@@ -1,11 +1,15 @@
+Options -Indexes
 RewriteEngine On
 
-# Pasar Authorization header a PHP (necesario en XAMPP)
+# Pasar Authorization header a PHP (necesario en XAMPP/Windows)
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-# Si el archivo existe, servirlo directamente
+# Servir archivos estáticos del dist directamente
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
-# Todo lo demás va al backend/index.php
-RewriteRule ^ backend/index.php [L]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Todo lo demás va al backend
+RewriteRule ^(.*)$ backend/index.php [QSA,L]
