@@ -97,6 +97,16 @@ export default function Fueling() {
 
   const totalLiters = records.reduce((s, r) => s + Number(r.liters), 0);
   const totalCost   = records.reduce((s, r) => s + Number(r.total_cost || 0), 0);
+  const totalLoads  = records.length;
+
+  const filterLabel = () => {
+    const v = vehicles.find(v => String(v.id) === String(filters.vehicle_id));
+    const parts = [];
+    if (v) parts.push(v.name + ' — ' + v.plate);
+    if (filters.from) parts.push(`desde ${filters.from}`);
+    if (filters.to)   parts.push(`hasta ${filters.to}`);
+    return parts.length ? parts.join(' · ') : 'Todos los vehículos';
+  };
 
   if (loading) return <div className="spinner" />;
 
@@ -185,6 +195,24 @@ export default function Fueling() {
           </div>
         </div>
       )}
+
+      <div className="resumen-cargas">
+        <div className="resumen-label">📋 {filterLabel()}</div>
+        <div className="resumen-stats">
+          <div className="resumen-stat">
+            <span className="resumen-stat-value">{totalLoads}</span>
+            <span className="resumen-stat-label">Cargas</span>
+          </div>
+          <div className="resumen-stat">
+            <span className="resumen-stat-value">{totalLiters.toLocaleString('es', { minimumFractionDigits: 2 })} L</span>
+            <span className="resumen-stat-label">Total litros</span>
+          </div>
+          <div className="resumen-stat">
+            <span className="resumen-stat-value">${totalCost.toLocaleString('es', { minimumFractionDigits: 2 })}</span>
+            <span className="resumen-stat-label">Total costo</span>
+          </div>
+        </div>
+      </div>
 
       <div className="card">
         <div className="table-wrapper">
