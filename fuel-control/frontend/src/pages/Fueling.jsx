@@ -3,6 +3,8 @@ import axios from 'axios';
 
 const FUEL_TYPES = ['Super', 'Infinia', 'Diesel 500', 'Infinia Diesel'];
 
+const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
 const emptyForm = {
   vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
   fuel_type: 'Diesel 500', station: '', notes: '',
@@ -220,12 +222,14 @@ export default function Fueling() {
             <thead>
               <tr>
                 <th>Fecha</th>
+                <th>Día</th>
                 <th>Vehículo</th>
                 <th>Combustible</th>
                 <th>Litros</th>
                 <th>$/L</th>
                 <th>Total $</th>
                 <th>Km Recorridos</th>
+                <th>Km/L</th>
                 <th>Operador</th>
                 <th></th>
               </tr>
@@ -237,12 +241,17 @@ export default function Fueling() {
               {records.map(r => (
                 <tr key={r.id}>
                   <td>{new Date(r.fueled_at).toLocaleString('es')}</td>
+                  <td>{DIAS[new Date(r.fueled_at).getDay()]}</td>
                   <td><strong>{r.vehicle_name}</strong><br /><small>{r.plate}</small></td>
                   <td><span className="badge badge-blue">{r.fuel_type}</span></td>
                   <td>{Number(r.liters).toLocaleString('es')} L</td>
                   <td>{r.price_per_liter ? `$${Number(r.price_per_liter).toFixed(4)}` : '—'}</td>
                   <td>{r.total_cost ? `$${Number(r.total_cost).toLocaleString('es', { minimumFractionDigits: 2 })}` : '—'}</td>
                   <td>{r.km_recorridos ?? '—'}</td>
+                  <td>{r.km_recorridos && Number(r.liters) > 0
+                    ? (Number(r.km_recorridos) / Number(r.liters)).toFixed(2)
+                    : '—'}
+                  </td>
                   <td>{r.loaded_by}</td>
                   <td style={{ display: 'flex', gap: 4 }}>
                     <button className="btn btn-ghost btn-sm btn-icon" title="Editar"
@@ -256,11 +265,11 @@ export default function Fueling() {
             {records.length > 0 && (
               <tfoot>
                 <tr style={{ fontWeight: 700, background: 'var(--gray-50)' }}>
-                  <td colSpan="3" style={{ textAlign: 'right', paddingRight: 12 }}>TOTALES</td>
+                  <td colSpan="4" style={{ textAlign: 'right', paddingRight: 12 }}>TOTALES</td>
                   <td>{totalLiters.toLocaleString('es', { minimumFractionDigits: 2 })} L</td>
                   <td></td>
                   <td>${totalCost.toLocaleString('es', { minimumFractionDigits: 2 })}</td>
-                  <td colSpan="3"></td>
+                  <td colSpan="4"></td>
                 </tr>
               </tfoot>
             )}
