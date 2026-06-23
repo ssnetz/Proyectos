@@ -1,9 +1,10 @@
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Dashboard from './pages/Dashboard';
-import Fueling   from './pages/Fueling';
-import Vehicles  from './pages/Vehicles';
-import Users     from './pages/Users';
+import Dashboard  from './pages/Dashboard';
+import Fueling    from './pages/Fueling';
+import Vehicles   from './pages/Vehicles';
+import FuelPrices from './pages/FuelPrices';
+import Users      from './pages/Users';
 import Login     from './pages/Login';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -40,10 +41,11 @@ function SidebarUser() {
 }
 
 const pageTitles = {
-  '/':          'Dashboard',
-  '/fueling':   'Cargas de Combustible',
-  '/vehicles':  'Vehículos y Maquinaria',
-  '/users':     'Usuarios',
+  '/':            'Dashboard',
+  '/fueling':     'Cargas de Combustible',
+  '/vehicles':    'Vehículos y Maquinaria',
+  '/fuel-prices': 'Precios de Combustible',
+  '/users':       'Usuarios',
 };
 
 function AppLayout() {
@@ -55,7 +57,8 @@ function AppLayout() {
   const navItems = [
     { to: '/',         icon: '📊', label: 'Dashboard' },
     { to: '/fueling',  icon: '⛽', label: 'Cargas' },
-    { to: '/vehicles', icon: '🚛', label: 'Vehículos' },
+    { to: '/vehicles',    icon: '🚛', label: 'Vehículos' },
+    { to: '/fuel-prices', icon: '💲', label: 'Precios' },
     ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -90,8 +93,9 @@ function AppLayout() {
           <Routes>
             <Route path="/"         element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/fueling"  element={<ProtectedRoute><Fueling /></ProtectedRoute>} />
-            <Route path="/vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
-            <Route path="/users"    element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+            <Route path="/vehicles"    element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
+            <Route path="/fuel-prices" element={<ProtectedRoute><FuelPrices /></ProtectedRoute>} />
+            <Route path="/users"       element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>

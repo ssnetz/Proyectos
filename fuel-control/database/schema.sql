@@ -41,3 +41,12 @@ CREATE TABLE IF NOT EXISTS fueling (
 -- Usuario admin inicial (contraseña: admin123)
 INSERT IGNORE INTO users (username, password, role) VALUES
     ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+
+CREATE TABLE IF NOT EXISTS fuel_prices (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    fuel_type  VARCHAR(30) NOT NULL,
+    price      DECIMAL(10,4) NOT NULL,
+    user_id    INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

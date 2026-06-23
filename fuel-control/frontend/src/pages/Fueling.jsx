@@ -12,9 +12,10 @@ const emptyForm = {
 };
 
 export default function Fueling() {
-  const [records, setRecords]   = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [records, setRecords]     = useState([]);
+  const [vehicles, setVehicles]   = useState([]);
+  const [fuelPrices, setFuelPrices] = useState({});
+  const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing]   = useState(null);
   const [filters, setFilters]   = useState({ vehicle_id: '', from: '', to: '' });
@@ -35,6 +36,11 @@ export default function Fueling() {
 
   useEffect(() => {
     axios.get('/fuel-control/backend/api/vehicles.php').then(r => setVehicles(r.data));
+    axios.get('/fuel-control/backend/api/fuel_prices.php').then(r => {
+      const map = {};
+      r.data.forEach(p => { if (p.price) map[p.fuel_type] = p.price; });
+      setFuelPrices(map);
+    });
     load();
   }, []);
 
@@ -42,7 +48,7 @@ export default function Fueling() {
 
   const openNew = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, price_per_liter: fuelPrices['Diesel 500'] ?? '' });
     setError('');
     setShowForm(true);
   };
@@ -153,7 +159,14 @@ export default function Fueling() {
                 <div className="form-group">
                   <label className="form-label">Tipo de combustible *</label>
                   <select className="form-input" value={form.fuel_type}
-                    onChange={e => setForm(f => ({ ...f, fuel_type: e.target.value }))}>
+                    onChange={e => {
+                      const tipo = e.target.value;
+                      setForm(f => ({
+                        ...f,
+                        fuel_type: tipo,
+                        price_per_liter: fuelPrices[tipo] ?? f.price_per_liter,
+                      }));
+                    }}>
                     {FUEL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
