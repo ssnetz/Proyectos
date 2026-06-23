@@ -3,19 +3,22 @@ import axios from 'axios';
 
 const FUEL_TYPES = ['Super', 'Infinia', 'Diesel 500', 'Infinia Diesel'];
 
+const emptyForm = {
+  vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
+  fuel_type: 'Diesel 500', station: '', notes: '',
+  fueled_at: new Date().toISOString().slice(0, 16),
+};
+
 export default function Fueling() {
   const [records, setRecords]   = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing]   = useState(null);
   const [filters, setFilters]   = useState({ vehicle_id: '', from: '', to: '' });
-  const [form, setForm]         = useState({
-    vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
-    fuel_type: 'Diesel 500', station: '', notes: '',
-    fueled_at: new Date().toISOString().slice(0, 16),
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError]   = useState('');
+  const [form, setForm]         = useState(emptyForm);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState('');
 
   const load = () => {
     const params = {};
@@ -35,24 +38,49 @@ export default function Fueling() {
 
   useEffect(() => { load(); }, [filters]);
 
+  const openNew = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setError('');
+    setShowForm(true);
+  };
+
+  const openEdit = (r) => {
+    setEditing(r.id);
+    setForm({
+      vehicle_id:      r.vehicle_id,
+      liters:          r.liters,
+      km_recorridos:   r.km_recorridos ?? '',
+      price_per_liter: r.price_per_liter ?? '',
+      fuel_type:       r.fuel_type,
+      station:         r.station ?? '',
+      notes:           r.notes ?? '',
+      fueled_at:       r.fueled_at?.slice(0, 16) ?? new Date().toISOString().slice(0, 16),
+    });
+    setError('');
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError('');
     try {
-      await axios.post('/fuel-control/backend/api/fueling.php', {
+      const payload = {
         ...form,
         vehicle_id:      parseInt(form.vehicle_id),
         liters:          parseFloat(form.liters),
         km_recorridos:   form.km_recorridos ? parseFloat(form.km_recorridos) : null,
         price_per_liter: form.price_per_liter ? parseFloat(form.price_per_liter) : null,
-      });
+      };
+      if (editing) {
+        await axios.put(`/fuel-control/backend/api/fueling.php?id=${editing}`, payload);
+      } else {
+        await axios.post('/fuel-control/backend/api/fueling.php', payload);
+      }
       setShowForm(false);
-      setForm({
-        vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
-        fuel_type: 'Diesel 500', station: '', notes: '',
-        fueled_at: new Date().toISOString().slice(0, 16),
-      });
+      setEditing(null);
+      setForm(emptyForm);
       load();
     } catch (err) {
       setError(err.response?.data?.error ?? 'Error al guardar');
@@ -67,6 +95,9 @@ export default function Fueling() {
     load();
   };
 
+  const totalLiters = records.reduce((s, r) => s + Number(r.liters), 0);
+  const totalCost   = records.reduce((s, r) => s + Number(r.total_cost || 0), 0);
+
   if (loading) return <div className="spinner" />;
 
   return (
@@ -79,18 +110,18 @@ export default function Fueling() {
             {vehicles.map(v => <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>)}
           </select>
           <input type="date" className="form-input form-input-sm" value={filters.from}
-            onChange={e => setFilters(f => ({ ...f, from: e.target.value }))} placeholder="Desde" />
+            onChange={e => setFilters(f => ({ ...f, from: e.target.value }))} />
           <input type="date" className="form-input form-input-sm" value={filters.to}
-            onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} placeholder="Hasta" />
+            onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} />
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Nueva carga</button>
+        <button className="btn btn-primary" onClick={openNew}>+ Nueva carga</button>
       </div>
 
       {showForm && (
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
-              <h2 className="modal-title">Registrar carga de combustible</h2>
+              <h2 className="modal-title">{editing ? 'Editar carga' : 'Nueva carga de combustible'}</h2>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowForm(false)}>✕</button>
             </div>
             <form onSubmit={handleSubmit}>
@@ -162,10 +193,10 @@ export default function Fueling() {
               <tr>
                 <th>Fecha</th>
                 <th>Vehículo</th>
-                <th>Tipo</th>
+                <th>Combustible</th>
                 <th>Litros</th>
                 <th>$/L</th>
-                <th>Total</th>
+                <th>Total $</th>
                 <th>Km Recorridos</th>
                 <th>Operador</th>
                 <th></th>
@@ -185,13 +216,26 @@ export default function Fueling() {
                   <td>{r.total_cost ? `$${Number(r.total_cost).toLocaleString('es', { minimumFractionDigits: 2 })}` : '—'}</td>
                   <td>{r.km_recorridos ?? '—'}</td>
                   <td>{r.loaded_by}</td>
-                  <td>
+                  <td style={{ display: 'flex', gap: 4 }}>
+                    <button className="btn btn-ghost btn-sm btn-icon" title="Editar"
+                      onClick={() => openEdit(r)}>✏️</button>
                     <button className="btn btn-ghost btn-sm btn-icon" title="Eliminar"
                       onClick={() => handleDelete(r.id)}>🗑</button>
                   </td>
                 </tr>
               ))}
             </tbody>
+            {records.length > 0 && (
+              <tfoot>
+                <tr style={{ fontWeight: 700, background: 'var(--gray-50)' }}>
+                  <td colSpan="3" style={{ textAlign: 'right', paddingRight: 12 }}>TOTALES</td>
+                  <td>{totalLiters.toLocaleString('es', { minimumFractionDigits: 2 })} L</td>
+                  <td></td>
+                  <td>${totalCost.toLocaleString('es', { minimumFractionDigits: 2 })}</td>
+                  <td colSpan="3"></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
