@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
-const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-const UNITS = ['litros', 'kg', 'unidades'];
+const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
 const emptyForm = {
   vehicle_id: '', type: '', brand: '', quantity: '', unit: 'litros',
-  km_recorridos: '', notes: '', applied_at: new Date().toISOString().slice(0, 16),
+  km_recorridos: '', notes: '',
+  applied_at: new Date().toISOString().slice(0, 16),
 };
 
 export default function Lubricants() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [records, setRecords]   = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -38,7 +42,12 @@ export default function Lubricants() {
 
   useEffect(() => { load(); }, [filters]);
 
-  const openNew = () => { setEditing(null); setForm(emptyForm); setError(''); setShowForm(true); };
+  const openNew = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setError('');
+    setShowForm(true);
+  };
 
   const openEdit = (r) => {
     setEditing(r.id);
@@ -89,17 +98,8 @@ export default function Lubricants() {
     load();
   };
 
-  const totalQty   = records.reduce((s, r) => s + Number(r.quantity), 0);
-  const totalCount = records.length;
-
-  const filterLabel = () => {
-    const v = vehicles.find(v => String(v.id) === String(filters.vehicle_id));
-    const parts = [];
-    if (v) parts.push(v.name + ' — ' + v.plate);
-    if (filters.from) parts.push(`desde ${filters.from}`);
-    if (filters.to)   parts.push(`hasta ${filters.to}`);
-    return parts.length ? parts.join(' · ') : 'Todos los vehículos';
-  };
+  const totalApplications = records.length;
+  const totalQuantity     = records.reduce((s, r) => s + Number(r.quantity), 0);
 
   if (loading) return <div className="spinner" />;
 
@@ -110,21 +110,21 @@ export default function Lubricants() {
           <select className="form-input form-input-sm" value={filters.vehicle_id}
             onChange={e => setFilters(f => ({ ...f, vehicle_id: e.target.value }))}>
             <option value="">Todos los vehículos</option>
-            {vehicles.map(v => <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>)}
+            {vehicles.map(v => <option key={v.id} value={v.id}>{v.name} &mdash; {v.plate}</option>)}
           </select>
           <input type="date" className="form-input form-input-sm" value={filters.from}
             onChange={e => setFilters(f => ({ ...f, from: e.target.value }))} />
           <input type="date" className="form-input form-input-sm" value={filters.to}
             onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} />
         </div>
-        <button className="btn btn-primary" onClick={openNew}>+ Nuevo registro</button>
+        <button className="btn btn-primary" onClick={openNew}>+ Nueva aplicación</button>
       </div>
 
       {showForm && (
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
-              <h2 className="modal-title">{editing ? 'Editar lubricante' : 'Registrar lubricante'}</h2>
+              <h2 className="modal-title">{editing ? 'Editar lubricante' : 'Nueva aplicación de lubricante'}</h2>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowForm(false)}>✕</button>
             </div>
             <form onSubmit={handleSubmit}>
@@ -136,14 +136,15 @@ export default function Lubricants() {
                     onChange={e => setForm(f => ({ ...f, vehicle_id: e.target.value }))}>
                     <option value="">Seleccionar...</option>
                     {vehicles.filter(v => v.active).map(v =>
-                      <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>
+                      <option key={v.id} value={v.id}>{v.name} &mdash; {v.plate}</option>
                     )}
                   </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Tipo de lubricante *</label>
-                  <input className="form-input" required placeholder="ej: Aceite motor, Grasa, Hidráulico"
-                    value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} />
+                  <input className="form-input" required value={form.type}
+                    placeholder="Ej: Aceite motor, Grasa, Hidráulico"
+                    onChange={e => setForm(f => ({ ...f, type: e.target.value }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Marca</label>
@@ -156,10 +157,12 @@ export default function Lubricants() {
                     onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Unidad</label>
+                  <label className="form-label">Unidad *</label>
                   <select className="form-input" value={form.unit}
                     onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}>
-                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    <option value="litros">litros</option>
+                    <option value="kg">kg</option>
+                    <option value="unidades">unidades</option>
                   </select>
                 </div>
                 <div className="form-group">
@@ -190,14 +193,13 @@ export default function Lubricants() {
       )}
 
       <div className="resumen-cargas">
-        <div className="resumen-label">🛢️ {filterLabel()}</div>
         <div className="resumen-stats">
           <div className="resumen-stat">
-            <span className="resumen-stat-value">{totalCount}</span>
-            <span className="resumen-stat-label">Registros</span>
+            <span className="resumen-stat-value">{totalApplications}</span>
+            <span className="resumen-stat-label">Aplicaciones</span>
           </div>
           <div className="resumen-stat">
-            <span className="resumen-stat-value">{totalQty.toLocaleString('es', { minimumFractionDigits: 3 })}</span>
+            <span className="resumen-stat-value">{totalQuantity.toLocaleString('es', { minimumFractionDigits: 2 })}</span>
             <span className="resumen-stat-label">Total cantidad</span>
           </div>
         </div>
@@ -211,7 +213,7 @@ export default function Lubricants() {
                 <th>Fecha</th>
                 <th>Día</th>
                 <th>Vehículo</th>
-                <th>Tipo</th>
+                <th>Tipo lubricante</th>
                 <th>Marca</th>
                 <th>Cantidad</th>
                 <th>Km Recorridos</th>
@@ -228,29 +230,22 @@ export default function Lubricants() {
                   <td>{new Date(r.applied_at).toLocaleString('es')}</td>
                   <td>{DIAS[new Date(r.applied_at).getDay()]}</td>
                   <td><strong>{r.vehicle_name}</strong><br /><small>{r.plate}</small></td>
-                  <td><span className="badge badge-orange">{r.type}</span></td>
+                  <td><span className="badge badge-blue">{r.type}</span></td>
                   <td>{r.brand ?? '—'}</td>
-                  <td>{Number(r.quantity).toLocaleString('es', { minimumFractionDigits: 3 })} {r.unit}</td>
+                  <td>{Number(r.quantity).toLocaleString('es')} {r.unit}</td>
                   <td>{r.km_recorridos ?? '—'}</td>
                   <td>{r.loaded_by}</td>
                   <td style={{ display: 'flex', gap: 4 }}>
                     <button className="btn btn-ghost btn-sm btn-icon" title="Editar"
                       onClick={() => openEdit(r)}>✏️</button>
-                    <button className="btn btn-ghost btn-sm btn-icon" title="Eliminar"
-                      onClick={() => handleDelete(r.id)}>🗑</button>
+                    {isAdmin && (
+                      <button className="btn btn-ghost btn-sm btn-icon" title="Eliminar"
+                        onClick={() => handleDelete(r.id)}>🗑</button>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
-            {records.length > 0 && (
-              <tfoot>
-                <tr style={{ fontWeight: 700, background: 'var(--gray-50)' }}>
-                  <td colSpan="5" style={{ textAlign: 'right', paddingRight: 12 }}>TOTAL</td>
-                  <td>{totalQty.toLocaleString('es', { minimumFractionDigits: 3 })}</td>
-                  <td colSpan="3"></td>
-                </tr>
-              </tfoot>
-            )}
           </table>
         </div>
       </div>
