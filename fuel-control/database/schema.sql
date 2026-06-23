@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     name       VARCHAR(120) NOT NULL,
     plate      VARCHAR(20)  NOT NULL UNIQUE,
-    type       VARCHAR(50)  NOT NULL DEFAULT 'vehicle',  -- vehicle, machinery, truck, etc.
+    type       VARCHAR(50)  NOT NULL DEFAULT 'Auto',  -- Auto, Camioneta, Camión, Motoniveladora, Pala de Carga, Bobcat, Tractor, Otros
     active     TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS fueling (
     vehicle_id      INT NOT NULL,
     user_id         INT NOT NULL,
     liters          DECIMAL(10,2) NOT NULL,
-    km              DECIMAL(10,1) DEFAULT NULL,
+    km_recorridos   DECIMAL(10,1) DEFAULT NULL,
     price_per_liter DECIMAL(10,4) DEFAULT NULL,
     total_cost      DECIMAL(12,2) DEFAULT NULL,
-    fuel_type       VARCHAR(30)  NOT NULL DEFAULT 'diesel',
+    fuel_type       VARCHAR(30)  NOT NULL DEFAULT 'Diesel 500',
     station         VARCHAR(120) DEFAULT NULL,
     notes           TEXT         DEFAULT NULL,
     fueled_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

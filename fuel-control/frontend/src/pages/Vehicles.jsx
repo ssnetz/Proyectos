@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
-const VEHICLE_TYPES = ['vehicle', 'truck', 'machinery', 'motorcycle', 'other'];
+const VEHICLE_TYPES = ['Auto', 'Camioneta', 'Camión', 'Motoniveladora', 'Pala de Carga', 'Bobcat', 'Tractor', 'Otros'];
 
-const emptyForm = { name: '', plate: '', type: 'vehicle', active: true };
+const emptyForm = { name: '', plate: '', type: 'Auto', active: true };
 
 export default function Vehicles() {
   const { user }              = useAuth();

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const FUEL_TYPES = ['diesel', 'nafta_super', 'nafta_premium', 'gnc'];
+const FUEL_TYPES = ['Super', 'Infinia', 'Diesel 500', 'Infinia Diesel'];
 
 export default function Fueling() {
   const [records, setRecords]   = useState([]);
@@ -10,8 +10,8 @@ export default function Fueling() {
   const [showForm, setShowForm] = useState(false);
   const [filters, setFilters]   = useState({ vehicle_id: '', from: '', to: '' });
   const [form, setForm]         = useState({
-    vehicle_id: '', liters: '', km: '', price_per_liter: '',
-    fuel_type: 'diesel', station: '', notes: '',
+    vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
+    fuel_type: 'Diesel 500', station: '', notes: '',
     fueled_at: new Date().toISOString().slice(0, 16),
   });
   const [saving, setSaving] = useState(false);
@@ -42,15 +42,15 @@ export default function Fueling() {
     try {
       await axios.post('/fuel-control/backend/api/fueling.php', {
         ...form,
-        vehicle_id:     parseInt(form.vehicle_id),
-        liters:         parseFloat(form.liters),
-        km:             form.km ? parseFloat(form.km) : null,
+        vehicle_id:      parseInt(form.vehicle_id),
+        liters:          parseFloat(form.liters),
+        km_recorridos:   form.km_recorridos ? parseFloat(form.km_recorridos) : null,
         price_per_liter: form.price_per_liter ? parseFloat(form.price_per_liter) : null,
       });
       setShowForm(false);
       setForm({
-        vehicle_id: '', liters: '', km: '', price_per_liter: '',
-        fuel_type: 'diesel', station: '', notes: '',
+        vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
+        fuel_type: 'Diesel 500', station: '', notes: '',
         fueled_at: new Date().toISOString().slice(0, 16),
       });
       load();
@@ -124,9 +124,9 @@ export default function Fueling() {
                     onChange={e => setForm(f => ({ ...f, price_per_liter: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Km / Horómetro</label>
-                  <input className="form-input" type="number" step="0.1" value={form.km}
-                    onChange={e => setForm(f => ({ ...f, km: e.target.value }))} />
+                  <label className="form-label">Km Recorridos</label>
+                  <input className="form-input" type="number" step="0.1" value={form.km_recorridos}
+                    onChange={e => setForm(f => ({ ...f, km_recorridos: e.target.value }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Fecha y hora *</label>
@@ -166,7 +166,7 @@ export default function Fueling() {
                 <th>Litros</th>
                 <th>$/L</th>
                 <th>Total</th>
-                <th>Km/Hs</th>
+                <th>Km Recorridos</th>
                 <th>Operador</th>
                 <th></th>
               </tr>
@@ -183,7 +183,7 @@ export default function Fueling() {
                   <td>{Number(r.liters).toLocaleString('es')} L</td>
                   <td>{r.price_per_liter ? `$${Number(r.price_per_liter).toFixed(4)}` : '—'}</td>
                   <td>{r.total_cost ? `$${Number(r.total_cost).toLocaleString('es', { minimumFractionDigits: 2 })}` : '—'}</td>
-                  <td>{r.km ?? '—'}</td>
+                  <td>{r.km_recorridos ?? '—'}</td>
                   <td>{r.loaded_by}</td>
                   <td>
                     <button className="btn btn-ghost btn-sm btn-icon" title="Eliminar"

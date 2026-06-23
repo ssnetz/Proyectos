@@ -52,11 +52,11 @@ if ($method === 'GET') {
 
 if ($method === 'POST') {
     $body       = getBody();
-    $vehicle_id = (int)($body['vehicle_id'] ?? 0);
-    $liters     = (float)($body['liters'] ?? 0);
-    $km         = isset($body['km']) ? (float)$body['km'] : null;
-    $price_per_l = isset($body['price_per_liter']) ? (float)$body['price_per_liter'] : null;
-    $fuel_type  = trim($body['fuel_type'] ?? 'diesel');
+    $vehicle_id   = (int)($body['vehicle_id'] ?? 0);
+    $liters       = (float)($body['liters'] ?? 0);
+    $km_recorridos = isset($body['km_recorridos']) ? (float)$body['km_recorridos'] : null;
+    $price_per_l  = isset($body['price_per_liter']) ? (float)$body['price_per_liter'] : null;
+    $fuel_type    = trim($body['fuel_type'] ?? 'Diesel 500');
     $station    = trim($body['station'] ?? '');
     $notes      = trim($body['notes'] ?? '');
     $fueled_at  = $body['fueled_at'] ?? date('Y-m-d H:i:s');
@@ -66,11 +66,11 @@ if ($method === 'POST') {
     $total_cost = ($price_per_l && $liters) ? round($price_per_l * $liters, 2) : null;
 
     $stmt = $db->prepare('
-        INSERT INTO fueling (vehicle_id, user_id, liters, km, price_per_liter, total_cost, fuel_type, station, notes, fueled_at)
+        INSERT INTO fueling (vehicle_id, user_id, liters, km_recorridos, price_per_liter, total_cost, fuel_type, station, notes, fueled_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ');
     $stmt->execute([
-        $vehicle_id, $user['sub'], $liters, $km, $price_per_l, $total_cost,
+        $vehicle_id, $user['sub'], $liters, $km_recorridos, $price_per_l, $total_cost,
         $fuel_type, $station, $notes, $fueled_at
     ]);
     jsonResponse(['id' => (int)$db->lastInsertId()], 201);
