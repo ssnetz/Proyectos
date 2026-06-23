@@ -50,3 +50,27 @@ CREATE TABLE IF NOT EXISTS fuel_prices (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS fuel_types (
+    id     INT AUTO_INCREMENT PRIMARY KEY,
+    name   VARCHAR(50) NOT NULL UNIQUE,
+    active TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO fuel_types (name) VALUES ('Super'),('Infinia'),('Diesel 500'),('Infinia Diesel');
+
+CREATE TABLE IF NOT EXISTS lubricants (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    vehicle_id  INT NOT NULL,
+    user_id     INT NOT NULL,
+    type        VARCHAR(80) NOT NULL,
+    brand       VARCHAR(80) DEFAULT NULL,
+    quantity    DECIMAL(10,3) NOT NULL,
+    unit        VARCHAR(20) NOT NULL DEFAULT 'litros',
+    km_recorridos DECIMAL(10,1) DEFAULT NULL,
+    notes       TEXT DEFAULT NULL,
+    applied_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

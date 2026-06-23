@@ -9,12 +9,14 @@ $user = requireAuth();
 $method = getMethod();
 $db     = getDB();
 
-const FUEL_TYPES = ['Super', 'Infinia', 'Diesel 500', 'Infinia Diesel'];
-
 if ($method === 'GET') {
+    // Cargar tipos desde la tabla fuel_types
+    $typesStmt = $db->query('SELECT name FROM fuel_types WHERE active = 1 ORDER BY name');
+    $fuelTypes = $typesStmt->fetchAll(PDO::FETCH_COLUMN);
+
     // Trae el precio vigente (último) de cada tipo
     $rows = [];
-    foreach (FUEL_TYPES as $type) {
+    foreach ($fuelTypes as $type) {
         $stmt = $db->prepare('
             SELECT fp.*, u.username
             FROM fuel_prices fp
@@ -35,7 +37,10 @@ if ($method === 'POST') {
     $fuel_type = trim($body['fuel_type'] ?? '');
     $price     = isset($body['price']) ? (float)$body['price'] : 0;
 
-    if (!in_array($fuel_type, FUEL_TYPES)) jsonError('Tipo de combustible inválido');
+    // Validar contra tipos activos en BD
+    $typesStmt = $db->query('SELECT name FROM fuel_types WHERE active = 1');
+    $validTypes = $typesStmt->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array($fuel_type, $validTypes)) jsonError('Tipo de combustible inválido');
     if ($price <= 0) jsonError('El precio debe ser mayor a cero');
 
     $stmt = $db->prepare('INSERT INTO fuel_prices (fuel_type, price, user_id) VALUES (?, ?, ?)');

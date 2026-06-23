@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const FUEL_TYPES = ['Super', 'Infinia', 'Diesel 500', 'Infinia Diesel'];
-
 export default function FuelPrices() {
   const [prices, setPrices]   = useState([]);
   const [loading, setLoading] = useState(true);

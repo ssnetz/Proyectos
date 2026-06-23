@@ -1,20 +1,18 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const UNITS = ['litros', 'kg', 'unidades'];
 
 const emptyForm = {
-  vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
-  fuel_type: '', station: '', notes: '',
-  fueled_at: new Date().toISOString().slice(0, 16),
+  vehicle_id: '', type: '', brand: '', quantity: '', unit: 'litros',
+  km_recorridos: '', notes: '', applied_at: new Date().toISOString().slice(0, 16),
 };
 
-export default function Fueling() {
-  const [records, setRecords]     = useState([]);
-  const [vehicles, setVehicles]   = useState([]);
-  const [fuelTypes, setFuelTypes] = useState([]);
-  const [fuelPrices, setFuelPrices] = useState({});
-  const [loading, setLoading]     = useState(true);
+export default function Lubricants() {
+  const [records, setRecords]   = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing]   = useState(null);
   const [filters, setFilters]   = useState({ vehicle_id: '', from: '', to: '' });
@@ -27,7 +25,7 @@ export default function Fueling() {
     if (filters.vehicle_id) params.vehicle_id = filters.vehicle_id;
     if (filters.from) params.from = filters.from;
     if (filters.to)   params.to   = filters.to;
-    axios.get('/fuel-control/backend/api/fueling.php', { params }).then(r => {
+    axios.get('/fuel-control/backend/api/lubricants.php', { params }).then(r => {
       setRecords(r.data);
       setLoading(false);
     });
@@ -35,41 +33,24 @@ export default function Fueling() {
 
   useEffect(() => {
     axios.get('/fuel-control/backend/api/vehicles.php').then(r => setVehicles(r.data));
-    axios.get('/fuel-control/backend/api/fuel_types.php').then(r => {
-      setFuelTypes(r.data);
-      if (r.data.length > 0) {
-        setForm(f => ({ ...f, fuel_type: f.fuel_type || r.data[0].name }));
-      }
-    });
-    axios.get('/fuel-control/backend/api/fuel_prices.php').then(r => {
-      const map = {};
-      r.data.forEach(p => { if (p.price) map[p.fuel_type] = p.price; });
-      setFuelPrices(map);
-    });
     load();
   }, []);
 
   useEffect(() => { load(); }, [filters]);
 
-  const openNew = () => {
-    setEditing(null);
-    const defaultType = fuelTypes.length > 0 ? fuelTypes[0].name : '';
-    setForm({ ...emptyForm, fuel_type: defaultType, price_per_liter: fuelPrices[defaultType] ?? '' });
-    setError('');
-    setShowForm(true);
-  };
+  const openNew = () => { setEditing(null); setForm(emptyForm); setError(''); setShowForm(true); };
 
   const openEdit = (r) => {
     setEditing(r.id);
     setForm({
-      vehicle_id:      r.vehicle_id,
-      liters:          r.liters,
-      km_recorridos:   r.km_recorridos ?? '',
-      price_per_liter: r.price_per_liter ?? '',
-      fuel_type:       r.fuel_type,
-      station:         r.station ?? '',
-      notes:           r.notes ?? '',
-      fueled_at:       r.fueled_at?.slice(0, 16) ?? new Date().toISOString().slice(0, 16),
+      vehicle_id:    r.vehicle_id,
+      type:          r.type,
+      brand:         r.brand ?? '',
+      quantity:      r.quantity,
+      unit:          r.unit,
+      km_recorridos: r.km_recorridos ?? '',
+      notes:         r.notes ?? '',
+      applied_at:    r.applied_at?.slice(0, 16) ?? new Date().toISOString().slice(0, 16),
     });
     setError('');
     setShowForm(true);
@@ -82,15 +63,14 @@ export default function Fueling() {
     try {
       const payload = {
         ...form,
-        vehicle_id:      parseInt(form.vehicle_id),
-        liters:          parseFloat(form.liters),
-        km_recorridos:   form.km_recorridos ? parseFloat(form.km_recorridos) : null,
-        price_per_liter: form.price_per_liter ? parseFloat(form.price_per_liter) : null,
+        vehicle_id:    parseInt(form.vehicle_id),
+        quantity:      parseFloat(form.quantity),
+        km_recorridos: form.km_recorridos ? parseFloat(form.km_recorridos) : null,
       };
       if (editing) {
-        await axios.put(`/fuel-control/backend/api/fueling.php?id=${editing}`, payload);
+        await axios.put(`/fuel-control/backend/api/lubricants.php?id=${editing}`, payload);
       } else {
-        await axios.post('/fuel-control/backend/api/fueling.php', payload);
+        await axios.post('/fuel-control/backend/api/lubricants.php', payload);
       }
       setShowForm(false);
       setEditing(null);
@@ -105,14 +85,12 @@ export default function Fueling() {
 
   const handleDelete = async (id) => {
     if (!confirm('¿Eliminar este registro?')) return;
-    await axios.delete(`/fuel-control/backend/api/fueling.php?id=${id}`);
+    await axios.delete(`/fuel-control/backend/api/lubricants.php?id=${id}`);
     load();
   };
 
-  const totalLiters = records.reduce((s, r) => s + Number(r.liters), 0);
-  const totalCost   = records.reduce((s, r) => s + Number(r.total_cost || 0), 0);
-  const totalKm     = records.reduce((s, r) => s + Number(r.km_recorridos || 0), 0);
-  const totalLoads  = records.length;
+  const totalQty   = records.reduce((s, r) => s + Number(r.quantity), 0);
+  const totalCount = records.length;
 
   const filterLabel = () => {
     const v = vehicles.find(v => String(v.id) === String(filters.vehicle_id));
@@ -139,14 +117,14 @@ export default function Fueling() {
           <input type="date" className="form-input form-input-sm" value={filters.to}
             onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} />
         </div>
-        <button className="btn btn-primary" onClick={openNew}>+ Nueva carga</button>
+        <button className="btn btn-primary" onClick={openNew}>+ Nuevo registro</button>
       </div>
 
       {showForm && (
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
-              <h2 className="modal-title">{editing ? 'Editar carga' : 'Nueva carga de combustible'}</h2>
+              <h2 className="modal-title">{editing ? 'Editar lubricante' : 'Registrar lubricante'}</h2>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowForm(false)}>✕</button>
             </div>
             <form onSubmit={handleSubmit}>
@@ -163,28 +141,26 @@ export default function Fueling() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Tipo de combustible *</label>
-                  <select className="form-input" value={form.fuel_type}
-                    onChange={e => {
-                      const tipo = e.target.value;
-                      setForm(f => ({
-                        ...f,
-                        fuel_type: tipo,
-                        price_per_liter: fuelPrices[tipo] ?? f.price_per_liter,
-                      }));
-                    }}>
-                    {fuelTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                  <label className="form-label">Tipo de lubricante *</label>
+                  <input className="form-input" required placeholder="ej: Aceite motor, Grasa, Hidráulico"
+                    value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Marca</label>
+                  <input className="form-input" value={form.brand}
+                    onChange={e => setForm(f => ({ ...f, brand: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Cantidad *</label>
+                  <input className="form-input" type="number" step="0.001" required value={form.quantity}
+                    onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Unidad</label>
+                  <select className="form-input" value={form.unit}
+                    onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}>
+                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Litros *</label>
-                  <input className="form-input" type="number" step="0.01" required value={form.liters}
-                    onChange={e => setForm(f => ({ ...f, liters: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Precio por litro</label>
-                  <input className="form-input" type="number" step="0.0001" value={form.price_per_liter}
-                    onChange={e => setForm(f => ({ ...f, price_per_liter: e.target.value }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Km Recorridos</label>
@@ -193,13 +169,8 @@ export default function Fueling() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Fecha y hora *</label>
-                  <input className="form-input" type="datetime-local" required value={form.fueled_at}
-                    onChange={e => setForm(f => ({ ...f, fueled_at: e.target.value }))} />
-                </div>
-                <div className="form-group form-group-full">
-                  <label className="form-label">Estación / Proveedor</label>
-                  <input className="form-input" value={form.station}
-                    onChange={e => setForm(f => ({ ...f, station: e.target.value }))} />
+                  <input className="form-input" type="datetime-local" required value={form.applied_at}
+                    onChange={e => setForm(f => ({ ...f, applied_at: e.target.value }))} />
                 </div>
                 <div className="form-group form-group-full">
                   <label className="form-label">Notas</label>
@@ -219,23 +190,15 @@ export default function Fueling() {
       )}
 
       <div className="resumen-cargas">
-        <div className="resumen-label">📋 {filterLabel()}</div>
+        <div className="resumen-label">🛢️ {filterLabel()}</div>
         <div className="resumen-stats">
           <div className="resumen-stat">
-            <span className="resumen-stat-value">{totalLoads}</span>
-            <span className="resumen-stat-label">Cargas</span>
+            <span className="resumen-stat-value">{totalCount}</span>
+            <span className="resumen-stat-label">Registros</span>
           </div>
           <div className="resumen-stat">
-            <span className="resumen-stat-value">{totalLiters.toLocaleString('es', { minimumFractionDigits: 2 })} L</span>
-            <span className="resumen-stat-label">Total litros</span>
-          </div>
-          <div className="resumen-stat">
-            <span className="resumen-stat-value">{totalKm.toLocaleString('es', { minimumFractionDigits: 1 })} km</span>
-            <span className="resumen-stat-label">Total km recorridos</span>
-          </div>
-          <div className="resumen-stat">
-            <span className="resumen-stat-value">${totalCost.toLocaleString('es', { minimumFractionDigits: 2 })}</span>
-            <span className="resumen-stat-label">Total costo</span>
+            <span className="resumen-stat-value">{totalQty.toLocaleString('es', { minimumFractionDigits: 3 })}</span>
+            <span className="resumen-stat-label">Total cantidad</span>
           </div>
         </div>
       </div>
@@ -248,12 +211,10 @@ export default function Fueling() {
                 <th>Fecha</th>
                 <th>Día</th>
                 <th>Vehículo</th>
-                <th>Combustible</th>
-                <th>Litros</th>
-                <th>$/L</th>
-                <th>Total $</th>
+                <th>Tipo</th>
+                <th>Marca</th>
+                <th>Cantidad</th>
                 <th>Km Recorridos</th>
-                <th>Km/L</th>
                 <th>Operador</th>
                 <th></th>
               </tr>
@@ -264,18 +225,13 @@ export default function Fueling() {
               )}
               {records.map(r => (
                 <tr key={r.id}>
-                  <td>{new Date(r.fueled_at).toLocaleString('es')}</td>
-                  <td>{DIAS[new Date(r.fueled_at).getDay()]}</td>
+                  <td>{new Date(r.applied_at).toLocaleString('es')}</td>
+                  <td>{DIAS[new Date(r.applied_at).getDay()]}</td>
                   <td><strong>{r.vehicle_name}</strong><br /><small>{r.plate}</small></td>
-                  <td><span className="badge badge-blue">{r.fuel_type}</span></td>
-                  <td>{Number(r.liters).toLocaleString('es')} L</td>
-                  <td>{r.price_per_liter ? `$${Number(r.price_per_liter).toFixed(4)}` : '—'}</td>
-                  <td>{r.total_cost ? `$${Number(r.total_cost).toLocaleString('es', { minimumFractionDigits: 2 })}` : '—'}</td>
+                  <td><span className="badge badge-orange">{r.type}</span></td>
+                  <td>{r.brand ?? '—'}</td>
+                  <td>{Number(r.quantity).toLocaleString('es', { minimumFractionDigits: 3 })} {r.unit}</td>
                   <td>{r.km_recorridos ?? '—'}</td>
-                  <td>{r.km_recorridos && Number(r.liters) > 0
-                    ? (Number(r.km_recorridos) / Number(r.liters)).toFixed(2)
-                    : '—'}
-                  </td>
                   <td>{r.loaded_by}</td>
                   <td style={{ display: 'flex', gap: 4 }}>
                     <button className="btn btn-ghost btn-sm btn-icon" title="Editar"
@@ -289,11 +245,8 @@ export default function Fueling() {
             {records.length > 0 && (
               <tfoot>
                 <tr style={{ fontWeight: 700, background: 'var(--gray-50)' }}>
-                  <td colSpan="4" style={{ textAlign: 'right', paddingRight: 12 }}>TOTALES</td>
-                  <td>{totalLiters.toLocaleString('es', { minimumFractionDigits: 2 })} L</td>
-                  <td></td>
-                  <td>${totalCost.toLocaleString('es', { minimumFractionDigits: 2 })}</td>
-                  <td>{totalKm.toLocaleString('es', { minimumFractionDigits: 1 })} km</td>
+                  <td colSpan="5" style={{ textAlign: 'right', paddingRight: 12 }}>TOTAL</td>
+                  <td>{totalQty.toLocaleString('es', { minimumFractionDigits: 3 })}</td>
                   <td colSpan="3"></td>
                 </tr>
               </tfoot>
