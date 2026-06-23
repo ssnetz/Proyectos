@@ -99,6 +99,7 @@ export default function Fueling() {
 
   const totalLiters = records.reduce((s, r) => s + Number(r.liters), 0);
   const totalCost   = records.reduce((s, r) => s + Number(r.total_cost || 0), 0);
+  const totalKm     = records.reduce((s, r) => s + Number(r.km_recorridos || 0), 0);
   const totalLoads  = records.length;
 
   const filterLabel = () => {
@@ -210,6 +211,10 @@ export default function Fueling() {
             <span className="resumen-stat-label">Total litros</span>
           </div>
           <div className="resumen-stat">
+            <span className="resumen-stat-value">{totalKm.toLocaleString('es', { minimumFractionDigits: 1 })} km</span>
+            <span className="resumen-stat-label">Total km recorridos</span>
+          </div>
+          <div className="resumen-stat">
             <span className="resumen-stat-value">${totalCost.toLocaleString('es', { minimumFractionDigits: 2 })}</span>
             <span className="resumen-stat-label">Total costo</span>
           </div>
@@ -269,7 +274,8 @@ export default function Fueling() {
                   <td>{totalLiters.toLocaleString('es', { minimumFractionDigits: 2 })} L</td>
                   <td></td>
                   <td>${totalCost.toLocaleString('es', { minimumFractionDigits: 2 })}</td>
-                  <td colSpan="4"></td>
+                  <td>{totalKm.toLocaleString('es', { minimumFractionDigits: 1 })} km</td>
+                  <td colSpan="3"></td>
                 </tr>
               </tfoot>
             )}
