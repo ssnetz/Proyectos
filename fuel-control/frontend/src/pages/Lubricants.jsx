@@ -14,9 +14,10 @@ export default function Lubricants() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
-  const [records, setRecords]   = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [records, setRecords]             = useState([]);
+  const [vehicles, setVehicles]           = useState([]);
+  const [lubricantTypes, setLubricantTypes] = useState([]);
+  const [loading, setLoading]             = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing]   = useState(null);
   const [filters, setFilters]   = useState({ vehicle_id: '', from: '', to: '' });
@@ -37,6 +38,7 @@ export default function Lubricants() {
 
   useEffect(() => {
     axios.get('/fuel-control/backend/api/vehicles.php').then(r => setVehicles(r.data));
+    axios.get('/fuel-control/backend/api/lubricant_types.php').then(r => setLubricantTypes(r.data));
     load();
   }, []);
 
@@ -142,9 +144,11 @@ export default function Lubricants() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Tipo de lubricante *</label>
-                  <input className="form-input" required value={form.type}
-                    placeholder="Ej: Aceite motor, Grasa, Hidráulico"
-                    onChange={e => setForm(f => ({ ...f, type: e.target.value }))} />
+                  <select className="form-input" required value={form.type}
+                    onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
+                    <option value="">Seleccionar...</option>
+                    {lubricantTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Marca</label>

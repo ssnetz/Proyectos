@@ -5,8 +5,9 @@ import Fueling    from './pages/Fueling';
 import Vehicles   from './pages/Vehicles';
 import FuelPrices from './pages/FuelPrices';
 import Users      from './pages/Users';
-import FuelTypes  from './pages/FuelTypes';
-import Lubricants from './pages/Lubricants';
+import FuelTypes      from './pages/FuelTypes';
+import Lubricants     from './pages/Lubricants';
+import LubricantTypes from './pages/LubricantTypes';
 import Login     from './pages/Login';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -48,8 +49,9 @@ const pageTitles = {
   '/vehicles':    'Vehículos y Maquinaria',
   '/fuel-prices': 'Precios de Combustible',
   '/users':       'Usuarios',
-  '/lubricants':  'Lubricantes',
-  '/fuel-types':  'Tipos de Combustible',
+  '/lubricants':       'Lubricantes',
+  '/fuel-types':       'Tipos de Combustible',
+  '/lubricant-types':  'Tipos de Lubricante',
 };
 
 function AppLayout() {
@@ -63,8 +65,9 @@ function AppLayout() {
     { to: '/fueling',  icon: '⛽', label: 'Cargas' },
     { to: '/vehicles',    icon: '🚛', label: 'Vehículos' },
     { to: '/fuel-prices', icon: '💲', label: 'Precios' },
-    { to: '/lubricants',  icon: '🛢️', label: 'Lubricantes' },
-    { to: '/fuel-types',  icon: '⚙️', label: 'Tipos Combustible' },
+    { to: '/lubricants',      icon: '🛢️', label: 'Lubricantes' },
+    { to: '/lubricant-types', icon: '🔧', label: 'Tipos Lubricante' },
+    { to: '/fuel-types',      icon: '⚙️', label: 'Tipos Combustible' },
     ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -102,8 +105,9 @@ function AppLayout() {
             <Route path="/vehicles"    element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
             <Route path="/fuel-prices" element={<ProtectedRoute><FuelPrices /></ProtectedRoute>} />
             <Route path="/users"       element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
-            <Route path="/lubricants"  element={<ProtectedRoute><Lubricants /></ProtectedRoute>} />
-            <Route path="/fuel-types"  element={<ProtectedRoute><FuelTypes /></ProtectedRoute>} />
+            <Route path="/lubricants"      element={<ProtectedRoute><Lubricants /></ProtectedRoute>} />
+            <Route path="/lubricant-types" element={<ProtectedRoute><LubricantTypes /></ProtectedRoute>} />
+            <Route path="/fuel-types"      element={<ProtectedRoute><FuelTypes /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>

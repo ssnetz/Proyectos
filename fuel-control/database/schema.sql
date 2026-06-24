@@ -59,7 +59,15 @@ CREATE TABLE IF NOT EXISTS fuel_types (
 
 INSERT IGNORE INTO fuel_types (name) VALUES ('Super'),('Infinia'),('Diesel 500'),('Infinia Diesel');
 
-CREATE TABLE IF NOT EXISTS lubricants (
+CREATE TABLE IF NOT EXISTS lubricant_types (
+    id     INT AUTO_INCREMENT PRIMARY KEY,
+    name   VARCHAR(80) NOT NULL UNIQUE,
+    active TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO lubricant_types (name) VALUES
+    ('Aceite motor'),('Aceite caja'),('Aceite diferencial'),
+    ('Grasa'),('Hidráulico'),('Refrigerante'),('Otros');
     id          INT AUTO_INCREMENT PRIMARY KEY,
     vehicle_id  INT NOT NULL,
     user_id     INT NOT NULL,
