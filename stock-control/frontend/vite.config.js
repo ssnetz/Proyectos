@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/stock-control/',
+  base: '/farmacia/',
   build: {
     rollupOptions: {
       output: {
@@ -16,7 +16,7 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/stock-control/api': {
+      '/farmacia/api': {
         target: 'http://localhost',
         changeOrigin: true,
       },

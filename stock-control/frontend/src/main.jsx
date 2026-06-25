@@ -42,7 +42,7 @@ class ErrorBoundary extends React.Component {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter basename="/stock-control">
+    <BrowserRouter basename="/farmacia">
       <ErrorBoundary>
         <App />
       </ErrorBoundary>
