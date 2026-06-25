@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS lubricant_types (
 INSERT IGNORE INTO lubricant_types (name) VALUES
     ('Aceite motor'),('Aceite caja'),('Aceite diferencial'),
     ('Grasa'),('Hidráulico'),('Refrigerante'),('Otros');
+
+CREATE TABLE IF NOT EXISTS lubricants (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     vehicle_id  INT NOT NULL,
     user_id     INT NOT NULL,
