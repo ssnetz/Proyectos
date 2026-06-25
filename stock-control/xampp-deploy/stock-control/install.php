@@ -184,16 +184,18 @@ run($pdo, "CREATE TABLE IF NOT EXISTS users (
 )", "Tabla users");
 
 // ── Columnas que pueden faltar en tablas existentes ──────────────────────────
-run($pdo, "ALTER TABLE product_lots ADD COLUMN IF NOT EXISTS invoice_id INT AFTER location_id", "Columna product_lots.invoice_id");
-run($pdo, "ALTER TABLE product_lots ADD COLUMN IF NOT EXISTS marca VARCHAR(100) AFTER lot_number", "Columna product_lots.marca");
-run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS location_id    INT AFTER product_id",   "Columna stock_movements.location_id");
-run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS beneficiary_id INT AFTER location_id",  "Columna stock_movements.beneficiary_id");
-run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS user_id        INT AFTER user",         "Columna stock_movements.user_id");
-run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS to_location_id INT AFTER location_id",  "Columna stock_movements.to_location_id");
-run($pdo, "ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS category_id    INT AFTER to_location_id", "Columna stock_movements.category_id");
-run($pdo, "ALTER TABLE products        ADD COLUMN IF NOT EXISTS therapeutic_action VARCHAR(200)   AFTER unit",         "Columna products.therapeutic_action");
-run($pdo, "ALTER TABLE products        ADD COLUMN IF NOT EXISTS purchase_price    DECIMAL(10,2) DEFAULT 0 AFTER therapeutic_action", "Columna products.purchase_price");
-run($pdo, "ALTER TABLE products        ADD COLUMN IF NOT EXISTS sale_price        DECIMAL(10,2) DEFAULT 0 AFTER purchase_price",     "Columna products.sale_price");
+// Nota: sin IF NOT EXISTS para compatibilidad con MySQL 8.0 (solo MariaDB lo soporta)
+// El try/catch de run() ya maneja "Duplicate column" como no-fatal.
+run($pdo, "ALTER TABLE product_lots ADD COLUMN invoice_id INT AFTER location_id", "Columna product_lots.invoice_id");
+run($pdo, "ALTER TABLE product_lots ADD COLUMN marca VARCHAR(100) AFTER lot_number", "Columna product_lots.marca");
+run($pdo, "ALTER TABLE stock_movements ADD COLUMN location_id    INT AFTER product_id",   "Columna stock_movements.location_id");
+run($pdo, "ALTER TABLE stock_movements ADD COLUMN beneficiary_id INT AFTER location_id",  "Columna stock_movements.beneficiary_id");
+run($pdo, "ALTER TABLE stock_movements ADD COLUMN user_id        INT AFTER user",         "Columna stock_movements.user_id");
+run($pdo, "ALTER TABLE stock_movements ADD COLUMN to_location_id INT AFTER location_id",  "Columna stock_movements.to_location_id");
+run($pdo, "ALTER TABLE stock_movements ADD COLUMN category_id    INT AFTER to_location_id", "Columna stock_movements.category_id");
+run($pdo, "ALTER TABLE products        ADD COLUMN therapeutic_action VARCHAR(200)   AFTER unit",         "Columna products.therapeutic_action");
+run($pdo, "ALTER TABLE products        ADD COLUMN purchase_price    DECIMAL(10,2) DEFAULT 0 AFTER therapeutic_action", "Columna products.purchase_price");
+run($pdo, "ALTER TABLE products        ADD COLUMN sale_price        DECIMAL(10,2) DEFAULT 0 AFTER purchase_price",     "Columna products.sale_price");
 
 // ── Ampliar ENUM type si falta 'dispensa' ────────────────────────────────────
 run($pdo, "ALTER TABLE stock_movements MODIFY COLUMN type ENUM('entrada','salida','ajuste','dispensa') NOT NULL",
