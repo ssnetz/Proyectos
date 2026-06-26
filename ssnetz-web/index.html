@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,10 +16,10 @@
   --white:   #ffffff;
   --gray:    #8899bb;
   --text:    #c8d8f0;
+  --gold:    #f59e0b;
 }
 
 html { scroll-behavior: smooth; }
-
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   background: var(--navy);
@@ -27,68 +27,74 @@ body {
   line-height: 1.65;
 }
 
-/* ── NAV ─────────────────────────────────────────────────────────────── */
+/* ── NAV ─────────────────────────────────────────────────── */
 nav {
   position: fixed; top: 0; left: 0; right: 0;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 1rem 3rem;
-  background: rgba(8,15,42,0.88);
+  padding: 0.9rem 3rem;
+  background: rgba(8,15,42,0.92);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(0,200,255,0.1);
-  z-index: 200;
+  z-index: 200; gap: 1rem;
 }
 
-.logo { display:flex; align-items:center; gap:12px; text-decoration:none; }
-.logo-name {
-  font-size: 1.45rem; font-weight: 900;
-  letter-spacing: -0.5px; color: var(--white); line-height:1;
-}
-.logo-sub {
-  font-size: 0.6rem; letter-spacing: 2.5px;
-  color: var(--cyan); text-transform: uppercase; display:block; margin-top:2px;
-}
+.logo { display:flex; align-items:center; gap:12px; text-decoration:none; flex-shrink:0; }
+.logo-name { font-size:1.4rem; font-weight:900; letter-spacing:-.5px; color:var(--white); line-height:1; }
+.logo-sub  { font-size:.6rem; letter-spacing:2.5px; color:var(--cyan); text-transform:uppercase; display:block; margin-top:2px; }
 
-.nav-links { display:flex; gap:2.25rem; list-style:none; align-items:center; }
-.nav-links a { color:var(--gray); text-decoration:none; font-size:.9rem; transition:color .2s; }
+.nav-links { display:flex; gap:1.75rem; list-style:none; align-items:center; flex-wrap:wrap; }
+.nav-links a { color:var(--gray); text-decoration:none; font-size:.88rem; transition:color .2s; white-space:nowrap; }
 .nav-links a:hover { color:var(--cyan); }
 .nav-cta {
-  padding: .5rem 1.4rem; background:var(--cyan);
-  color: var(--navy) !important; border-radius:7px; font-weight:700 !important;
-  transition: filter .2s, transform .2s !important;
+  padding:.5rem 1.3rem; background:var(--cyan);
+  color:var(--navy) !important; border-radius:7px; font-weight:700 !important;
 }
-.nav-cta:hover { filter:brightness(1.12); transform:translateY(-1px); }
+.nav-cta:hover { filter:brightness(1.1); }
 
-/* ── HERO ────────────────────────────────────────────────────────────── */
+/* Language switcher */
+.lang-switcher { display:flex; gap:4px; flex-shrink:0; }
+.lang-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.15);
+  color: var(--gray);
+  border-radius: 6px;
+  padding: .3rem .6rem;
+  font-size: .75rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: .5px;
+  transition: all .2s;
+}
+.lang-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.lang-btn.active { background: var(--cyan); border-color: var(--cyan); color: var(--navy); }
+
+/* ── HERO ─────────────────────────────────────────────────── */
 .hero {
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
   text-align: center;
-  padding: 7rem 2rem 5rem;
+  padding: 8rem 2rem 5rem;
   position: relative; overflow: hidden;
 }
-
 .hero::before {
-  content:'';
-  position:absolute; inset:0;
+  content:''; position:absolute; inset:0;
   background:
     radial-gradient(ellipse 70% 55% at 50% 42%, rgba(26,58,143,.45) 0%, transparent 100%),
     radial-gradient(ellipse 40% 40% at 80% 75%, rgba(0,200,255,.07) 0%, transparent 100%);
 }
 .hero::after {
-  content:'';
-  position:absolute; inset:0;
+  content:''; position:absolute; inset:0;
   background-image:
     linear-gradient(rgba(0,200,255,.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0,200,255,.035) 1px, transparent 1px);
   background-size: 56px 56px;
 }
-
 .hero-inner { position:relative; z-index:1; max-width:820px; }
 
 .badge {
   display:inline-flex; align-items:center; gap:.5rem;
   padding:.35rem 1.1rem;
-  background: var(--cyan-lo);
+  background:var(--cyan-lo);
   border:1px solid rgba(0,200,255,.28);
   border-radius:999px;
   font-size:.78rem; color:var(--cyan);
@@ -97,67 +103,52 @@ nav {
 }
 
 .hero h1 {
-  font-size: clamp(2.6rem,6.5vw,4.8rem);
-  font-weight: 900; line-height: 1.08;
-  letter-spacing: -1.5px;
-  margin-bottom: 1.4rem;
+  font-size: clamp(2.4rem,6vw,4.6rem);
+  font-weight:900; line-height:1.08;
+  letter-spacing:-1.5px; margin-bottom:1.4rem;
 }
 .hero h1 em { font-style:normal; color:var(--cyan); }
-
-.hero p {
-  font-size: 1.15rem; color: var(--text);
-  max-width: 560px; margin: 0 auto 2.75rem;
-}
+.hero p { font-size:1.1rem; color:var(--text); max-width:560px; margin:0 auto 2.75rem; }
 
 .actions { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; }
-
 .btn {
-  padding:.9rem 2.1rem; border-radius:9px;
-  font-size:.95rem; font-weight:700;
+  padding:.85rem 2rem; border-radius:9px;
+  font-size:.93rem; font-weight:700;
   text-decoration:none; border:none; cursor:pointer;
-  transition: all .22s;
+  transition: all .22s; display:inline-block;
 }
 .btn-primary { background:var(--cyan); color:var(--navy); }
 .btn-primary:hover { filter:brightness(1.1); transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,200,255,.3); }
-.btn-outline { background:transparent; color:var(--white); border:1.5px solid rgba(255,255,255,.18); }
+.btn-outline { background:transparent; color:var(--white); border:1.5px solid rgba(255,255,255,.2); }
 .btn-outline:hover { border-color:var(--cyan); color:var(--cyan); }
+.btn-sm { padding:.55rem 1.3rem; font-size:.85rem; }
 
-/* ── STATS ───────────────────────────────────────────────────────────── */
-.stats-wrap {
-  padding: 0 2rem 4rem;
-  max-width: 1080px; margin: 0 auto;
-}
+/* ── STATS ────────────────────────────────────────────────── */
+.stats-wrap { padding:0 2rem 4.5rem; max-width:1080px; margin:0 auto; }
 .stats {
-  display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-  gap: 1px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 14px; overflow:hidden;
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+  gap:1px; background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.06); border-radius:14px; overflow:hidden;
 }
-.stat {
-  background:rgba(8,15,42,.9);
-  padding:2rem 1.5rem; text-align:center;
-}
-.stat-num { font-size:2.6rem; font-weight:900; color:var(--cyan); line-height:1; }
+.stat { background:rgba(8,15,42,.9); padding:2rem 1.5rem; text-align:center; }
+.stat-num { font-size:2.5rem; font-weight:900; color:var(--cyan); line-height:1; }
 .stat-lbl { font-size:.8rem; color:var(--gray); margin-top:.4rem; }
 
-/* ── SECTIONS ────────────────────────────────────────────────────────── */
+/* ── SECTIONS ─────────────────────────────────────────────── */
 section { padding:5rem 2rem; max-width:1080px; margin:0 auto; }
+.sec-tag   { font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--cyan); margin-bottom:.7rem; }
+.sec-title { font-size:clamp(1.8rem,4vw,2.7rem); font-weight:800; letter-spacing:-.5px; margin-bottom:.9rem; }
+.sec-sub   { color:var(--text); max-width:500px; margin-bottom:3rem; font-size:.96rem; }
 
-.sec-tag { font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--cyan); margin-bottom:.7rem; }
-.sec-title { font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800; letter-spacing:-.5px; margin-bottom:.9rem; }
-.sec-sub { color:var(--text); max-width:480px; margin-bottom:3rem; font-size:.97rem; }
-
-/* ── SERVICES ────────────────────────────────────────────────────────── */
-.grid {
-  display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1.5rem;
-}
+/* ── CARDS ────────────────────────────────────────────────── */
+.grid-4 { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:1.4rem; }
+.grid-3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.5rem; }
 
 .card {
   background:rgba(255,255,255,.03);
   border:1px solid rgba(255,255,255,.07);
   border-radius:14px; padding:2rem 1.75rem;
-  transition: all .25s; position:relative; overflow:hidden;
+  transition:all .25s; position:relative; overflow:hidden;
 }
 .card::before {
   content:''; position:absolute; inset:0;
@@ -173,14 +164,48 @@ section { padding:5rem 2rem; max-width:1080px; margin:0 auto; }
   display:flex; align-items:center; justify-content:center;
   font-size:1.5rem; margin-bottom:1.3rem;
 }
+.card h3 { font-size:1.05rem; font-weight:700; margin-bottom:.5rem; }
+.card p  { font-size:.875rem; color:var(--text); line-height:1.75; }
 
-.card h3 { font-size:1.05rem; font-weight:700; margin-bottom:.55rem; }
-.card p { font-size:.875rem; color:var(--text); line-height:1.75; }
+/* ── SYSTEM CARDS ─────────────────────────────────────────── */
+.sys-card {
+  background: linear-gradient(135deg, rgba(13,27,75,.9), rgba(8,15,42,.95));
+  border: 1px solid rgba(0,200,255,.18);
+  border-radius: 16px;
+  padding: 2.25rem 2rem;
+  display: flex; flex-direction:column; gap: 1rem;
+  transition: all .25s; position:relative; overflow:hidden;
+}
+.sys-card::after {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, var(--cyan), transparent);
+  border-radius:16px 16px 0 0;
+}
+.sys-card:hover { border-color:rgba(0,200,255,.45); transform:translateY(-4px); box-shadow:0 16px 48px rgba(0,200,255,.1); }
 
-/* ── WHY US ──────────────────────────────────────────────────────────── */
+.sys-card.coming {
+  border-color: rgba(245,158,11,.2);
+  opacity: .8;
+}
+.sys-card.coming::after { background:linear-gradient(90deg, var(--gold), transparent); }
+
+.sys-badge {
+  display:inline-flex; align-items:center; gap:.4rem;
+  padding:.25rem .75rem; border-radius:999px;
+  font-size:.7rem; font-weight:700; letter-spacing:1px; text-transform:uppercase;
+  width:fit-content;
+}
+.badge-live  { background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.4); color:#34d399; }
+.badge-dev   { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.3); color:var(--gold); }
+.badge-soon  { background:rgba(139,92,246,.12);  border:1px solid rgba(139,92,246,.3);  color:#a78bfa; }
+
+.sys-card h3 { font-size:1.15rem; font-weight:800; }
+.sys-card p  { font-size:.875rem; color:var(--text); line-height:1.75; flex:1; }
+.sys-footer  { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; margin-top:.5rem; }
+.sys-meta    { font-size:.75rem; color:var(--gray); }
+
+/* ── WHY ──────────────────────────────────────────────────── */
 .why-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-@media(max-width:640px){ .why-grid { grid-template-columns:1fr; } }
-
 .why-item {
   display:flex; gap:1rem; align-items:flex-start;
   padding:1.5rem; background:rgba(255,255,255,.03);
@@ -193,44 +218,33 @@ section { padding:5rem 2rem; max-width:1080px; margin:0 auto; }
   color:var(--cyan); font-weight:900; font-size:.85rem;
 }
 .why-item h4 { font-size:.95rem; font-weight:700; margin-bottom:.3rem; }
-.why-item p { font-size:.83rem; color:var(--text); }
+.why-item p  { font-size:.83rem; color:var(--text); }
 
-/* ── CTA BANNER ──────────────────────────────────────────────────────── */
-.cta-banner {
-  max-width:1080px; margin:0 auto 5rem;
-  padding:0 2rem;
-}
+/* ── CTA ──────────────────────────────────────────────────── */
+.cta-wrap  { max-width:1080px; margin:0 auto 5rem; padding:0 2rem; }
 .cta-inner {
-  background:linear-gradient(135deg,rgba(26,58,143,.4),rgba(0,200,255,.12));
+  background:linear-gradient(135deg,rgba(26,58,143,.4),rgba(0,200,255,.1));
   border:1px solid rgba(0,200,255,.18);
-  border-radius:20px; padding:4rem 3rem;
-  text-align:center;
+  border-radius:20px; padding:4rem 3rem; text-align:center;
 }
-.cta-inner h2 { font-size:clamp(1.6rem,3.5vw,2.4rem); font-weight:800; margin-bottom:1rem; }
-.cta-inner p { color:var(--text); max-width:460px; margin:0 auto 2.25rem; }
+.cta-inner h2 { font-size:clamp(1.5rem,3.5vw,2.3rem); font-weight:800; margin-bottom:1rem; }
+.cta-inner p  { color:var(--text); max-width:460px; margin:0 auto 2.25rem; }
 
-/* ── CONTACT ─────────────────────────────────────────────────────────── */
-.contact-cards {
-  display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1.25rem;
-  margin-top:2.5rem;
-}
-.contact-card {
-  background:rgba(255,255,255,.03);
-  border:1px solid rgba(255,255,255,.07);
-  border-radius:12px; padding:1.75rem 1.5rem;
-  text-align:center;
-}
+/* ── CONTACT ──────────────────────────────────────────────── */
+.contact-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1.25rem; margin-top:2.5rem; }
+.contact-card  { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); border-radius:12px; padding:1.75rem 1.5rem; text-align:center; }
 .contact-card .icon { font-size:1.75rem; margin-bottom:.75rem; }
-.contact-card h4 { font-size:.85rem; color:var(--gray); margin-bottom:.4rem; letter-spacing:.5px; }
-.contact-card a, .contact-card span { color:var(--white); text-decoration:none; font-weight:600; font-size:.95rem; }
+.contact-card h4    { font-size:.8rem; color:var(--gray); margin-bottom:.4rem; letter-spacing:.5px; text-transform:uppercase; }
+.contact-card a, .contact-card span { color:var(--white); text-decoration:none; font-weight:600; font-size:.93rem; }
 .contact-card a:hover { color:var(--cyan); }
 
-/* ── FOOTER ──────────────────────────────────────────────────────────── */
+/* ── FOOTER ───────────────────────────────────────────────── */
 footer {
   border-top:1px solid rgba(255,255,255,.06);
   padding:2rem 3rem;
-  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;
-  color:var(--gray); font-size:.83rem; max-width:none;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:1rem;
+  color:var(--gray); font-size:.83rem;
 }
 .footer-links { display:flex; gap:1.75rem; }
 .footer-links a { color:var(--gray); text-decoration:none; }
@@ -239,19 +253,19 @@ footer {
 @media(max-width:768px){
   nav { padding:.9rem 1.25rem; }
   .nav-links { display:none; }
+  .why-grid { grid-template-columns:1fr; }
+  .cta-inner { padding:2.5rem 1.5rem; }
   footer { flex-direction:column; text-align:center; padding:1.75rem 1.25rem; }
 }
 </style>
 </head>
 <body>
 
-<!-- ── NAVIGATION ───────────────────────────────────────────────────── -->
+<!-- ── NAVIGATION ─────────────────────────────────────────── -->
 <nav>
   <a href="#" class="logo">
-    <!-- SSNetz Logo Mark -->
-    <svg width="46" height="46" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="44" height="44" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="64" height="64" rx="13" fill="#0d1b4b"/>
-      <!-- Network nodes -->
       <circle cx="32" cy="32" r="4.5" fill="#00c8ff"/>
       <circle cx="13" cy="15" r="3"   fill="#00c8ff" opacity=".75"/>
       <circle cx="51" cy="15" r="3"   fill="#00c8ff" opacity=".75"/>
@@ -261,20 +275,14 @@ footer {
       <circle cx="56" cy="32" r="2"   fill="white"   opacity=".35"/>
       <circle cx="32" cy="7"  r="2"   fill="white"   opacity=".35"/>
       <circle cx="32" cy="57" r="2"   fill="white"   opacity=".35"/>
-      <!-- Connection lines (diagonal) -->
       <line x1="28.5" y1="28.5" x2="16" y2="17.5" stroke="#00c8ff" stroke-width="1.4" opacity=".55"/>
       <line x1="35.5" y1="28.5" x2="48" y2="17.5" stroke="#00c8ff" stroke-width="1.4" opacity=".55"/>
       <line x1="28.5" y1="35.5" x2="16" y2="46.5" stroke="#00c8ff" stroke-width="1.4" opacity=".55"/>
       <line x1="35.5" y1="35.5" x2="48" y2="46.5" stroke="#00c8ff" stroke-width="1.4" opacity=".55"/>
-      <!-- Connection lines (straight) -->
-      <line x1="27.5" y1="32" x2="10"  y2="32" stroke="white" stroke-width="1"   opacity=".28"/>
-      <line x1="36.5" y1="32" x2="54"  y2="32" stroke="white" stroke-width="1"   opacity=".28"/>
-      <line x1="32"   y1="27.5" x2="32" y2="9"  stroke="white" stroke-width="1" opacity=".28"/>
-      <line x1="32"   y1="36.5" x2="32" y2="55" stroke="white" stroke-width="1" opacity=".28"/>
-      <!-- SS letters overlay -->
-      <text x="32" y="37.5" text-anchor="middle"
-            font-family="Arial Black,sans-serif" font-size="15" font-weight="900"
-            fill="white" opacity=".18" letter-spacing="-1">SS</text>
+      <line x1="27.5" y1="32" x2="10"  y2="32" stroke="white" stroke-width="1" opacity=".28"/>
+      <line x1="36.5" y1="32" x2="54"  y2="32" stroke="white" stroke-width="1" opacity=".28"/>
+      <line x1="32" y1="27.5" x2="32"  y2="9"  stroke="white" stroke-width="1" opacity=".28"/>
+      <line x1="32" y1="36.5" x2="32"  y2="55" stroke="white" stroke-width="1" opacity=".28"/>
     </svg>
     <div>
       <div class="logo-name">SSNetz</div>
@@ -283,150 +291,201 @@ footer {
   </a>
 
   <ul class="nav-links">
-    <li><a href="#services">Services</a></li>
-    <li><a href="#why">Why SSNetz</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#contact" class="nav-cta">Get in touch →</a></li>
+    <li><a href="#services" data-i18n="nav.services">Servicios</a></li>
+    <li><a href="#systems"  data-i18n="nav.systems">Sistemas</a></li>
+    <li><a href="#why"      data-i18n="nav.why">Por qué SSNetz</a></li>
+    <li><a href="#contact"  data-i18n="nav.contact">Contacto</a></li>
+    <li><a href="#contact" class="nav-cta" data-i18n="nav.cta">Contáctanos →</a></li>
   </ul>
+
+  <div class="lang-switcher">
+    <button class="lang-btn active" data-lang="es" onclick="setLang('es')">ES</button>
+    <button class="lang-btn"        data-lang="en" onclick="setLang('en')">EN</button>
+    <button class="lang-btn"        data-lang="de" onclick="setLang('de')">DE</button>
+  </div>
 </nav>
 
-<!-- ── HERO ─────────────────────────────────────────────────────────── -->
+<!-- ── HERO ───────────────────────────────────────────────── -->
 <section class="hero">
   <div class="hero-inner">
-    <div class="badge">🇩🇪 Made in Germany</div>
-
-    <h1>Technology that<br><em>connects</em> your world</h1>
-    <p>Software development, network infrastructure, video surveillance and custom technology solutions — engineered with German precision.</p>
-
+    <div class="badge" data-i18n="badge">🇩🇪 Hecho en Alemania</div>
+    <h1 data-i18n="hero.h1">Tecnología que <em>conecta</em><br>tu mundo</h1>
+    <p data-i18n="hero.p">Desarrollo de software, infraestructura de redes, videovigilancia y soluciones tecnológicas a medida — ingeniería alemana de precisión.</p>
     <div class="actions">
-      <a href="#services" class="btn btn-primary">Explore Services</a>
-      <a href="#contact"  class="btn btn-outline">Contact Us</a>
+      <a href="#services" class="btn btn-primary" data-i18n="hero.btn1">Ver Servicios</a>
+      <a href="#contact"  class="btn btn-outline"  data-i18n="hero.btn2">Contactar</a>
     </div>
   </div>
 </section>
 
-<!-- ── STATS ─────────────────────────────────────────────────────────── -->
+<!-- ── STATS ──────────────────────────────────────────────── -->
 <div class="stats-wrap">
   <div class="stats">
-    <div class="stat"><div class="stat-num">15+</div><div class="stat-lbl">Years of experience</div></div>
-    <div class="stat"><div class="stat-num">200+</div><div class="stat-lbl">Projects delivered</div></div>
-    <div class="stat"><div class="stat-num">50+</div><div class="stat-lbl">Enterprise clients</div></div>
-    <div class="stat"><div class="stat-num">99%</div><div class="stat-lbl">Client satisfaction</div></div>
+    <div class="stat"><div class="stat-num">15+</div><div class="stat-lbl" data-i18n="stat1">Años de experiencia</div></div>
+    <div class="stat"><div class="stat-num">200+</div><div class="stat-lbl" data-i18n="stat2">Proyectos entregados</div></div>
+    <div class="stat"><div class="stat-num">50+</div><div class="stat-lbl" data-i18n="stat3">Clientes empresariales</div></div>
+    <div class="stat"><div class="stat-num">99%</div><div class="stat-lbl" data-i18n="stat4">Satisfacción del cliente</div></div>
   </div>
 </div>
 
-<!-- ── SERVICES ──────────────────────────────────────────────────────── -->
+<!-- ── SERVICES ───────────────────────────────────────────── -->
 <section id="services">
-  <div class="sec-tag">What we do</div>
-  <h2 class="sec-title">End-to-end technology solutions</h2>
-  <p class="sec-sub">From custom software to secure network infrastructure — complete technology ecosystems for your business.</p>
+  <div class="sec-tag" data-i18n="services.tag">Qué hacemos</div>
+  <h2 class="sec-title" data-i18n="services.title">Soluciones tecnológicas integrales</h2>
+  <p class="sec-sub" data-i18n="services.sub">Desde software personalizado hasta infraestructura de red segura — ecosistemas tecnológicos completos para tu negocio.</p>
 
-  <div class="grid">
+  <div class="grid-4">
     <div class="card">
       <div class="card-icon">💻</div>
-      <h3>Software Development</h3>
-      <p>Custom web and mobile applications, enterprise systems, REST APIs and system integrations built to scale with your business needs.</p>
+      <h3 data-i18n="s1.title">Desarrollo de Software</h3>
+      <p  data-i18n="s1.body">Aplicaciones web y móviles, sistemas empresariales, APIs y microservicios — construidos para escalar con tu negocio.</p>
     </div>
     <div class="card">
       <div class="card-icon">🔗</div>
-      <h3>Networking &amp; Infrastructure</h3>
-      <p>Design, deployment and management of secure, high-performance networks for offices, campuses and data centers — wired and wireless.</p>
+      <h3 data-i18n="s2.title">Redes e Infraestructura</h3>
+      <p  data-i18n="s2.body">Diseño, despliegue y gestión de redes seguras y de alto rendimiento para oficinas, campus y centros de datos.</p>
     </div>
     <div class="card">
       <div class="card-icon">📷</div>
-      <h3>Video Surveillance</h3>
-      <p>IP camera systems, NVR/DVR configuration, remote monitoring and AI-powered video analytics — scalable for any environment.</p>
+      <h3 data-i18n="s3.title">Videovigilancia</h3>
+      <p  data-i18n="s3.body">Sistemas de cámaras IP, configuración NVR/DVR, monitoreo remoto y analítica de video con IA — escalable a cualquier entorno.</p>
     </div>
     <div class="card">
       <div class="card-icon">⚙️</div>
-      <h3>Technology Solutions</h3>
-      <p>IT consulting, system integration, cloud migration and custom automation — turning complex challenges into competitive advantages.</p>
+      <h3 data-i18n="s4.title">Soluciones Tecnológicas</h3>
+      <p  data-i18n="s4.body">Consultoría IT, integración de sistemas, migración a la nube y automatización personalizada — tecnología al servicio de tu negocio.</p>
     </div>
   </div>
 </section>
 
-<!-- ── WHY SSNETZ ─────────────────────────────────────────────────────── -->
+<!-- ── SYSTEMS ─────────────────────────────────────────────── -->
+<section id="systems">
+  <div class="sec-tag" data-i18n="systems.tag">Nuestras aplicaciones</div>
+  <h2 class="sec-title" data-i18n="systems.title">Sistemas en producción</h2>
+  <p class="sec-sub" data-i18n="systems.sub">Soluciones desarrolladas y en uso real, disponibles para clientes e instituciones.</p>
+
+  <div class="grid-3">
+
+    <!-- Pharmacy -->
+    <div class="sys-card">
+      <div class="sys-badge badge-live">● <span data-i18n="badge.live">En producción</span></div>
+      <div style="font-size:2rem; margin:.25rem 0;">💊</div>
+      <h3 data-i18n="app1.title">Control de Stock — Farmacia</h3>
+      <p data-i18n="app1.body">Sistema integral de gestión de inventario para farmacias hospitalarias. Control de lotes, vencimientos, dispensas, movimientos y reportes en tiempo real.</p>
+      <div class="sys-footer">
+        <span class="sys-meta" data-i18n="app1.client">Cliente: Municipalidad de Cosquín · Farmacia Hospital Cima</span>
+        <a href="http://187.127.32.20/farmacia/" target="_blank" class="btn btn-primary btn-sm" data-i18n="btn.access">Acceder →</a>
+      </div>
+    </div>
+
+    <!-- Fuel control -->
+    <div class="sys-card">
+      <div class="sys-badge badge-live">● <span data-i18n="badge.live">En producción</span></div>
+      <div style="font-size:2rem; margin:.25rem 0;">⛽</div>
+      <h3 data-i18n="app2.title">Control de Combustible</h3>
+      <p data-i18n="app2.body">Sistema de registro y control de cargas de combustible para flotas municipales. Seguimiento por vehículo, conductor y período con reportes exportables.</p>
+      <div class="sys-footer">
+        <span class="sys-meta" data-i18n="app2.client">Cliente: Municipalidad de Cosquín</span>
+        <a href="http://187.127.32.20/combustible/" target="_blank" class="btn btn-primary btn-sm" data-i18n="btn.access">Acceder →</a>
+      </div>
+    </div>
+
+    <!-- Coming soon -->
+    <div class="sys-card coming">
+      <div class="sys-badge badge-soon">◆ <span data-i18n="badge.soon">Próximamente</span></div>
+      <div style="font-size:2rem; margin:.25rem 0;">🚀</div>
+      <h3 data-i18n="app3.title">Nuevas Aplicaciones</h3>
+      <p data-i18n="app3.body">Estamos desarrollando nuevas soluciones para gestión municipal, control patrimonial, turnos y más. ¿Tenés una necesidad? Hablemos.</p>
+      <div class="sys-footer">
+        <span class="sys-meta" data-i18n="app3.meta">En desarrollo · 2025–2026</span>
+        <a href="#contact" class="btn btn-outline btn-sm" data-i18n="btn.talk">Hablemos →</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── WHY SSNETZ ──────────────────────────────────────────── -->
 <section id="why">
-  <div class="sec-tag">Why choose us</div>
-  <h2 class="sec-title">German engineering. Global reach.</h2>
-  <p class="sec-sub">We combine technical excellence with practical business thinking to deliver solutions that work in the real world.</p>
+  <div class="sec-tag" data-i18n="why.tag">Por qué elegirnos</div>
+  <h2 class="sec-title" data-i18n="why.title">Ingeniería alemana. Alcance global.</h2>
+  <p class="sec-sub" data-i18n="why.sub">Combinamos excelencia técnica con pensamiento práctico para entregar soluciones que funcionan en el mundo real.</p>
 
   <div class="why-grid">
     <div class="why-item">
       <div class="why-dot">01</div>
       <div>
-        <h4>Precision Engineering</h4>
-        <p>German standards of quality and reliability in every project we deliver — no shortcuts, no compromises.</p>
+        <h4 data-i18n="w1.title">Precisión de ingeniería</h4>
+        <p  data-i18n="w1.body">Estándares alemanes de calidad y confiabilidad en cada proyecto — sin atajos ni compromisos.</p>
       </div>
     </div>
     <div class="why-item">
       <div class="why-dot">02</div>
       <div>
-        <h4>Full-Stack Expertise</h4>
-        <p>From frontend to backend, from cable to cloud — we cover the entire technology stack in-house.</p>
+        <h4 data-i18n="w2.title">Equipo full-stack</h4>
+        <p  data-i18n="w2.body">Del frontend al backend, del cable a la nube — cubrimos toda la pila tecnológica internamente.</p>
       </div>
     </div>
     <div class="why-item">
       <div class="why-dot">03</div>
       <div>
-        <h4>Security by Design</h4>
-        <p>Every solution is built with security as a first principle — protecting your data and infrastructure from day one.</p>
+        <h4 data-i18n="w3.title">Seguridad por diseño</h4>
+        <p  data-i18n="w3.body">Cada solución se construye con la seguridad como principio fundamental desde el primer día.</p>
       </div>
     </div>
     <div class="why-item">
       <div class="why-dot">04</div>
       <div>
-        <h4>Long-term Partnership</h4>
-        <p>We don't just deliver and disappear. We build lasting relationships with ongoing support and continuous improvement.</p>
+        <h4 data-i18n="w4.title">Soporte a largo plazo</h4>
+        <p  data-i18n="w4.body">No entregamos y desaparecemos. Construimos relaciones duraderas con soporte continuo y mejora permanente.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ── CTA BANNER ─────────────────────────────────────────────────────── -->
-<div class="cta-banner">
+<!-- ── CTA ─────────────────────────────────────────────────── -->
+<div class="cta-wrap">
   <div class="cta-inner">
-    <div class="sec-tag" style="margin-bottom:.75rem">Ready to start?</div>
-    <h2>Let's build something great together</h2>
-    <p>Tell us about your project — we'll get back to you within 24 hours with a tailored proposal.</p>
-    <a href="#contact" class="btn btn-primary">Start a Project →</a>
+    <div class="sec-tag" style="margin-bottom:.75rem" data-i18n="cta.tag">¿Listo para empezar?</div>
+    <h2 data-i18n="cta.title">Construyamos algo grande juntos</h2>
+    <p  data-i18n="cta.p">Contanos sobre tu proyecto — te respondemos en menos de 24 horas con una propuesta personalizada.</p>
+    <a href="#contact" class="btn btn-primary" data-i18n="cta.btn">Iniciar un Proyecto →</a>
   </div>
 </div>
 
-<!-- ── CONTACT ────────────────────────────────────────────────────────── -->
+<!-- ── CONTACT ─────────────────────────────────────────────── -->
 <section id="contact" style="text-align:center">
-  <div class="sec-tag">Get in touch</div>
-  <h2 class="sec-title">Contact SSNetz</h2>
-  <p class="sec-sub" style="margin-left:auto;margin-right:auto">Our team is ready to help you with any questions about our services.</p>
-
+  <div class="sec-tag" data-i18n="contact.tag">Comunicate</div>
+  <h2 class="sec-title" data-i18n="contact.title">Contacto SSNetz</h2>
+  <p class="sec-sub" style="margin:0 auto 0" data-i18n="contact.sub">Nuestro equipo está listo para ayudarte con cualquier consulta sobre nuestros servicios.</p>
   <div class="contact-cards">
     <div class="contact-card">
       <div class="icon">📧</div>
-      <h4>Email</h4>
+      <h4 data-i18n="c1.label">Email</h4>
       <a href="mailto:info@ssnetz.de">info@ssnetz.de</a>
     </div>
     <div class="contact-card">
       <div class="icon">🌐</div>
-      <h4>Website</h4>
+      <h4 data-i18n="c2.label">Website</h4>
       <a href="https://www.ssnetz.de">www.ssnetz.de</a>
     </div>
     <div class="contact-card">
       <div class="icon">📍</div>
-      <h4>Location</h4>
+      <h4 data-i18n="c3.label">Ubicación</h4>
       <span>Deutschland</span>
     </div>
     <div class="contact-card">
       <div class="icon">🕐</div>
-      <h4>Response Time</h4>
-      <span>Within 24 hours</span>
+      <h4 data-i18n="c4.label">Respuesta</h4>
+      <span data-i18n="c4.val">En menos de 24 hs</span>
     </div>
   </div>
 </section>
 
-<!-- ── FOOTER ─────────────────────────────────────────────────────────── -->
+<!-- ── FOOTER ──────────────────────────────────────────────── -->
 <footer>
   <div style="display:flex;align-items:center;gap:10px;">
-    <svg width="30" height="30" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="28" height="28" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="64" height="64" rx="13" fill="#0d1b4b"/>
       <circle cx="32" cy="32" r="4.5" fill="#00c8ff"/>
       <circle cx="13" cy="15" r="3" fill="#00c8ff" opacity=".75"/>
@@ -438,15 +497,255 @@ footer {
       <line x1="28.5" y1="35.5" x2="16" y2="46.5" stroke="#00c8ff" stroke-width="1.4" opacity=".55"/>
       <line x1="35.5" y1="35.5" x2="48" y2="46.5" stroke="#00c8ff" stroke-width="1.4" opacity=".55"/>
     </svg>
-    <strong style="color:white;font-size:1.05rem">SSNetz</strong>
+    <strong style="color:white">SSNetz</strong>
   </div>
-  <span>© 2025 SSNetz. All rights reserved.</span>
+  <span data-i18n="footer.copy">© 2025 SSNetz. Todos los derechos reservados.</span>
   <div class="footer-links">
-    <a href="#">Impressum</a>
-    <a href="#">Datenschutz</a>
-    <a href="#">AGB</a>
+    <a href="#" data-i18n="footer.impressum">Impressum</a>
+    <a href="#" data-i18n="footer.privacy">Datenschutz</a>
+    <a href="#" data-i18n="footer.terms">AGB</a>
   </div>
 </footer>
+
+<!-- ── i18n TRANSLATIONS ───────────────────────────────────── -->
+<script>
+const T = {
+  es: {
+    'nav.services': 'Servicios',
+    'nav.systems':  'Sistemas',
+    'nav.why':      'Por qué SSNetz',
+    'nav.contact':  'Contacto',
+    'nav.cta':      'Contáctanos →',
+    'badge':        '🇩🇪 Hecho en Alemania',
+    'hero.h1':      'Tecnología que <em>conecta</em><br>tu mundo',
+    'hero.p':       'Desarrollo de software, infraestructura de redes, videovigilancia y soluciones tecnológicas a medida — ingeniería alemana de precisión.',
+    'hero.btn1':    'Ver Servicios',
+    'hero.btn2':    'Contactar',
+    'stat1': 'Años de experiencia',
+    'stat2': 'Proyectos entregados',
+    'stat3': 'Clientes empresariales',
+    'stat4': 'Satisfacción del cliente',
+    'services.tag':   'Qué hacemos',
+    'services.title': 'Soluciones tecnológicas integrales',
+    'services.sub':   'Desde software personalizado hasta infraestructura de red segura — ecosistemas tecnológicos completos para tu negocio.',
+    's1.title': 'Desarrollo de Software',
+    's1.body':  'Aplicaciones web y móviles, sistemas empresariales, APIs y microservicios — construidos para escalar con tu negocio.',
+    's2.title': 'Redes e Infraestructura',
+    's2.body':  'Diseño, despliegue y gestión de redes seguras y de alto rendimiento para oficinas, campus y centros de datos.',
+    's3.title': 'Videovigilancia',
+    's3.body':  'Sistemas de cámaras IP, configuración NVR/DVR, monitoreo remoto y analítica de video con IA — escalable a cualquier entorno.',
+    's4.title': 'Soluciones Tecnológicas',
+    's4.body':  'Consultoría IT, integración de sistemas, migración a la nube y automatización personalizada — tecnología al servicio de tu negocio.',
+    'systems.tag':   'Nuestras aplicaciones',
+    'systems.title': 'Sistemas en producción',
+    'systems.sub':   'Soluciones desarrolladas y en uso real, disponibles para clientes e instituciones.',
+    'badge.live': 'En producción',
+    'badge.soon': 'Próximamente',
+    'btn.access': 'Acceder →',
+    'btn.talk':   'Hablemos →',
+    'app1.title':  'Control de Stock — Farmacia',
+    'app1.body':   'Sistema integral de gestión de inventario para farmacias hospitalarias. Control de lotes, vencimientos, dispensas, movimientos y reportes en tiempo real.',
+    'app1.client': 'Cliente: Municipalidad de Cosquín · Farmacia Hospital Cima',
+    'app2.title':  'Control de Combustible',
+    'app2.body':   'Sistema de registro y control de cargas de combustible para flotas municipales. Seguimiento por vehículo, conductor y período con reportes exportables.',
+    'app2.client': 'Cliente: Municipalidad de Cosquín',
+    'app3.title':  'Nuevas Aplicaciones',
+    'app3.body':   'Estamos desarrollando nuevas soluciones para gestión municipal, control patrimonial, turnos y más. ¿Tenés una necesidad? Hablemos.',
+    'app3.meta':   'En desarrollo · 2025–2026',
+    'why.tag':   'Por qué elegirnos',
+    'why.title': 'Ingeniería alemana. Alcance global.',
+    'why.sub':   'Combinamos excelencia técnica con pensamiento práctico para entregar soluciones que funcionan en el mundo real.',
+    'w1.title': 'Precisión de ingeniería',
+    'w1.body':  'Estándares alemanes de calidad y confiabilidad en cada proyecto — sin atajos ni compromisos.',
+    'w2.title': 'Equipo full-stack',
+    'w2.body':  'Del frontend al backend, del cable a la nube — cubrimos toda la pila tecnológica internamente.',
+    'w3.title': 'Seguridad por diseño',
+    'w3.body':  'Cada solución se construye con la seguridad como principio fundamental desde el primer día.',
+    'w4.title': 'Soporte a largo plazo',
+    'w4.body':  'No entregamos y desaparecemos. Construimos relaciones duraderas con soporte continuo y mejora permanente.',
+    'cta.tag':   '¿Listo para empezar?',
+    'cta.title': 'Construyamos algo grande juntos',
+    'cta.p':     'Contanos sobre tu proyecto — te respondemos en menos de 24 horas con una propuesta personalizada.',
+    'cta.btn':   'Iniciar un Proyecto →',
+    'contact.tag':   'Comunicate',
+    'contact.title': 'Contacto SSNetz',
+    'contact.sub':   'Nuestro equipo está listo para ayudarte con cualquier consulta sobre nuestros servicios.',
+    'c1.label': 'Email',
+    'c2.label': 'Website',
+    'c3.label': 'Ubicación',
+    'c4.label': 'Respuesta',
+    'c4.val':   'En menos de 24 hs',
+    'footer.copy':      '© 2025 SSNetz. Todos los derechos reservados.',
+    'footer.impressum': 'Impressum',
+    'footer.privacy':   'Datenschutz',
+    'footer.terms':     'AGB',
+  },
+
+  en: {
+    'nav.services': 'Services',
+    'nav.systems':  'Systems',
+    'nav.why':      'Why SSNetz',
+    'nav.contact':  'Contact',
+    'nav.cta':      'Get in touch →',
+    'badge':        '🇩🇪 Made in Germany',
+    'hero.h1':      'Technology that <em>connects</em><br>your world',
+    'hero.p':       'Software development, network infrastructure, video surveillance and custom technology solutions — engineered with German precision.',
+    'hero.btn1':    'Explore Services',
+    'hero.btn2':    'Contact Us',
+    'stat1': 'Years of experience',
+    'stat2': 'Projects delivered',
+    'stat3': 'Enterprise clients',
+    'stat4': 'Client satisfaction',
+    'services.tag':   'What we do',
+    'services.title': 'End-to-end technology solutions',
+    'services.sub':   'From custom software to secure network infrastructure — complete technology ecosystems for your business.',
+    's1.title': 'Software Development',
+    's1.body':  'Custom web and mobile applications, enterprise systems, APIs and microservices — built to scale with your business.',
+    's2.title': 'Networking & Infrastructure',
+    's2.body':  'Design, deployment and management of secure, high-performance networks for offices, campuses and data centers.',
+    's3.title': 'Video Surveillance',
+    's3.body':  'IP camera systems, NVR/DVR setup, remote monitoring and AI-powered video analytics — scalable for any environment.',
+    's4.title': 'Technology Solutions',
+    's4.body':  'IT consulting, system integration, cloud migration and custom automation — turning technology into competitive advantage.',
+    'systems.tag':   'Our applications',
+    'systems.title': 'Live systems',
+    'systems.sub':   'Solutions developed and in real-world use, available for clients and institutions.',
+    'badge.live': 'Live',
+    'badge.soon': 'Coming soon',
+    'btn.access': 'Access →',
+    'btn.talk':   'Let\'s talk →',
+    'app1.title':  'Pharmacy Stock Control',
+    'app1.body':   'Comprehensive inventory management system for hospital pharmacies. Lot tracking, expiry control, dispensing, movements and real-time reports.',
+    'app1.client': 'Client: Municipalidad de Cosquín · Farmacia Hospital Cima',
+    'app2.title':  'Fuel Control System',
+    'app2.body':   'Fuel load registration and control system for municipal fleets. Vehicle, driver and period tracking with exportable reports.',
+    'app2.client': 'Client: Municipalidad de Cosquín',
+    'app3.title':  'New Applications',
+    'app3.body':   'We are developing new solutions for municipal management, asset control, scheduling and more. Have a need? Let\'s talk.',
+    'app3.meta':   'In development · 2025–2026',
+    'why.tag':   'Why choose us',
+    'why.title': 'German engineering. Global reach.',
+    'why.sub':   'We combine technical excellence with practical business thinking to deliver solutions that work in the real world.',
+    'w1.title': 'Precision Engineering',
+    'w1.body':  'German standards of quality and reliability in every project we deliver — no shortcuts, no compromises.',
+    'w2.title': 'Full-stack Expertise',
+    'w2.body':  'From frontend to backend, from cable to cloud — we cover the entire technology stack in-house.',
+    'w3.title': 'Security by Design',
+    'w3.body':  'Every solution is built with security as a first principle — protecting your data and infrastructure from day one.',
+    'w4.title': 'Long-term Partnership',
+    'w4.body':  'We don\'t just deliver and disappear. We build lasting relationships with ongoing support and continuous improvement.',
+    'cta.tag':   'Ready to start?',
+    'cta.title': 'Let\'s build something great together',
+    'cta.p':     'Tell us about your project — we\'ll get back to you within 24 hours with a tailored proposal.',
+    'cta.btn':   'Start a Project →',
+    'contact.tag':   'Get in touch',
+    'contact.title': 'Contact SSNetz',
+    'contact.sub':   'Our team is ready to help you with any questions about our services.',
+    'c1.label': 'Email',
+    'c2.label': 'Website',
+    'c3.label': 'Location',
+    'c4.label': 'Response',
+    'c4.val':   'Within 24 hours',
+    'footer.copy':      '© 2025 SSNetz. All rights reserved.',
+    'footer.impressum': 'Impressum',
+    'footer.privacy':   'Privacy Policy',
+    'footer.terms':     'Terms',
+  },
+
+  de: {
+    'nav.services': 'Leistungen',
+    'nav.systems':  'Systeme',
+    'nav.why':      'Warum SSNetz',
+    'nav.contact':  'Kontakt',
+    'nav.cta':      'Kontakt aufnehmen →',
+    'badge':        '🇩🇪 Made in Germany',
+    'hero.h1':      'Technologie, die Ihre Welt <em>verbindet</em>',
+    'hero.p':       'Softwareentwicklung, Netzwerkinfrastruktur, Videoüberwachung und maßgeschneiderte Technologielösungen — mit deutscher Ingenieurskunst.',
+    'hero.btn1':    'Leistungen entdecken',
+    'hero.btn2':    'Kontakt',
+    'stat1': 'Jahre Erfahrung',
+    'stat2': 'Abgeschlossene Projekte',
+    'stat3': 'Unternehmenskunden',
+    'stat4': 'Kundenzufriedenheit',
+    'services.tag':   'Was wir tun',
+    'services.title': 'Ganzheitliche Technologielösungen',
+    'services.sub':   'Von maßgeschneiderter Software bis hin zu sicherer Netzwerkinfrastruktur — vollständige Technologieökosysteme für Ihr Unternehmen.',
+    's1.title': 'Softwareentwicklung',
+    's1.body':  'Web- und mobile Anwendungen, Unternehmenssysteme, APIs und Microservices — skalierbar für Ihr Wachstum.',
+    's2.title': 'Netzwerk & Infrastruktur',
+    's2.body':  'Planung, Aufbau und Verwaltung sicherer, leistungsstarker Netzwerke für Büros, Campusse und Rechenzentren.',
+    's3.title': 'Videoüberwachung',
+    's3.body':  'IP-Kamerasysteme, NVR/DVR-Konfiguration, Fernüberwachung und KI-gestützte Videoanalyse — skalierbar für jede Umgebung.',
+    's4.title': 'Technologielösungen',
+    's4.body':  'IT-Beratung, Systemintegration, Cloud-Migration und individuelle Automatisierung — Technologie als Wettbewerbsvorteil.',
+    'systems.tag':   'Unsere Anwendungen',
+    'systems.title': 'Aktive Systeme',
+    'systems.sub':   'Entwickelte und im Einsatz befindliche Lösungen, verfügbar für Kunden und Institutionen.',
+    'badge.live': 'Live',
+    'badge.soon': 'Demnächst',
+    'btn.access': 'Zugang →',
+    'btn.talk':   'Kontakt →',
+    'app1.title':  'Apotheken-Lagerverwaltung',
+    'app1.body':   'Umfassendes Bestandsverwaltungssystem für Krankenhausapotheken. Chargenverfolgung, Ablaufkontrolle, Ausgabe und Echtzeitberichte.',
+    'app1.client': 'Kunde: Municipalidad de Cosquín · Farmacia Hospital Cima',
+    'app2.title':  'Kraftstoffverwaltung',
+    'app2.body':   'Registrierungs- und Kontrollsystem für Kraftstoffbefüllungen kommunaler Fahrzeugflotten. Auswertungen nach Fahrzeug, Fahrer und Zeitraum.',
+    'app2.client': 'Kunde: Municipalidad de Cosquín',
+    'app3.title':  'Neue Anwendungen',
+    'app3.body':   'Wir entwickeln neue Lösungen für kommunales Management, Vermögensverwaltung, Terminplanung und mehr. Haben Sie einen Bedarf? Sprechen Sie uns an.',
+    'app3.meta':   'In Entwicklung · 2025–2026',
+    'why.tag':   'Warum uns wählen',
+    'why.title': 'Deutsche Ingenieurskunst. Globale Reichweite.',
+    'why.sub':   'Wir verbinden technische Exzellenz mit praktischem Geschäftsdenken, um Lösungen zu liefern, die in der realen Welt funktionieren.',
+    'w1.title': 'Ingenieursgenauigkeit',
+    'w1.body':  'Deutsche Qualitäts- und Zuverlässigkeitsstandards in jedem Projekt — keine Abkürzungen, keine Kompromisse.',
+    'w2.title': 'Full-Stack-Expertise',
+    'w2.body':  'Von Frontend bis Backend, vom Kabel bis zur Cloud — wir decken den gesamten Technologie-Stack intern ab.',
+    'w3.title': 'Sicherheit durch Design',
+    'w3.body':  'Jede Lösung wird mit Sicherheit als Grundprinzip entwickelt — von Anfang an.',
+    'w4.title': 'Langfristige Partnerschaft',
+    'w4.body':  'Wir liefern und verschwinden nicht. Wir bauen dauerhafte Beziehungen mit kontinuierlichem Support und Verbesserung.',
+    'cta.tag':   'Bereit loszulegen?',
+    'cta.title': 'Lassen Sie uns gemeinsam etwas Großes bauen',
+    'cta.p':     'Erzählen Sie uns von Ihrem Projekt — wir melden uns innerhalb von 24 Stunden mit einem individuellen Angebot.',
+    'cta.btn':   'Projekt starten →',
+    'contact.tag':   'Kontakt aufnehmen',
+    'contact.title': 'SSNetz kontaktieren',
+    'contact.sub':   'Unser Team hilft Ihnen gerne bei allen Fragen zu unseren Dienstleistungen.',
+    'c1.label': 'E-Mail',
+    'c2.label': 'Website',
+    'c3.label': 'Standort',
+    'c4.label': 'Antwortzeit',
+    'c4.val':   'Innerhalb von 24 Stunden',
+    'footer.copy':      '© 2025 SSNetz. Alle Rechte vorbehalten.',
+    'footer.impressum': 'Impressum',
+    'footer.privacy':   'Datenschutz',
+    'footer.terms':     'AGB',
+  }
+};
+
+function setLang(lang) {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (T[lang] && T[lang][key] !== undefined) {
+      el.innerHTML = T[lang][key];
+    }
+  });
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+  });
+  document.documentElement.lang = lang;
+  localStorage.setItem('ssnetz-lang', lang);
+}
+
+// Init: use saved or browser language
+(function(){
+  const saved = localStorage.getItem('ssnetz-lang');
+  const browser = navigator.language?.slice(0,2);
+  const lang = saved || (['es','en','de'].includes(browser) ? browser : 'es');
+  setLang(lang);
+})();
+</script>
 
 </body>
 </html>
