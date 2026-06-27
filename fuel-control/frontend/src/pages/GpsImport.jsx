@@ -102,17 +102,19 @@ function parseEstadistico(workbook) {
     const fechaCell  = colMap.fecha !== undefined ? row[colMap.fecha] : undefined;
     const importDate = toIsoDate(fechaCell) || fallbackDate;
 
-    // km — puede tener separador de miles con punto
-    const kmRaw = String(row[colMap.km] ?? '0')
-      .replace(/\./g, '').replace(',', '.');
+    // km: si ya es número (SheetJS raw) usarlo directo; si es string manejar separadores
+    const kmCell = row[colMap.km] ?? 0;
+    const kmRaw = typeof kmCell === 'number'
+      ? String(kmCell)
+      : String(kmCell).replace(/\./g, '').replace(',', '.');
 
     parsed.push({
       import_date:      importDate,
       vehicle_name:     name,
       plate,
       km_recorridos:    kmRaw,
-      vel_max:          String(row[colMap.vel_max]  ?? '').replace(',', '.'),
-      vel_prom:         String(row[colMap.vel_prom] ?? '').replace(',', '.'),
+      vel_max:  typeof row[colMap.vel_max]  === 'number' ? String(row[colMap.vel_max])  : String(row[colMap.vel_max]  ?? '').replace(',', '.'),
+      vel_prom: typeof row[colMap.vel_prom] === 'number' ? String(row[colMap.vel_prom]) : String(row[colMap.vel_prom] ?? '').replace(',', '.'),
       total_eventos:    String(row[colMap.eventos]  ?? ''),
       tiempo_marcha:    String(row[colMap.t_marcha]   ?? ''),
       tiempo_ralenti:   String(row[colMap.t_ralenti]  ?? ''),
