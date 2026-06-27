@@ -95,6 +95,13 @@ if ($method === 'POST') {
             $inserted++;
         }
         $db->commit();
+
+        // Vincular vehicle_id por patente para registros que quedaron sin link
+        $db->exec("UPDATE gps_daily_stats g
+                   JOIN vehicles v ON UPPER(TRIM(v.plate)) = UPPER(TRIM(g.plate))
+                   SET g.vehicle_id = v.id
+                   WHERE g.vehicle_id IS NULL");
+
         echo json_encode(['inserted' => $inserted, 'skipped' => $skipped]);
     } catch (Exception $e) {
         $db->rollBack();
