@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
 setCorsHeaders();
+$pdo = getDB();
 $authUser = requireAuth();
 
 $method = $_SERVER['REQUEST_METHOD'];

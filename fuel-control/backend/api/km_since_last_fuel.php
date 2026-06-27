@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
 setCorsHeaders();
+$pdo = getDB();
 requireAuth();
 
 $vehicle_id = intval($_GET['vehicle_id'] ?? 0);
