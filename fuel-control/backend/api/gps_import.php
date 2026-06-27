@@ -12,9 +12,11 @@ if ($method === 'GET') {
              FROM gps_daily_stats g
              JOIN users u ON u.id = g.user_id
              WHERE 1=1";
+    $vehicle_id = $_GET['vehicle_id'] ?? '';
     $params = [];
-    if ($from) { $sql .= ' AND g.import_date >= :from'; $params[':from'] = $from; }
-    if ($to)   { $sql .= ' AND g.import_date <= :to';   $params[':to']   = $to;   }
+    if ($from)       { $sql .= ' AND g.import_date >= :from'; $params[':from'] = $from; }
+    if ($to)         { $sql .= ' AND g.import_date <= :to';   $params[':to']   = $to;   }
+    if ($vehicle_id) { $sql .= ' AND g.vehicle_id = :vid';    $params[':vid']  = (int)$vehicle_id; }
     $sql .= ' ORDER BY g.import_date DESC, g.vehicle_name';
     $stmt = $pdo->prepare($sql);
     foreach ($params as $k => $v) $stmt->bindValue($k, $v);

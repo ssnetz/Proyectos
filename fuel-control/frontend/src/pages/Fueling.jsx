@@ -22,8 +22,10 @@ export default function Fueling() {
   const [form, setForm]         = useState(emptyForm);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
-  const [gpsKm, setGpsKm]       = useState(null);
-  const [loadingKm, setLoadingKm] = useState(false);
+  const [showGpsModal, setShowGpsModal] = useState(false);
+  const [gpsRecords, setGpsRecords]     = useState([]);
+  const [gpsSelected, setGpsSelected]  = useState({});
+  const [loadingKm, setLoadingKm]       = useState(false);
 
   const load = (f = appliedFilters) => {
     const params = {};
@@ -64,24 +66,45 @@ export default function Fueling() {
     load({ vehicle_id: '', from: '', to: '' });
   }, []);
 
-  const calcKmFromGps = async () => {
+  const openGpsModal = async () => {
     if (!form.vehicle_id) return;
     setLoadingKm(true);
-    setGpsKm(null);
+    setGpsRecords([]);
+    setGpsSelected({});
+    setShowGpsModal(true);
     try {
+      const r = await axios.get('/fuel-control/backend/api/gps_import.php', {
+        params: { vehicle_id: form.vehicle_id }
+      });
+      // filter only this vehicle
+      const filtered = r.data.filter(row => String(row.vehicle_id) === String(form.vehicle_id));
+      setGpsRecords(filtered);
+      // pre-select suggested days (since last fuel)
       const until = form.fueled_at ? form.fueled_at.slice(0, 10) : new Date().toISOString().slice(0, 10);
-      const r = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
+      const lastR = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
         params: { vehicle_id: form.vehicle_id, until_date: until }
       });
-      setGpsKm(r.data);
-      if (r.data.total_km > 0) {
-        setForm(f => ({ ...f, km_recorridos: r.data.total_km }));
-      }
+      const desde = lastR.data.ultima_carga;
+      const presel = {};
+      filtered.forEach(row => {
+        const inRange = row.import_date <= until && (!desde || row.import_date > desde);
+        presel[row.id] = inRange;
+      });
+      setGpsSelected(presel);
     } catch (e) {
-      setGpsKm({ error: 'No se pudo calcular' });
+      setGpsRecords([]);
     } finally {
       setLoadingKm(false);
     }
+  };
+
+  const gpsTotal = gpsRecords
+    .filter(r => gpsSelected[r.id])
+    .reduce((s, r) => s + Number(r.km_recorridos), 0);
+
+  const applyGpsKm = () => {
+    setForm(f => ({ ...f, km_recorridos: parseFloat(gpsTotal.toFixed(2)) }));
+    setShowGpsModal(false);
   };
 
   const openNew = () => {
@@ -89,12 +112,10 @@ export default function Fueling() {
     const defaultType = fuelTypes.length > 0 ? fuelTypes[0].name : '';
     setForm({ ...emptyForm, fuel_type: defaultType, price_per_liter: fuelPrices[defaultType] ?? '' });
     setError('');
-    setGpsKm(null);
     setShowForm(true);
   };
 
   const openEdit = (r) => {
-    setGpsKm(null);
     setEditing(r.id);
     setForm({
       vehicle_id:      r.vehicle_id,
@@ -227,31 +248,13 @@ export default function Fueling() {
                   <label className="form-label">Km Recorridos</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input className="form-input" type="number" step="0.1" value={form.km_recorridos}
-                      onChange={e => { setForm(f => ({ ...f, km_recorridos: e.target.value })); setGpsKm(null); }} />
-                    <button type="button" className="btn btn-ghost btn-sm" title="Calcular desde GPS AmericaGIS"
-                      onClick={calcKmFromGps} disabled={!form.vehicle_id || loadingKm}
+                      onChange={e => setForm(f => ({ ...f, km_recorridos: e.target.value }))} />
+                    <button type="button" className="btn btn-ghost btn-sm" title="Seleccionar días desde GPS AmericaGIS"
+                      onClick={openGpsModal} disabled={!form.vehicle_id || loadingKm}
                       style={{ whiteSpace: 'nowrap' }}>
                       {loadingKm ? '...' : '📡 GPS'}
                     </button>
                   </div>
-                  {gpsKm && !gpsKm.error && gpsKm.dias > 0 && (
-                    <div style={{ marginTop: 6, padding: '8px 10px', background: 'var(--gray-100)', borderRadius: 6, fontSize: 12 }}>
-                      <strong>{gpsKm.total_km} km</strong> en {gpsKm.dias} día{gpsKm.dias !== 1 ? 's' : ''}
-                      {gpsKm.ultima_carga
-                        ? <> · desde última carga: <strong>{gpsKm.ultima_carga}</strong></>
-                        : ' · sin carga previa registrada'}
-                      <br />
-                      <span style={{ color: 'var(--gray-500)' }}>{gpsKm.detalle}</span>
-                    </div>
-                  )}
-                  {gpsKm && gpsKm.dias === 0 && (
-                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--gray-500)' }}>
-                      Sin datos GPS importados para este período. Importá el reporte estadístico primero.
-                    </div>
-                  )}
-                  {gpsKm?.error && (
-                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--red-500)' }}>{gpsKm.error}</div>
-                  )}
                 </div>
                 <div className="form-group">
                   <label className="form-label">Fecha y hora *</label>
@@ -276,6 +279,96 @@ export default function Fueling() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal GPS selector */}
+      {showGpsModal && (
+        <div className="modal-overlay" style={{ zIndex: 300 }}>
+          <div className="modal" style={{ maxWidth: 640 }}>
+            <div className="modal-header">
+              <h2 className="modal-title">📡 Seleccioná los días a sumar</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowGpsModal(false)}>✕</button>
+            </div>
+
+            {loadingKm && <div className="spinner" style={{ margin: '20px auto' }} />}
+
+            {!loadingKm && gpsRecords.length === 0 && (
+              <div style={{ padding: 24, color: 'var(--gray-500)', textAlign: 'center' }}>
+                Sin registros GPS importados para este vehículo.<br />
+                Importá el reporte estadístico de AmericaGIS primero.
+              </div>
+            )}
+
+            {!loadingKm && gpsRecords.length > 0 && (
+              <>
+                <div style={{ padding: '4px 0 12px', fontSize: 13, color: 'var(--gray-500)' }}>
+                  Los días pre-seleccionados corresponden al período desde la última carga de combustible.
+                </div>
+                <div className="table-wrapper" style={{ maxHeight: 380, overflowY: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: 40 }}>
+                          <input type="checkbox"
+                            checked={gpsRecords.every(r => gpsSelected[r.id])}
+                            onChange={e => {
+                              const all = {};
+                              gpsRecords.forEach(r => { all[r.id] = e.target.checked; });
+                              setGpsSelected(all);
+                            }} />
+                        </th>
+                        <th>Fecha</th>
+                        <th>Día</th>
+                        <th>Km recorridos</th>
+                        <th>En marcha</th>
+                        <th>Vel. prom</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gpsRecords.map(r => {
+                        const d = new Date(r.import_date + 'T12:00:00');
+                        return (
+                          <tr key={r.id}
+                            style={{ background: gpsSelected[r.id] ? 'var(--blue-50, #eff6ff)' : '' }}
+                            onClick={() => setGpsSelected(s => ({ ...s, [r.id]: !s[r.id] }))}
+                            className="cursor-pointer">
+                            <td onClick={e => e.stopPropagation()}>
+                              <input type="checkbox"
+                                checked={!!gpsSelected[r.id]}
+                                onChange={e => setGpsSelected(s => ({ ...s, [r.id]: e.target.checked }))} />
+                            </td>
+                            <td>{r.import_date}</td>
+                            <td>{DIAS[d.getDay()]}</td>
+                            <td><strong>{Number(r.km_recorridos).toLocaleString('es', { minimumFractionDigits: 2 })} km</strong></td>
+                            <td>{r.tiempo_marcha || '—'}</td>
+                            <td>{r.vel_prom ? `${r.vel_prom} km/h` : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>
+                    Total seleccionado:&nbsp;
+                    <span style={{ color: 'var(--primary)' }}>
+                      {gpsTotal.toLocaleString('es', { minimumFractionDigits: 2 })} km
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--gray-500)', marginLeft: 8 }}>
+                      ({gpsRecords.filter(r => gpsSelected[r.id]).length} días)
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-ghost" onClick={() => setShowGpsModal(false)}>Cancelar</button>
+                    <button className="btn btn-primary" onClick={applyGpsKm} disabled={gpsTotal === 0}>
+                      Usar {gpsTotal.toLocaleString('es', { minimumFractionDigits: 2 })} km
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
