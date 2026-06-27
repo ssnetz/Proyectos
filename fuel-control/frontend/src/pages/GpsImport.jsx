@@ -238,12 +238,14 @@ export default function GpsImport() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <h4 style={{ fontWeight: 600 }}>Vista previa — {fileName}</h4>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                <span style={{ color: 'var(--gray-500)' }}>Cambiar fecha a todos:</span>
-                <input type="date" className="form-input form-input-sm"
-                  style={{ width: 160 }}
-                  onChange={e => {
-                    if (!e.target.value) return;
-                    setPreview(prev => prev.map(r => ({ ...r, import_date: e.target.value })));
+                <span style={{ color: 'var(--gray-500)' }}>Cambiar fecha a todos (dd/mm/aaaa):</span>
+                <input type="text" className="form-input form-input-sm" placeholder="27/06/2026"
+                  style={{ width: 130 }}
+                  onBlur={e => {
+                    const d = toIsoDate(e.target.value);
+                    if (!d) return;
+                    setPreview(prev => prev.map(r => ({ ...r, import_date: d })));
+                    e.target.value = '';
                   }} />
               </div>
             </div>
@@ -251,7 +253,7 @@ export default function GpsImport() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Fecha del día <span style={{ color: 'var(--blue-500)', fontSize: 11 }}>✎ editable</span></th>
+                    <th>Fecha (dd/mm/aaaa) <span style={{ color: 'var(--blue-500)', fontSize: 11 }}>✎ editable</span></th>
                     <th>Vehículo</th>
                     <th>Patente</th>
                     <th>Km recorridos</th>
@@ -266,13 +268,17 @@ export default function GpsImport() {
                     <tr key={i}>
                       <td>
                         <input
-                          type="date"
+                          type="text"
                           className="form-input form-input-sm"
-                          style={{ width: 150 }}
-                          value={r.import_date}
-                          onChange={e => setPreview(prev =>
-                            prev.map((row, idx) => idx === i ? { ...row, import_date: e.target.value } : row)
-                          )}
+                          style={{ width: 120 }}
+                          defaultValue={r.import_date ? r.import_date.split('-').reverse().join('/') : ''}
+                          onBlur={e => {
+                            const d = toIsoDate(e.target.value) || r.import_date;
+                            e.target.value = d ? d.split('-').reverse().join('/') : e.target.value;
+                            setPreview(prev =>
+                              prev.map((row, idx) => idx === i ? { ...row, import_date: d } : row)
+                            );
+                          }}
                         />
                       </td>
                       <td><strong>{r.vehicle_name}</strong></td>
