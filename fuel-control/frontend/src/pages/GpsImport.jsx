@@ -242,6 +242,7 @@ export default function GpsImport() {
   const isAdmin = user?.role === 'admin';
   const fileRef = useRef();
 
+  const [formato, setFormato]   = useState('vehiculo'); // 'vehiculo' | 'flota'
   const [preview, setPreview]   = useState([]);
   const [fileName, setFileName] = useState('');
   const [saving, setSaving]     = useState(false);
@@ -274,10 +275,7 @@ export default function GpsImport() {
     reader.onload = (ev) => {
       try {
         const wb = XLSX.read(ev.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-        const flota = isFlotaFormat(rawRows);
-        const rows = flota ? parseFlota(wb) : parseEstadistico(wb);
+        const rows = formato === 'flota' ? parseFlota(wb) : parseEstadistico(wb);
         if (rows.length === 0) {
           setError('No se encontraron datos de vehículos. Asegurate de subir el reporte Estadístico de AmericaGIS.');
           setPreview([]);
@@ -335,6 +333,23 @@ export default function GpsImport() {
           Exportá el reporte <strong>Estadístico</strong> desde AmericaGIS (botón "Exportar a XLSX") y subilo acá.
           Se importarán los km recorridos, tiempos y velocidades por vehículo.
         </p>
+
+        {/* Selector de formato */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button
+            className={`btn btn-sm ${formato === 'vehiculo' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => { setFormato('vehiculo'); setPreview([]); setMsg(''); setError(''); if (fileRef.current) fileRef.current.value = ''; }}
+          >
+            Por vehículo
+          </button>
+          <button
+            className={`btn btn-sm ${formato === 'flota' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => { setFormato('flota'); setPreview([]); setMsg(''); setError(''); if (fileRef.current) fileRef.current.value = ''; }}
+          >
+            Por flota (todos los vehículos)
+          </button>
+        </div>
+
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <input
             ref={fileRef}
@@ -346,7 +361,7 @@ export default function GpsImport() {
           />
           {preview.length > 0 && (
             <button className="btn btn-primary" onClick={handleImport} disabled={saving}>
-              {saving ? 'Importando...' : `Confirmar importación (${preview.length} vehículos)`}
+              {saving ? 'Importando...' : `Confirmar importación (${preview.length} registros)`}
             </button>
           )}
         </div>
