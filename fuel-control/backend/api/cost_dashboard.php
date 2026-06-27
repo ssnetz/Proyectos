@@ -1,5 +1,7 @@
 <?php
-require_once '../config/database.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/helpers.php';
+setCorsHeaders();
 requireAuth();
 
 $vehicle_id = $_GET['vehicle_id'] ?? '';
