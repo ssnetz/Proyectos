@@ -12,7 +12,8 @@ import FuelOrders     from './pages/FuelOrders';
 import Zones        from './pages/Zones';
 import Drivers      from './pages/Drivers';
 import CostConfig   from './pages/CostConfig';
-import RoutesPage   from './pages/Routes';
+import RoutesPage      from './pages/Routes';
+import CostDashboard  from './pages/CostDashboard';
 import Login     from './pages/Login';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -62,6 +63,7 @@ const pageTitles = {
   '/drivers':          'Choferes',
   '/cost-config':      'Configuración de Costos',
   '/routes':           'Rutas de Recolección',
+  '/cost-dashboard':   'Tablero de Costos',
 };
 
 function AppLayout() {
@@ -76,6 +78,7 @@ function AppLayout() {
     { to: '/vehicles',    icon: '🚛', label: 'Vehículos' },
     { to: '/fuel-prices', icon: '💲', label: 'Precios' },
     { to: '/fuel-orders',      icon: '📋', label: 'Órdenes de Carga' },
+    { to: '/cost-dashboard',   icon: '📈', label: 'Tablero Costos' },
     { to: '/routes',           icon: '🗺️', label: 'Rutas' },
     { to: '/lubricants',      icon: '🛢️', label: 'Lubricantes' },
     { to: '/lubricant-types', icon: '🔧', label: 'Tipos Lubricante' },
@@ -128,6 +131,7 @@ function AppLayout() {
             <Route path="/drivers"         element={<ProtectedRoute><Drivers /></ProtectedRoute>} />
             <Route path="/cost-config"     element={<ProtectedRoute><CostConfig /></ProtectedRoute>} />
             <Route path="/routes"          element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
+            <Route path="/cost-dashboard"  element={<ProtectedRoute><CostDashboard /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
