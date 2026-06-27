@@ -9,6 +9,10 @@ import FuelTypes      from './pages/FuelTypes';
 import Lubricants     from './pages/Lubricants';
 import LubricantTypes from './pages/LubricantTypes';
 import FuelOrders     from './pages/FuelOrders';
+import Zones        from './pages/Zones';
+import Drivers      from './pages/Drivers';
+import CostConfig   from './pages/CostConfig';
+import RoutesPage   from './pages/Routes';
 import Login     from './pages/Login';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -54,6 +58,10 @@ const pageTitles = {
   '/fuel-types':       'Tipos de Combustible',
   '/lubricant-types':  'Tipos de Lubricante',
   '/fuel-orders':      'Órdenes de Carga',
+  '/zones':            'Zonas de Recolección',
+  '/drivers':          'Choferes',
+  '/cost-config':      'Configuración de Costos',
+  '/routes':           'Rutas de Recolección',
 };
 
 function AppLayout() {
@@ -68,9 +76,13 @@ function AppLayout() {
     { to: '/vehicles',    icon: '🚛', label: 'Vehículos' },
     { to: '/fuel-prices', icon: '💲', label: 'Precios' },
     { to: '/fuel-orders',      icon: '📋', label: 'Órdenes de Carga' },
+    { to: '/routes',           icon: '🗺️', label: 'Rutas' },
     { to: '/lubricants',      icon: '🛢️', label: 'Lubricantes' },
     { to: '/lubricant-types', icon: '🔧', label: 'Tipos Lubricante' },
     { to: '/fuel-types',      icon: '⚙️', label: 'Tipos Combustible' },
+    { to: '/zones',           icon: '📍', label: 'Zonas' },
+    { to: '/drivers',         icon: '🧑‍✈️', label: 'Choferes' },
+    { to: '/cost-config',     icon: '💰', label: 'Config. Costos' },
     ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -112,6 +124,10 @@ function AppLayout() {
             <Route path="/lubricant-types" element={<ProtectedRoute><LubricantTypes /></ProtectedRoute>} />
             <Route path="/fuel-types"      element={<ProtectedRoute><FuelTypes /></ProtectedRoute>} />
             <Route path="/fuel-orders"     element={<ProtectedRoute><FuelOrders /></ProtectedRoute>} />
+            <Route path="/zones"           element={<ProtectedRoute><Zones /></ProtectedRoute>} />
+            <Route path="/drivers"         element={<ProtectedRoute><Drivers /></ProtectedRoute>} />
+            <Route path="/cost-config"     element={<ProtectedRoute><CostConfig /></ProtectedRoute>} />
+            <Route path="/routes"          element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
