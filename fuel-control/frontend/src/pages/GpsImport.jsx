@@ -15,10 +15,12 @@ function toIsoDate(val) {
     const d = String(val.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
-  // String "26/06/2026 ..." o "26/06/2026"
+  // String "26/06/2026 ..." o "26/06/2026" o "26/06/26"
   const s = String(val);
   const m1 = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
   if (m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
+  const m1b = s.match(/(\d{2})\/(\d{2})\/(\d{2})/);
+  if (m1b) return `20${m1b[3]}-${m1b[2]}-${m1b[1]}`;
   // String "2026-06-26 ..." o ISO
   const m2 = s.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
