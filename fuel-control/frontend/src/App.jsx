@@ -8,6 +8,7 @@ import Users      from './pages/Users';
 import FuelTypes      from './pages/FuelTypes';
 import Lubricants     from './pages/Lubricants';
 import LubricantTypes from './pages/LubricantTypes';
+import FuelOrders     from './pages/FuelOrders';
 import Login     from './pages/Login';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -52,6 +53,7 @@ const pageTitles = {
   '/lubricants':       'Lubricantes',
   '/fuel-types':       'Tipos de Combustible',
   '/lubricant-types':  'Tipos de Lubricante',
+  '/fuel-orders':      'Órdenes de Carga',
 };
 
 function AppLayout() {
@@ -65,6 +67,7 @@ function AppLayout() {
     { to: '/fueling',  icon: '⛽', label: 'Cargas' },
     { to: '/vehicles',    icon: '🚛', label: 'Vehículos' },
     { to: '/fuel-prices', icon: '💲', label: 'Precios' },
+    { to: '/fuel-orders',      icon: '📋', label: 'Órdenes de Carga' },
     { to: '/lubricants',      icon: '🛢️', label: 'Lubricantes' },
     { to: '/lubricant-types', icon: '🔧', label: 'Tipos Lubricante' },
     { to: '/fuel-types',      icon: '⚙️', label: 'Tipos Combustible' },
@@ -108,6 +111,7 @@ function AppLayout() {
             <Route path="/lubricants"      element={<ProtectedRoute><Lubricants /></ProtectedRoute>} />
             <Route path="/lubricant-types" element={<ProtectedRoute><LubricantTypes /></ProtectedRoute>} />
             <Route path="/fuel-types"      element={<ProtectedRoute><FuelTypes /></ProtectedRoute>} />
+            <Route path="/fuel-orders"     element={<ProtectedRoute><FuelOrders /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>

@@ -17,20 +17,33 @@ export default function Fueling() {
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing]   = useState(null);
-  const [filters, setFilters]   = useState({ vehicle_id: '', from: '', to: '' });
+  const [filters, setFilters]       = useState({ vehicle_id: '', from: '', to: '' });
+  const [appliedFilters, setAppliedFilters] = useState({ vehicle_id: '', from: '', to: '' });
   const [form, setForm]         = useState(emptyForm);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
 
-  const load = () => {
+  const load = (f = appliedFilters) => {
     const params = {};
-    if (filters.vehicle_id) params.vehicle_id = filters.vehicle_id;
-    if (filters.from) params.from = filters.from;
-    if (filters.to)   params.to   = filters.to;
+    if (f.vehicle_id) params.vehicle_id = f.vehicle_id;
+    if (f.from) params.from = f.from;
+    if (f.to)   params.to   = f.to;
     axios.get('/fuel-control/backend/api/fueling.php', { params }).then(r => {
       setRecords(r.data);
       setLoading(false);
     });
+  };
+
+  const handleSearch = () => {
+    setAppliedFilters(filters);
+    load(filters);
+  };
+
+  const handleClearFilters = () => {
+    const empty = { vehicle_id: '', from: '', to: '' };
+    setFilters(empty);
+    setAppliedFilters(empty);
+    load(empty);
   };
 
   useEffect(() => {
@@ -46,10 +59,8 @@ export default function Fueling() {
       r.data.forEach(p => { if (p.price) map[p.fuel_type] = p.price; });
       setFuelPrices(map);
     });
-    load();
+    load({ vehicle_id: '', from: '', to: '' });
   }, []);
-
-  useEffect(() => { load(); }, [filters]);
 
   const openNew = () => {
     setEditing(null);
@@ -138,6 +149,8 @@ export default function Fueling() {
             onChange={e => setFilters(f => ({ ...f, from: e.target.value }))} />
           <input type="date" className="form-input form-input-sm" value={filters.to}
             onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} />
+          <button className="btn btn-primary btn-sm" onClick={handleSearch}>Buscar</button>
+          <button className="btn btn-ghost btn-sm" onClick={handleClearFilters}>Limpiar</button>
         </div>
         <button className="btn btn-primary" onClick={openNew}>+ Nueva carga</button>
       </div>
