@@ -17,8 +17,8 @@ export default function Fueling() {
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing]   = useState(null);
-  const [filters, setFilters]       = useState({ vehicle_id: '', from: '', to: '' });
-  const [appliedFilters, setAppliedFilters] = useState({ vehicle_id: '', from: '', to: '' });
+  const [filters, setFilters]       = useState({ vehicle_id: '', from: '', to: '', plate: '' });
+  const [appliedFilters, setAppliedFilters] = useState({ vehicle_id: '', from: '', to: '', plate: '' });
   const [form, setForm]         = useState(emptyForm);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
@@ -30,8 +30,9 @@ export default function Fueling() {
   const load = (f = appliedFilters) => {
     const params = {};
     if (f.vehicle_id) params.vehicle_id = f.vehicle_id;
-    if (f.from) params.from = f.from;
-    if (f.to)   params.to   = f.to;
+    if (f.from)       params.from       = f.from;
+    if (f.to)         params.to         = f.to;
+    if (f.plate)      params.plate      = f.plate;
     axios.get('/fuel-control/backend/api/fueling.php', { params }).then(r => {
       setRecords(r.data);
       setLoading(false);
@@ -44,7 +45,7 @@ export default function Fueling() {
   };
 
   const handleClearFilters = () => {
-    const empty = { vehicle_id: '', from: '', to: '' };
+    const empty = { vehicle_id: '', from: '', to: '', plate: '' };
     setFilters(empty);
     setAppliedFilters(empty);
     load(empty);
@@ -185,8 +186,12 @@ export default function Fueling() {
     <div>
       <div className="page-actions">
         <div className="filters">
+          <input type="text" className="form-input form-input-sm" placeholder="Patente" value={filters.plate}
+            style={{ width: 120, textTransform: 'uppercase' }}
+            onChange={e => setFilters(f => ({ ...f, plate: e.target.value.toUpperCase(), vehicle_id: '' }))}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()} />
           <select className="form-input form-input-sm" value={filters.vehicle_id}
-            onChange={e => setFilters(f => ({ ...f, vehicle_id: e.target.value }))}>
+            onChange={e => setFilters(f => ({ ...f, vehicle_id: e.target.value, plate: '' }))}>
             <option value="">Todos los vehículos</option>
             {vehicles.map(v => <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>)}
           </select>

@@ -14,6 +14,7 @@ if ($method === 'GET') {
     $vehicle_id = isset($_GET['vehicle_id']) ? (int)$_GET['vehicle_id'] : null;
     $from       = $_GET['from'] ?? null;
     $to         = $_GET['to'] ?? null;
+    $plate      = strtoupper(trim($_GET['plate'] ?? ''));
 
     if ($id) {
         $stmt = $db->prepare('
@@ -32,9 +33,10 @@ if ($method === 'GET') {
     $where  = [];
     $params = [];
 
-    if ($vehicle_id) { $where[] = 'f.vehicle_id = ?'; $params[] = $vehicle_id; }
-    if ($from)       { $where[] = 'f.fueled_at >= ?'; $params[] = $from . ' 00:00:00'; }
-    if ($to)         { $where[] = 'f.fueled_at <= ?'; $params[] = $to   . ' 23:59:59'; }
+    if ($vehicle_id) { $where[] = 'f.vehicle_id = ?';      $params[] = $vehicle_id; }
+    if ($from)       { $where[] = 'f.fueled_at >= ?';      $params[] = $from . ' 00:00:00'; }
+    if ($to)         { $where[] = 'f.fueled_at <= ?';      $params[] = $to   . ' 23:59:59'; }
+    if ($plate)      { $where[] = 'v.plate LIKE ?';        $params[] = '%' . $plate . '%'; }
 
     $whereStr = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
