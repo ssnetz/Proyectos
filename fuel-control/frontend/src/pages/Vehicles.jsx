@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
-const VEHICLE_TYPES = ['Auto', 'Camioneta', 'Camión', 'Motoniveladora', 'Pala de Carga', 'Bobcat', 'Tractor', 'Otros'];
+const VEHICLE_TYPES = ['Auto', 'Camioneta', 'Utilitario', 'Moto', 'Camión', 'Motoniveladora', 'Pala de Carga', 'Bobcat', 'Tractor', 'Otros'];
 
 const emptyForm = { name: '', plate: '', type: 'Auto', active: true };
 
