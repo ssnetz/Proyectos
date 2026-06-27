@@ -13,6 +13,7 @@ if ($method === 'GET') {
     $from       = $_GET['from']       ?? '';
     $to         = $_GET['to']         ?? '';
     $vehicle_id = $_GET['vehicle_id'] ?? '';
+    $plate      = strtoupper(trim($_GET['plate'] ?? ''));
     $sql = "SELECT g.*, u.username AS imported_by
             FROM gps_daily_stats g
             JOIN users u ON u.id = g.user_id
@@ -21,6 +22,7 @@ if ($method === 'GET') {
     if ($from)       { $sql .= ' AND g.import_date >= :from'; $params[':from'] = $from; }
     if ($to)         { $sql .= ' AND g.import_date <= :to';   $params[':to']   = $to;   }
     if ($vehicle_id) { $sql .= ' AND g.vehicle_id = :vid';    $params[':vid']  = (int)$vehicle_id; }
+    if ($plate)      { $sql .= ' AND g.plate LIKE :plate';    $params[':plate'] = '%' . $plate . '%'; }
     $sql .= ' ORDER BY g.import_date DESC, g.vehicle_name';
     $stmt = $db->prepare($sql);
     foreach ($params as $k => $v) $stmt->bindValue($k, $v);

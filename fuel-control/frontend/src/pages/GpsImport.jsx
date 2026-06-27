@@ -252,15 +252,16 @@ export default function GpsImport() {
   const [error, setError]       = useState('');
 
   const [history, setHistory]   = useState([]);
-  const [filters, setFilters]   = useState({ from: '', to: '' });
-  const [applied, setApplied]   = useState({ from: '', to: '' });
+  const [filters, setFilters]   = useState({ from: '', to: '', plate: '' });
+  const [applied, setApplied]   = useState({ from: '', to: '', plate: '' });
   const [loadingHistory, setLoadingHistory] = useState(true);
 
   const loadHistory = (f = applied) => {
     setLoadingHistory(true);
     const params = {};
-    if (f.from) params.from = f.from;
-    if (f.to)   params.to   = f.to;
+    if (f.from)  params.from   = f.from;
+    if (f.to)    params.to     = f.to;
+    if (f.plate) params.plate  = f.plate;
     axios.get('/fuel-control/backend/api/gps_import.php', { params })
       .then(r => { setHistory(r.data); setLoadingHistory(false); })
       .catch(() => setLoadingHistory(false));
@@ -322,7 +323,7 @@ export default function GpsImport() {
 
   const handleSearch = () => { setApplied(filters); loadHistory(filters); };
   const handleClear  = () => {
-    const e = { from: '', to: '' };
+    const e = { from: '', to: '', plate: '' };
     setFilters(e); setApplied(e); loadHistory(e);
   };
 
@@ -446,6 +447,10 @@ export default function GpsImport() {
             onChange={e => setFilters(f => ({ ...f, from: e.target.value }))} />
           <input type="date" className="form-input form-input-sm" value={filters.to}
             onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} />
+          <input type="text" className="form-input form-input-sm" placeholder="Patente" value={filters.plate}
+            style={{ width: 120, textTransform: 'uppercase' }}
+            onChange={e => setFilters(f => ({ ...f, plate: e.target.value.toUpperCase() }))}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()} />
           <button className="btn btn-primary btn-sm" onClick={handleSearch}>Buscar</button>
           <button className="btn btn-ghost btn-sm" onClick={handleClear}>Limpiar</button>
           {isAdmin && (
