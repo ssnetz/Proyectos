@@ -47,6 +47,8 @@ if ($method === 'POST') {
 
     $pdo->beginTransaction();
     try {
+        // Verificar que la tabla existe
+        $pdo->query("SELECT 1 FROM gps_daily_stats LIMIT 1");
         $ins = $pdo->prepare("INSERT INTO gps_daily_stats
             (import_date, vehicle_name, plate, vehicle_id, km_recorridos,
              tiempo_marcha, tiempo_ralenti, tiempo_detenido,
