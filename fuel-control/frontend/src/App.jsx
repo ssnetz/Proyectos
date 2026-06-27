@@ -112,7 +112,10 @@ function AppLayout() {
           ))}
         </nav>
         <SidebarUser />
-        <div className="sidebar-footer">v1.0 · Control de Combustible</div>
+        <div className="sidebar-footer">
+          v1.0 · Control de Combustible<br />
+          <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>© {new Date().getFullYear()} SSNetz</span>
+        </div>
       </aside>
 
       <div className="main">
