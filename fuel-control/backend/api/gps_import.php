@@ -58,24 +58,35 @@ if ($method === 'POST') {
              :vel_max, :vel_prom, :total_eventos,
              :ubicacion_inicio, :ubicacion_fin, :user_id)");
 
-        foreach ($rows as $row) {
+        foreach ($rows as $idx => $row) {
             $plate = strtoupper(trim($row['plate'] ?? ''));
             $vehicleId = $vehicleMap[$plate] ?? null;
 
+            // Saltar filas sin fecha o sin vehículo
+            $importDate = trim($row['import_date'] ?? '');
+            if (!$importDate || !$row['vehicle_name']) { $skipped++; continue; }
+
+            // Normalizar km: quitar puntos de miles, reemplazar coma decimal
+            $kmRaw = str_replace(['.', ','], ['', '.'], (string)($row['km_recorridos'] ?? '0'));
+            $km = is_numeric($kmRaw) ? (float)$kmRaw : 0;
+
+            $velMax  = trim((string)($row['vel_max']  ?? ''));
+            $velProm = trim((string)($row['vel_prom'] ?? ''));
+
             $ins->execute([
-                ':import_date'      => $row['import_date'],
+                ':import_date'      => $importDate,
                 ':vehicle_name'     => $row['vehicle_name'],
                 ':plate'            => $plate,
-                ':vehicle_id'       => $vehicleId,
-                ':km_recorridos'    => (float)str_replace(',', '.', $row['km_recorridos'] ?? 0),
-                ':tiempo_marcha'    => $row['tiempo_marcha']    ?? null,
-                ':tiempo_ralenti'   => $row['tiempo_ralenti']   ?? null,
-                ':tiempo_detenido'  => $row['tiempo_detenido']  ?? null,
-                ':vel_max'          => $row['vel_max']  !== '' ? (float)str_replace(',', '.', $row['vel_max']  ?? '') : null,
-                ':vel_prom'         => $row['vel_prom'] !== '' ? (float)str_replace(',', '.', $row['vel_prom'] ?? '') : null,
-                ':total_eventos'    => $row['total_eventos'] ? (int)$row['total_eventos'] : null,
-                ':ubicacion_inicio' => $row['ubicacion_inicio'] ?? null,
-                ':ubicacion_fin'    => $row['ubicacion_fin']    ?? null,
+                ':vehicle_id'       => $vehicleId ?: null,
+                ':km_recorridos'    => $km,
+                ':tiempo_marcha'    => $row['tiempo_marcha']   ?: null,
+                ':tiempo_ralenti'   => $row['tiempo_ralenti']  ?: null,
+                ':tiempo_detenido'  => $row['tiempo_detenido'] ?: null,
+                ':vel_max'          => $velMax  !== '' ? (float)str_replace(',', '.', $velMax)  : null,
+                ':vel_prom'         => $velProm !== '' ? (float)str_replace(',', '.', $velProm) : null,
+                ':total_eventos'    => !empty($row['total_eventos']) ? (int)$row['total_eventos'] : null,
+                ':ubicacion_inicio' => $row['ubicacion_inicio'] ?: null,
+                ':ubicacion_fin'    => $row['ubicacion_fin']    ?: null,
                 ':user_id'          => $userId,
             ]);
             $inserted++;
