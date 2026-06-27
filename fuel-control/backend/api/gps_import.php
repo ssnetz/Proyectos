@@ -105,7 +105,11 @@ if ($method === 'POST') {
 if ($method === 'DELETE') {
     requireAdmin();
     $id = intval($_GET['id'] ?? 0);
-    $db->prepare("DELETE FROM gps_daily_stats WHERE id = ?")->execute([$id]);
+    if ($id) {
+        $db->prepare("DELETE FROM gps_daily_stats WHERE id = ?")->execute([$id]);
+    } else {
+        $db->exec("DELETE FROM gps_daily_stats");
+    }
     echo json_encode(['ok' => true]);
     exit;
 }

@@ -200,6 +200,12 @@ export default function GpsImport() {
     loadHistory(applied);
   };
 
+  const handleDeleteAll = async () => {
+    if (!confirm('¿Borrar TODOS los registros GPS? Esta acción no se puede deshacer.')) return;
+    await axios.delete('/fuel-control/backend/api/gps_import.php');
+    loadHistory(applied);
+  };
+
   const handleSearch = () => { setApplied(filters); loadHistory(filters); };
   const handleClear  = () => {
     const e = { from: '', to: '' };
@@ -311,6 +317,11 @@ export default function GpsImport() {
             onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} />
           <button className="btn btn-primary btn-sm" onClick={handleSearch}>Buscar</button>
           <button className="btn btn-ghost btn-sm" onClick={handleClear}>Limpiar</button>
+          {isAdmin && (
+            <button className="btn btn-sm" style={{ background: '#ef4444', color: '#fff', marginLeft: 'auto' }} onClick={handleDeleteAll}>
+              Borrar todo
+            </button>
+          )}
         </div>
       </div>
 
