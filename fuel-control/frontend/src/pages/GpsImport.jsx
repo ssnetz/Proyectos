@@ -202,42 +202,60 @@ export default function GpsImport() {
         {/* Preview table */}
         {preview.length > 0 && (
           <div style={{ marginTop: 20 }}>
-            <h4 style={{ marginBottom: 10, fontWeight: 600 }}>
-              Vista previa — {fileName} — {preview[0]?.import_date}
-            </h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <h4 style={{ fontWeight: 600 }}>Vista previa — {fileName}</h4>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                <span style={{ color: 'var(--gray-500)' }}>Cambiar fecha a todos:</span>
+                <input type="date" className="form-input form-input-sm"
+                  style={{ width: 160 }}
+                  onChange={e => {
+                    if (!e.target.value) return;
+                    setPreview(prev => prev.map(r => ({ ...r, import_date: e.target.value })));
+                  }} />
+              </div>
+            </div>
             <div className="table-wrapper">
               <table className="table">
                 <thead>
                   <tr>
+                    <th>Fecha del día <span style={{ color: 'var(--blue-500)', fontSize: 11 }}>✎ editable</span></th>
                     <th>Vehículo</th>
                     <th>Patente</th>
                     <th>Km recorridos</th>
                     <th>En marcha</th>
                     <th>Ralentí</th>
-                    <th>Detenido</th>
                     <th>Vel. máx</th>
                     <th>Vel. prom</th>
-                    <th>Inicio</th>
-                    <th>Fin</th>
                   </tr>
                 </thead>
                 <tbody>
                   {preview.map((r, i) => (
                     <tr key={i}>
+                      <td>
+                        <input
+                          type="date"
+                          className="form-input form-input-sm"
+                          style={{ width: 150 }}
+                          value={r.import_date}
+                          onChange={e => setPreview(prev =>
+                            prev.map((row, idx) => idx === i ? { ...row, import_date: e.target.value } : row)
+                          )}
+                        />
+                      </td>
                       <td><strong>{r.vehicle_name}</strong></td>
                       <td><span className="badge badge-blue">{r.plate}</span></td>
                       <td><strong>{fmt(r.km_recorridos)} km</strong></td>
                       <td>{r.tiempo_marcha   || '—'}</td>
                       <td>{r.tiempo_ralenti  || '—'}</td>
-                      <td>{r.tiempo_detenido || '—'}</td>
                       <td>{r.vel_max  ? `${r.vel_max} km/h`  : '—'}</td>
                       <td>{r.vel_prom ? `${r.vel_prom} km/h` : '—'}</td>
-                      <td style={{ fontSize: 12 }}>{r.ubicacion_inicio || '—'}</td>
-                      <td style={{ fontSize: 12 }}>{r.ubicacion_fin    || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--gray-500)' }}>
+              💡 Editá la fecha de cada fila si el Excel no la detectó correctamente. La fecha determina qué días aparecen en el selector de km al cargar combustible.
             </div>
           </div>
         )}
