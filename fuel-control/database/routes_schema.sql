@@ -54,3 +54,24 @@ CREATE TABLE IF NOT EXISTS routes (
     FOREIGN KEY (zone_id)    REFERENCES zones(id),
     FOREIGN KEY (user_id)    REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS gps_daily_stats (
+  id              INT AUTO_INCREMENT PRIMARY KEY,
+  import_date     DATE NOT NULL,
+  vehicle_name    VARCHAR(120) NOT NULL,
+  plate           VARCHAR(20)  NOT NULL,
+  vehicle_id      INT DEFAULT NULL,
+  km_recorridos   DECIMAL(10,2) NOT NULL DEFAULT 0,
+  tiempo_marcha   VARCHAR(10)  DEFAULT NULL,
+  tiempo_ralenti  VARCHAR(10)  DEFAULT NULL,
+  tiempo_detenido VARCHAR(10)  DEFAULT NULL,
+  vel_max         DECIMAL(6,2) DEFAULT NULL,
+  vel_prom        DECIMAL(6,2) DEFAULT NULL,
+  total_eventos   INT          DEFAULT NULL,
+  ubicacion_inicio VARCHAR(120) DEFAULT NULL,
+  ubicacion_fin    VARCHAR(120) DEFAULT NULL,
+  imported_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  user_id         INT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
