@@ -22,6 +22,8 @@ export default function Fueling() {
   const [form, setForm]         = useState(emptyForm);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
+  const [gpsKm, setGpsKm]       = useState(null);
+  const [loadingKm, setLoadingKm] = useState(false);
 
   const load = (f = appliedFilters) => {
     const params = {};
@@ -62,15 +64,37 @@ export default function Fueling() {
     load({ vehicle_id: '', from: '', to: '' });
   }, []);
 
+  const calcKmFromGps = async () => {
+    if (!form.vehicle_id) return;
+    setLoadingKm(true);
+    setGpsKm(null);
+    try {
+      const until = form.fueled_at ? form.fueled_at.slice(0, 10) : new Date().toISOString().slice(0, 10);
+      const r = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
+        params: { vehicle_id: form.vehicle_id, until_date: until }
+      });
+      setGpsKm(r.data);
+      if (r.data.total_km > 0) {
+        setForm(f => ({ ...f, km_recorridos: r.data.total_km }));
+      }
+    } catch (e) {
+      setGpsKm({ error: 'No se pudo calcular' });
+    } finally {
+      setLoadingKm(false);
+    }
+  };
+
   const openNew = () => {
     setEditing(null);
     const defaultType = fuelTypes.length > 0 ? fuelTypes[0].name : '';
     setForm({ ...emptyForm, fuel_type: defaultType, price_per_liter: fuelPrices[defaultType] ?? '' });
     setError('');
+    setGpsKm(null);
     setShowForm(true);
   };
 
   const openEdit = (r) => {
+    setGpsKm(null);
     setEditing(r.id);
     setForm({
       vehicle_id:      r.vehicle_id,
@@ -201,8 +225,33 @@ export default function Fueling() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Km Recorridos</label>
-                  <input className="form-input" type="number" step="0.1" value={form.km_recorridos}
-                    onChange={e => setForm(f => ({ ...f, km_recorridos: e.target.value }))} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input className="form-input" type="number" step="0.1" value={form.km_recorridos}
+                      onChange={e => { setForm(f => ({ ...f, km_recorridos: e.target.value })); setGpsKm(null); }} />
+                    <button type="button" className="btn btn-ghost btn-sm" title="Calcular desde GPS AmericaGIS"
+                      onClick={calcKmFromGps} disabled={!form.vehicle_id || loadingKm}
+                      style={{ whiteSpace: 'nowrap' }}>
+                      {loadingKm ? '...' : '📡 GPS'}
+                    </button>
+                  </div>
+                  {gpsKm && !gpsKm.error && gpsKm.dias > 0 && (
+                    <div style={{ marginTop: 6, padding: '8px 10px', background: 'var(--gray-100)', borderRadius: 6, fontSize: 12 }}>
+                      <strong>{gpsKm.total_km} km</strong> en {gpsKm.dias} día{gpsKm.dias !== 1 ? 's' : ''}
+                      {gpsKm.ultima_carga
+                        ? <> · desde última carga: <strong>{gpsKm.ultima_carga}</strong></>
+                        : ' · sin carga previa registrada'}
+                      <br />
+                      <span style={{ color: 'var(--gray-500)' }}>{gpsKm.detalle}</span>
+                    </div>
+                  )}
+                  {gpsKm && gpsKm.dias === 0 && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--gray-500)' }}>
+                      Sin datos GPS importados para este período. Importá el reporte estadístico primero.
+                    </div>
+                  )}
+                  {gpsKm?.error && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--red-500)' }}>{gpsKm.error}</div>
+                  )}
                 </div>
                 <div className="form-group">
                   <label className="form-label">Fecha y hora *</label>
