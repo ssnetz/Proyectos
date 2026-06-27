@@ -33,6 +33,117 @@ function toIsoDate(val) {
   return '';
 }
 
+// Detecta si el Excel es formato flota (fechas como columnas, vehículos como filas)
+function isFlotaFormat(rows) {
+  for (let i = 0; i < Math.min(rows.length, 12); i++) {
+    const r = rows[i];
+    if (String(r[1]).toLowerCase().includes('fecha') && String(r[2]).match(/\d{2}\/\d{2}\/\d{2}/)) return true;
+  }
+  return false;
+}
+
+function parseFlota(workbook) {
+  const ws = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+
+  // Encontrar la fila de fechas (col 1 = "Fecha", col 2+ = dd/mm/yy)
+  let dateRowIdx = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][1]).toLowerCase().includes('fecha') && String(rows[i][2]).match(/\d{2}\/\d{2}\/\d{2}/)) {
+      dateRowIdx = i; break;
+    }
+  }
+  if (dateRowIdx < 0) return [];
+
+  // Mapear columna → fecha ISO
+  const dateRow = rows[dateRowIdx];
+  const dateMap = {}; // colIdx → 'YYYY-MM-DD'
+  for (let c = 2; c < dateRow.length; c++) {
+    const d = toIsoDate(String(dateRow[c]));
+    if (d) dateMap[c] = d;
+  }
+  const dateCols = Object.keys(dateMap).map(Number);
+  if (!dateCols.length) return [];
+
+  // Agrupar filas por vehículo
+  // Cada vehículo tiene filas: Vel. máx., Vel. prom., Km rec., Tiempo en marcha, Tiempo detenido, Tiempo en ralentí, Total evt., Ubicación inicial, Ubicación final
+  const metricMap = {
+    'km rec.'         : 'km',
+    'vel. máx.'       : 'vel_max',
+    'vel. prom.'      : 'vel_prom',
+    'tiempo en marcha': 't_marcha',
+    'tiempo en ralentí': 't_ralenti',
+    'tiempo detenido' : 't_detenido',
+    'total evt.'      : 'eventos',
+    'ubicación inicial': 'ub_inicio',
+    'ubicación final'  : 'ub_fin',
+  };
+
+  // vehicle → date → metrics
+  const vehicleData = {};
+  let currentVehicle = null;
+
+  for (let i = dateRowIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const col0 = String(row[0]).trim();
+    const col1 = String(row[1]).trim().toLowerCase();
+
+    if (col0) currentVehicle = col0;
+    if (!currentVehicle || col1 === 'fecha') continue;
+
+    const metricKey = metricMap[col1];
+    if (!metricKey) continue;
+
+    if (!vehicleData[currentVehicle]) vehicleData[currentVehicle] = {};
+
+    for (const c of dateCols) {
+      const date = dateMap[c];
+      if (!vehicleData[currentVehicle][date]) vehicleData[currentVehicle][date] = {};
+      const cell = row[c];
+      vehicleData[currentVehicle][date][metricKey] = cell;
+    }
+  }
+
+  // Convertir a array plano de registros por vehículo+día
+  const parsed = [];
+  for (const [vehicleRaw, dates] of Object.entries(vehicleData)) {
+    const parts = vehicleRaw.split(' - ');
+    const plate = parts.length > 1 ? parts[parts.length - 1].trim().replace(/\t/g, '') : '';
+    const name  = parts.length > 1 ? parts.slice(0, -1).join(' - ').trim() : vehicleRaw;
+
+    for (const [date, m] of Object.entries(dates)) {
+      const kmCell = m.km ?? 0;
+      const kmStr = typeof kmCell === 'number'
+        ? String(kmCell)
+        : String(kmCell).replace(/\./g, '').replace(',', '.');
+      const km = parseFloat(kmStr) || 0;
+      if (km === 0) continue; // omitir días sin actividad
+
+      const toNum = (v) => {
+        if (v === undefined || v === '') return '';
+        if (typeof v === 'number') return String(v);
+        return String(v).replace(',', '.');
+      };
+
+      parsed.push({
+        import_date:      date,
+        vehicle_name:     name,
+        plate,
+        km_recorridos:    kmStr,
+        vel_max:          toNum(m.vel_max),
+        vel_prom:         toNum(m.vel_prom),
+        total_eventos:    String(m.eventos ?? ''),
+        tiempo_marcha:    String(m.t_marcha   ?? ''),
+        tiempo_ralenti:   String(m.t_ralenti  ?? ''),
+        tiempo_detenido:  String(m.t_detenido ?? ''),
+        ubicacion_inicio: String(m.ub_inicio  ?? ''),
+        ubicacion_fin:    String(m.ub_fin     ?? ''),
+      });
+    }
+  }
+  return parsed;
+}
+
 function parseEstadistico(workbook) {
   const ws = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
@@ -163,7 +274,10 @@ export default function GpsImport() {
     reader.onload = (ev) => {
       try {
         const wb = XLSX.read(ev.target.result, { type: 'array' });
-        const rows = parseEstadistico(wb);
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+        const flota = isFlotaFormat(rawRows);
+        const rows = flota ? parseFlota(wb) : parseEstadistico(wb);
         if (rows.length === 0) {
           setError('No se encontraron datos de vehículos. Asegurate de subir el reporte Estadístico de AmericaGIS.');
           setPreview([]);
