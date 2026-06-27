@@ -5,23 +5,50 @@ import { useAuth } from '../context/AuthContext';
 
 const fmt = (n) => Number(n ?? 0).toLocaleString('es', { minimumFractionDigits: 2 });
 
+// Convierte cualquier valor de celda de fecha a "YYYY-MM-DD"
+function toIsoDate(val) {
+  if (!val) return '';
+  // Objeto Date de JS
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  // String "26/06/2026 ..." o "26/06/2026"
+  const s = String(val);
+  const m1 = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
+  // String "2026-06-26 ..." o ISO
+  const m2 = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
+  // Número serial de Excel (días desde 1900-01-01)
+  if (!isNaN(val)) {
+    const d = new Date(Math.round((Number(val) - 25569) * 86400 * 1000));
+    const y = d.getUTCFullYear();
+    const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const da = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${mo}-${da}`;
+  }
+  return '';
+}
+
 function parseEstadistico(workbook) {
   const ws = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  // raw:true para que las fechas vengan como número serial y no como Date objects
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
 
   // Find date range row (contains 'Fecha de Inicio')
   let importDate = '';
-  for (const row of rows) {
-    const flat = row.map(c => String(c));
-    const idx = flat.findIndex(c => c.includes('Fecha de Inicio') || c.includes('Inicio'));
-    if (idx >= 0) {
-      // Next row has the actual dates
-      const dateRowIdx = rows.indexOf(row) + 1;
-      const dateRow = rows[dateRowIdx] || [];
-      // Date is like "26/06/2026 00:00:00"
-      const dateStr = String(dateRow[3] || dateRow[0] || '');
-      const match = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-      if (match) importDate = `${match[3]}-${match[2]}-${match[1]}`;
+  for (let ri = 0; ri < rows.length; ri++) {
+    const flat = rows[ri].map(c => String(c));
+    if (flat.some(c => c.includes('Fecha de Inicio') || c.includes('Inicio'))) {
+      const dateRow = rows[ri + 1] || [];
+      // Buscar la primera celda no vacía que sea una fecha
+      for (const cell of dateRow) {
+        const d = toIsoDate(cell);
+        if (d) { importDate = d; break; }
+      }
       break;
     }
   }
@@ -127,7 +154,7 @@ export default function GpsImport() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const wb = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
+        const wb = XLSX.read(ev.target.result, { type: 'array' });
         const rows = parseEstadistico(wb);
         if (rows.length === 0) {
           setError('No se encontraron datos de vehículos. Asegurate de subir el reporte Estadístico de AmericaGIS.');
