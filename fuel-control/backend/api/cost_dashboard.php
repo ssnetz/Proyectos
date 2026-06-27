@@ -3,8 +3,8 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
 setCorsHeaders();
 handleOptions();
-$pdo = getDB();
 requireAuth();
+$pdo = getDB();
 
 $vehicle_id = $_GET['vehicle_id'] ?? '';
 $from       = $_GET['from']       ?? '';

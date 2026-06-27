@@ -3,8 +3,8 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
 setCorsHeaders();
 handleOptions();
-$pdo = getDB();
 requireAuth();
+$pdo = getDB();
 
 $vehicle_id = intval($_GET['vehicle_id'] ?? 0);
 $until_date = $_GET['until_date'] ?? date('Y-m-d'); // fecha de la carga actual
