@@ -100,6 +100,11 @@ function requireAuth(): array {
     return $payload;
 }
 
+function getCurrentUserId(): int {
+    $payload = requireAuth();
+    return (int)($payload['sub'] ?? $payload['user_id'] ?? 0);
+}
+
 function requireAdmin(): array {
     $payload = requireAuth();
     if (($payload['role'] ?? '') !== 'admin') {

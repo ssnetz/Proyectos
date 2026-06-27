@@ -1,6 +1,6 @@
 <?php
 require_once '../config/database.php';
-requireAuth();
+$authUser = requireAuth();
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -34,7 +34,7 @@ if ($method === 'POST') {
         exit;
     }
 
-    $userId = getCurrentUserId();
+    $userId = (int)($authUser['sub'] ?? $authUser['user_id'] ?? 0);
     $inserted = 0;
     $skipped  = 0;
 
