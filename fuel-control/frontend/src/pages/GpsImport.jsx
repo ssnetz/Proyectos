@@ -35,55 +35,57 @@ function toIsoDate(val) {
 
 function parseEstadistico(workbook) {
   const ws = workbook.Sheets[workbook.SheetNames[0]];
-  // raw:true para que las fechas vengan como número serial y no como Date objects
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
 
-  // Find date range row (contains 'Fecha de Inicio')
-  let importDate = '';
-  for (let ri = 0; ri < rows.length; ri++) {
-    const flat = rows[ri].map(c => String(c));
-    if (flat.some(c => c.includes('Fecha de Inicio') || c.includes('Inicio'))) {
-      const dateRow = rows[ri + 1] || [];
-      // Buscar la primera celda no vacía que sea una fecha
-      for (const cell of dateRow) {
-        const d = toIsoDate(cell);
-        if (d) { importDate = d; break; }
-      }
-      break;
-    }
-  }
-
-  // Find header row with 'Vehículo'
-  let dataStartRow = -1;
-  let colMap = {};
+  // Encontrar la fila de encabezados (contiene 'Vehículo')
+  let headerRowIdx = -1;
+  let subHeaderRowIdx = -1;
   for (let i = 0; i < rows.length; i++) {
     const flat = rows[i].map(c => String(c).toLowerCase());
     if (flat.some(c => c.includes('veh'))) {
-      // Find sub-header row for column positions
-      const subRow = rows[i + 1] || [];
-      // Main row
-      const mainRow = rows[i];
-      // Build column mapping by scanning both header rows
-      for (let c = 0; c < mainRow.length; c++) {
-        const h = String(mainRow[c]).toLowerCase();
-        const s = String(subRow[c]).toLowerCase();
-        if (h.includes('veh')) colMap.vehicle = c;
-        if (h.includes('km')) colMap.km = c;
-        if (h.includes('total evento')) colMap.eventos = c + 1;
-        if (s === 'máx.' && colMap.vel_max === undefined) colMap.vel_max = c;
-        if (s === 'prom.' && colMap.vel_prom === undefined) colMap.vel_prom = c;
-        if (h.includes('marcha') && s === '') colMap.t_marcha = c;
-        if (h.includes('ralentí') && s === '') colMap.t_ralenti = c;
-        if (h.includes('detenido') && s === '') colMap.t_detenido = c;
-        if (h.includes('inicio') && s === '') colMap.ub_inicio = c;
-        if (h.includes('fin') && s === '') colMap.ub_fin = c;
-      }
-      dataStartRow = i + 2;
+      headerRowIdx = i;
+      subHeaderRowIdx = i + 1;
       break;
     }
   }
+  if (headerRowIdx < 0) return [];
 
-  if (dataStartRow < 0) return [];
+  const mainRow = rows[headerRowIdx];
+  const subRow  = rows[subHeaderRowIdx] || [];
+
+  // Mapeo de columnas
+  const colMap = {};
+  for (let c = 0; c < mainRow.length; c++) {
+    const h = String(mainRow[c]).toLowerCase().trim();
+    const s = String(subRow[c]).toLowerCase().trim();
+    if (h.includes('veh'))           colMap.vehicle    = c;
+    if (h === 'fecha')               colMap.fecha      = c;
+    if (h.includes('km'))            colMap.km         = c;
+    if (h.includes('total evento'))  colMap.eventos    = c + 1;
+    if ((s === 'máx.' || s === 'max.') && colMap.vel_max === undefined) colMap.vel_max = c;
+    if ((s === 'prom.'|| s === 'avg.') && colMap.vel_prom === undefined) colMap.vel_prom = c;
+    if (h.includes('marcha')   && !h.includes('hs')) colMap.t_marcha   = c;
+    if (h.includes('ralentí')  || h.includes('ralenti')) colMap.t_ralenti  = c;
+    if (h.includes('detenido'))      colMap.t_detenido = c;
+    if (h.includes('inicio') && s === '') colMap.ub_inicio = c;
+    if (h.includes('fin')    && s === '') colMap.ub_fin    = c;
+  }
+
+  const dataStartRow = subHeaderRowIdx + 1;
+
+  // Fecha de respaldo desde el encabezado del reporte (fila con "Fecha de Inicio")
+  let fallbackDate = '';
+  for (let i = 0; i < headerRowIdx; i++) {
+    const flat = rows[i].map(c => String(c));
+    if (flat.some(c => c.includes('Fecha de Inicio') || c.includes('Inicio'))) {
+      const dateRow = rows[i + 1] || [];
+      for (const cell of dateRow) {
+        const d = toIsoDate(cell);
+        if (d) { fallbackDate = d; break; }
+      }
+      break;
+    }
+  }
 
   const parsed = [];
   for (let i = dataStartRow; i < rows.length; i++) {
@@ -96,9 +98,13 @@ function parseEstadistico(workbook) {
     const plate = parts.length > 1 ? parts[parts.length - 1].trim() : '';
     const name  = parts.length > 1 ? parts.slice(0, -1).join(' - ').trim() : vehicleRaw;
 
-    // km may be in colMap.km or next cell
-    const kmRaw = String(row[colMap.km] ?? row[(colMap.km ?? 0) + 1] ?? '0')
-      .replace('.', '').replace(',', '.');
+    // Fecha: columna "Fecha" de la fila o fallback del encabezado
+    const fechaCell  = colMap.fecha !== undefined ? row[colMap.fecha] : undefined;
+    const importDate = toIsoDate(fechaCell) || fallbackDate;
+
+    // km — puede tener separador de miles con punto
+    const kmRaw = String(row[colMap.km] ?? '0')
+      .replace(/\./g, '').replace(',', '.');
 
     parsed.push({
       import_date:      importDate,
