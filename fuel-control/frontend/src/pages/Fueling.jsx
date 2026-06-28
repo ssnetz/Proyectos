@@ -12,6 +12,8 @@ const emptyForm = {
 export default function Fueling() {
   const [records, setRecords]     = useState([]);
   const [vehicles, setVehicles]   = useState([]);
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [showVehicleDrop, setShowVehicleDrop] = useState(false);
   const [fuelTypes, setFuelTypes] = useState([]);
   const [fuelPrices, setFuelPrices] = useState({});
   const [suppliers, setSuppliers] = useState([]);
@@ -114,6 +116,7 @@ export default function Fueling() {
     setEditing(null);
     const defaultType = fuelTypes.length > 0 ? fuelTypes[0].name : '';
     setForm({ ...emptyForm, fuel_type: defaultType, price_per_liter: fuelPrices[defaultType] ?? '' });
+    setVehicleSearch('');
     setError('');
     setShowForm(true);
   };
@@ -130,6 +133,8 @@ export default function Fueling() {
       notes:           r.notes ?? '',
       fueled_at:       r.fueled_at?.slice(0, 16) ?? new Date().toISOString().slice(0, 16),
     });
+    const v = vehicles.find(v => String(v.id) === String(r.vehicle_id));
+    setVehicleSearch(v ? `${v.name} — ${v.plate}` : '');
     setError('');
     setShowForm(true);
   };
@@ -217,15 +222,42 @@ export default function Fueling() {
             <form onSubmit={handleSubmit}>
               {error && <div className="alert alert-error">{error}</div>}
               <div className="form-grid">
-                <div className="form-group">
+                <div className="form-group" style={{ position: 'relative' }}>
                   <label className="form-label">Vehículo *</label>
-                  <select className="form-input" required value={form.vehicle_id}
-                    onChange={e => setForm(f => ({ ...f, vehicle_id: e.target.value }))}>
-                    <option value="">Seleccionar...</option>
-                    {vehicles.filter(v => v.active).map(v =>
-                      <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>
-                    )}
-                  </select>
+                  <input
+                    className="form-input"
+                    placeholder="Buscar por nombre o patente..."
+                    value={vehicleSearch}
+                    autoComplete="off"
+                    onChange={e => { setVehicleSearch(e.target.value); setForm(f => ({ ...f, vehicle_id: '' })); setShowVehicleDrop(true); }}
+                    onFocus={() => setShowVehicleDrop(true)}
+                    onBlur={() => setTimeout(() => setShowVehicleDrop(false), 150)}
+                  />
+                  {/* hidden required input para validación */}
+                  <input type="text" required value={form.vehicle_id} onChange={() => {}}
+                    style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }} />
+                  {showVehicleDrop && (
+                    <div style={{ position: 'absolute', zIndex: 100, background: 'var(--white)', border: '1px solid var(--gray-200)', borderRadius: 8, width: '100%', maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,.1)' }}>
+                      {vehicles.filter(v => v.active && (
+                        `${v.name} ${v.plate}`.toLowerCase().includes(vehicleSearch.toLowerCase())
+                      )).map(v => (
+                        <div key={v.id}
+                          style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13 }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--gray-50)'}
+                          onMouseLeave={e => e.currentTarget.style.background = ''}
+                          onMouseDown={() => {
+                            setForm(f => ({ ...f, vehicle_id: v.id }));
+                            setVehicleSearch(`${v.name} — ${v.plate}`);
+                            setShowVehicleDrop(false);
+                          }}>
+                          <strong>{v.name}</strong> <span style={{ color: 'var(--gray-500)' }}>{v.plate}</span>
+                        </div>
+                      ))}
+                      {vehicles.filter(v => v.active && `${v.name} ${v.plate}`.toLowerCase().includes(vehicleSearch.toLowerCase())).length === 0 && (
+                        <div style={{ padding: '8px 12px', color: 'var(--gray-400)', fontSize: 13 }}>Sin resultados</div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="form-group">
                   <label className="form-label">Tipo de combustible *</label>
