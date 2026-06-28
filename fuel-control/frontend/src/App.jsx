@@ -15,6 +15,7 @@ import CostConfig   from './pages/CostConfig';
 import RoutesPage      from './pages/Routes';
 import CostDashboard  from './pages/CostDashboard';
 import GpsImport     from './pages/GpsImport';
+import Suppliers    from './pages/Suppliers';
 import Login     from './pages/Login';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -66,6 +67,7 @@ const pageTitles = {
   '/routes':           'Rutas de Recolección',
   '/cost-dashboard':   'Tablero de Costos',
   '/gps-import':       'Importar GPS (AmericaGIS)',
+  '/suppliers':        'Proveedores',
 };
 
 function AppLayout() {
@@ -79,6 +81,7 @@ function AppLayout() {
     { to: '/fueling',  icon: '⛽', label: 'Cargas' },
     { to: '/vehicles',    icon: '🚛', label: 'Vehículos' },
     { to: '/fuel-prices', icon: '💲', label: 'Precios' },
+    { to: '/suppliers',        icon: '🏪', label: 'Proveedores' },
     { to: '/fuel-orders',      icon: '📋', label: 'Órdenes de Carga' },
     { to: '/cost-dashboard',   icon: '📈', label: 'Tablero Costos' },
     { to: '/gps-import',       icon: '📡', label: 'Importar GPS' },
@@ -139,6 +142,7 @@ function AppLayout() {
             <Route path="/routes"          element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
             <Route path="/cost-dashboard"  element={<ProtectedRoute><CostDashboard /></ProtectedRoute>} />
             <Route path="/gps-import"      element={<ProtectedRoute><GpsImport /></ProtectedRoute>} />
+            <Route path="/suppliers"       element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
