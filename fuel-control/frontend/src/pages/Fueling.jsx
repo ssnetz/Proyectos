@@ -14,6 +14,7 @@ export default function Fueling() {
   const [vehicles, setVehicles]   = useState([]);
   const [fuelTypes, setFuelTypes] = useState([]);
   const [fuelPrices, setFuelPrices] = useState({});
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing]   = useState(null);
@@ -53,6 +54,7 @@ export default function Fueling() {
 
   useEffect(() => {
     axios.get('/fuel-control/backend/api/vehicles.php').then(r => setVehicles(r.data));
+    axios.get('/fuel-control/backend/api/suppliers.php').then(r => setSuppliers(r.data));
     axios.get('/fuel-control/backend/api/fuel_types.php').then(r => {
       setFuelTypes(r.data);
       if (r.data.length > 0) {
@@ -267,9 +269,12 @@ export default function Fueling() {
                     onChange={e => setForm(f => ({ ...f, fueled_at: e.target.value }))} />
                 </div>
                 <div className="form-group form-group-full">
-                  <label className="form-label">Estación / Proveedor</label>
-                  <input className="form-input" value={form.station}
-                    onChange={e => setForm(f => ({ ...f, station: e.target.value }))} />
+                  <label className="form-label">Proveedor</label>
+                  <select className="form-input" value={form.station}
+                    onChange={e => setForm(f => ({ ...f, station: e.target.value }))}>
+                    <option value="">— Seleccionar proveedor —</option>
+                    {suppliers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
                 </div>
                 <div className="form-group form-group-full">
                   <label className="form-label">Notas</label>
