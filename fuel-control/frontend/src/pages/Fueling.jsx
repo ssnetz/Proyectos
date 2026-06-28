@@ -237,7 +237,7 @@ export default function Fueling() {
                   <input type="text" required value={form.vehicle_id} onChange={() => {}}
                     style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }} />
                   {showVehicleDrop && (
-                    <div style={{ position: 'absolute', zIndex: 100, background: 'var(--white)', border: '1px solid var(--gray-200)', borderRadius: 8, width: '100%', maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,.1)' }}>
+                    <div style={{ position: 'absolute', zIndex: 100, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, width: '100%', maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,.18)', top: '100%', left: 0 }}>
                       {vehicles.filter(v => v.active && (
                         `${v.name} ${v.plate}`.toLowerCase().includes(vehicleSearch.toLowerCase())
                       )).map(v => (
