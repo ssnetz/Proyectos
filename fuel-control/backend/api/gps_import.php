@@ -52,7 +52,7 @@ if ($method === 'POST') {
 
     $db->beginTransaction();
     try {
-        $ins = $db->prepare("INSERT INTO gps_daily_stats
+        $ins = $db->prepare("INSERT IGNORE INTO gps_daily_stats
             (import_date, vehicle_name, plate, vehicle_id, km_recorridos,
              tiempo_marcha, tiempo_ralenti, tiempo_detenido,
              vel_max, vel_prom, total_eventos,
@@ -92,7 +92,7 @@ if ($method === 'POST') {
                 ':ubicacion_fin'    => $row['ubicacion_fin']    ?: null,
                 ':user_id'          => $userId,
             ]);
-            $inserted++;
+            if ($ins->rowCount() > 0) $inserted++; else $skipped++;
         }
         $db->commit();
 
