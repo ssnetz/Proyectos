@@ -25,15 +25,16 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     requireAdmin();
     $body = getBody();
-    $name = trim($body['name'] ?? '');
-    $plate = trim($body['plate'] ?? '');
-    $type  = trim($body['type'] ?? 'vehicle');
+    $name          = trim($body['name'] ?? '');
+    $plate         = trim($body['plate'] ?? '');
+    $type          = trim($body['type'] ?? 'vehicle');
+    $tank_capacity = isset($body['tank_capacity']) && $body['tank_capacity'] !== '' ? (float)$body['tank_capacity'] : null;
 
     if (!$name || !$plate) jsonError('Nombre y patente requeridos');
 
-    $stmt = $db->prepare('INSERT INTO vehicles (name, plate, type, active) VALUES (?, ?, ?, 1)');
-    $stmt->execute([$name, $plate, $type]);
-    jsonResponse(['id' => (int)$db->lastInsertId(), 'name' => $name, 'plate' => $plate, 'type' => $type], 201);
+    $stmt = $db->prepare('INSERT INTO vehicles (name, plate, type, tank_capacity, active) VALUES (?, ?, ?, ?, 1)');
+    $stmt->execute([$name, $plate, $type, $tank_capacity]);
+    jsonResponse(['id' => (int)$db->lastInsertId()], 201);
 }
 
 if ($method === 'PUT') {
@@ -42,15 +43,16 @@ if ($method === 'PUT') {
     $body = getBody();
     if (!$id) jsonError('ID requerido');
 
-    $name   = trim($body['name'] ?? '');
-    $plate  = trim($body['plate'] ?? '');
-    $type   = trim($body['type'] ?? 'vehicle');
-    $active = isset($body['active']) ? (int)(bool)$body['active'] : 1;
+    $name          = trim($body['name'] ?? '');
+    $plate         = trim($body['plate'] ?? '');
+    $type          = trim($body['type'] ?? 'vehicle');
+    $tank_capacity = isset($body['tank_capacity']) && $body['tank_capacity'] !== '' ? (float)$body['tank_capacity'] : null;
+    $active        = isset($body['active']) ? (int)(bool)$body['active'] : 1;
 
     if (!$name || !$plate) jsonError('Nombre y patente requeridos');
 
-    $stmt = $db->prepare('UPDATE vehicles SET name=?, plate=?, type=?, active=? WHERE id=?');
-    $stmt->execute([$name, $plate, $type, $active, $id]);
+    $stmt = $db->prepare('UPDATE vehicles SET name=?, plate=?, type=?, tank_capacity=?, active=? WHERE id=?');
+    $stmt->execute([$name, $plate, $type, $tank_capacity, $active, $id]);
     jsonResponse(['ok' => true]);
 }
 

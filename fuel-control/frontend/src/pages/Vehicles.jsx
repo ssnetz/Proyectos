@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 const VEHICLE_TYPES = ['Auto', 'Camioneta', 'Utilitario', 'Moto', 'Camión', 'Motoniveladora', 'Pala de Carga', 'Bobcat', 'Tractor', 'Otros'];
 
-const emptyForm = { name: '', plate: '', type: 'Auto', active: true };
+const emptyForm = { name: '', plate: '', type: 'Auto', tank_capacity: '', active: true };
 
 export default function Vehicles() {
   const { user }              = useAuth();
@@ -25,7 +25,7 @@ export default function Vehicles() {
   const openNew = () => { setEditing(null); setForm(emptyForm); setError(''); setShowForm(true); };
   const openEdit = (v) => {
     setEditing(v.id);
-    setForm({ name: v.name, plate: v.plate, type: v.type, active: Boolean(v.active) });
+    setForm({ name: v.name, plate: v.plate, type: v.type, tank_capacity: v.tank_capacity ?? '', active: Boolean(v.active) });
     setError('');
     setShowForm(true);
   };
@@ -91,6 +91,12 @@ export default function Vehicles() {
                     {VEHICLE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
+                <div className="form-group">
+                  <label className="form-label">Capacidad del tanque (litros)</label>
+                  <input className="form-input" type="number" min="0" step="0.1" value={form.tank_capacity}
+                    onChange={e => setForm(f => ({ ...f, tank_capacity: e.target.value }))}
+                    placeholder="Ej: 200" />
+                </div>
                 {editing && (
                   <div className="form-group">
                     <label className="form-label">Estado</label>
@@ -121,6 +127,7 @@ export default function Vehicles() {
                 <th>Nombre</th>
                 <th>Patente / ID</th>
                 <th>Tipo</th>
+                <th>Tanque</th>
                 <th>Estado</th>
                 {isAdmin && <th></th>}
               </tr>
@@ -134,6 +141,7 @@ export default function Vehicles() {
                   <td><strong>{v.name}</strong></td>
                   <td>{v.plate}</td>
                   <td><span className="badge badge-gray">{v.type}</span></td>
+                  <td>{v.tank_capacity ? `${v.tank_capacity} L` : '—'}</td>
                   <td>
                     <span className={`badge ${v.active ? 'badge-green' : 'badge-red'}`}>
                       {v.active ? 'Activo' : 'Inactivo'}
