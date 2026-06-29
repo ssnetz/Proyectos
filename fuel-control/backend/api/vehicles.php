@@ -29,11 +29,12 @@ if ($method === 'POST') {
     $plate         = trim($body['plate'] ?? '');
     $type          = trim($body['type'] ?? 'vehicle');
     $tank_capacity = isset($body['tank_capacity']) && $body['tank_capacity'] !== '' ? (float)$body['tank_capacity'] : null;
+    $km_per_liter  = isset($body['km_per_liter'])  && $body['km_per_liter']  !== '' ? (float)$body['km_per_liter']  : null;
 
     if (!$name || !$plate) jsonError('Nombre y patente requeridos');
 
-    $stmt = $db->prepare('INSERT INTO vehicles (name, plate, type, tank_capacity, active) VALUES (?, ?, ?, ?, 1)');
-    $stmt->execute([$name, $plate, $type, $tank_capacity]);
+    $stmt = $db->prepare('INSERT INTO vehicles (name, plate, type, tank_capacity, km_per_liter, active) VALUES (?, ?, ?, ?, ?, 1)');
+    $stmt->execute([$name, $plate, $type, $tank_capacity, $km_per_liter]);
     jsonResponse(['id' => (int)$db->lastInsertId()], 201);
 }
 
@@ -47,12 +48,13 @@ if ($method === 'PUT') {
     $plate         = trim($body['plate'] ?? '');
     $type          = trim($body['type'] ?? 'vehicle');
     $tank_capacity = isset($body['tank_capacity']) && $body['tank_capacity'] !== '' ? (float)$body['tank_capacity'] : null;
+    $km_per_liter  = isset($body['km_per_liter'])  && $body['km_per_liter']  !== '' ? (float)$body['km_per_liter']  : null;
     $active        = isset($body['active']) ? (int)(bool)$body['active'] : 1;
 
     if (!$name || !$plate) jsonError('Nombre y patente requeridos');
 
-    $stmt = $db->prepare('UPDATE vehicles SET name=?, plate=?, type=?, tank_capacity=?, active=? WHERE id=?');
-    $stmt->execute([$name, $plate, $type, $tank_capacity, $active, $id]);
+    $stmt = $db->prepare('UPDATE vehicles SET name=?, plate=?, type=?, tank_capacity=?, km_per_liter=?, active=? WHERE id=?');
+    $stmt->execute([$name, $plate, $type, $tank_capacity, $km_per_liter, $active, $id]);
     jsonResponse(['ok' => true]);
 }
 

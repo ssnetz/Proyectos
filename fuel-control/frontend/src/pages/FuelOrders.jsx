@@ -139,10 +139,21 @@ export default function FuelOrders() {
   const fetchLastLiters = async (vehicle_id) => {
     if (!vehicle_id) return;
     try {
-      const r = await axios.get('/fuel-control/backend/api/fueling.php', { params: { vehicle_id } });
-      if (r.data.length > 0) {
-        const last = r.data[0]; // ya viene ordenado DESC
-        setForm(f => ({ ...f, liters_before: last.liters ?? '' }));
+      const v = vehicles.find(v => String(v.id) === String(vehicle_id));
+      const today = new Date().toISOString().slice(0, 10);
+
+      // km recorridos desde la última carga
+      const gpsR = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
+        params: { vehicle_id, until_date: today }
+      });
+      const km = parseFloat(gpsR.data.total_km) || 0;
+      const kmL = parseFloat(v?.km_per_liter) || 0;
+      const cap = parseFloat(v?.tank_capacity) || 0;
+
+      if (kmL > 0 && cap > 0) {
+        const consumido = km / kmL;
+        const restante  = Math.max(0, cap - consumido);
+        setForm(f => ({ ...f, liters_before: restante.toFixed(2) }));
       }
     } catch {}
   };

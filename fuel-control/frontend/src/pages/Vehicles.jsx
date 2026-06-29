@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 const VEHICLE_TYPES = ['Auto', 'Camioneta', 'Utilitario', 'Moto', 'Camión', 'Motoniveladora', 'Pala de Carga', 'Bobcat', 'Tractor', 'Otros'];
 
-const emptyForm = { name: '', plate: '', type: 'Auto', tank_capacity: '', active: true };
+const emptyForm = { name: '', plate: '', type: 'Auto', tank_capacity: '', km_per_liter: '', active: true };
 
 export default function Vehicles() {
   const { user }              = useAuth();
@@ -25,7 +25,7 @@ export default function Vehicles() {
   const openNew = () => { setEditing(null); setForm(emptyForm); setError(''); setShowForm(true); };
   const openEdit = (v) => {
     setEditing(v.id);
-    setForm({ name: v.name, plate: v.plate, type: v.type, tank_capacity: v.tank_capacity ?? '', active: Boolean(v.active) });
+    setForm({ name: v.name, plate: v.plate, type: v.type, tank_capacity: v.tank_capacity ?? '', km_per_liter: v.km_per_liter ?? '', active: Boolean(v.active) });
     setError('');
     setShowForm(true);
   };
@@ -97,6 +97,12 @@ export default function Vehicles() {
                     onChange={e => setForm(f => ({ ...f, tank_capacity: e.target.value }))}
                     placeholder="Ej: 200" />
                 </div>
+                <div className="form-group">
+                  <label className="form-label">Rendimiento (km/litro)</label>
+                  <input className="form-input" type="number" min="0" step="0.01" value={form.km_per_liter}
+                    onChange={e => setForm(f => ({ ...f, km_per_liter: e.target.value }))}
+                    placeholder="Ej: 3.5" />
+                </div>
                 {editing && (
                   <div className="form-group">
                     <label className="form-label">Estado</label>
@@ -128,6 +134,7 @@ export default function Vehicles() {
                 <th>Patente / ID</th>
                 <th>Tipo</th>
                 <th>Tanque</th>
+                <th>Rendimiento</th>
                 <th>Estado</th>
                 {isAdmin && <th></th>}
               </tr>
@@ -142,6 +149,7 @@ export default function Vehicles() {
                   <td>{v.plate}</td>
                   <td><span className="badge badge-gray">{v.type}</span></td>
                   <td>{v.tank_capacity ? `${v.tank_capacity} L` : '—'}</td>
+                  <td>{v.km_per_liter ? `${v.km_per_liter} km/L` : '—'}</td>
                   <td>
                     <span className={`badge ${v.active ? 'badge-green' : 'badge-red'}`}>
                       {v.active ? 'Activo' : 'Inactivo'}
