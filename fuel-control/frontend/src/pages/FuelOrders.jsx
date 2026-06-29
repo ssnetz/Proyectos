@@ -111,6 +111,14 @@ export default function FuelOrders() {
   const [form, setForm]         = useState(emptyForm);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
+  const [tab, setTab]           = useState('ordenes'); // 'ordenes' | 'tanques'
+  const [tankStatus, setTankStatus]   = useState([]);
+  const [tankLoading, setTankLoading] = useState(false);
+  const [tankSelected, setTankSelected] = useState({});
+  const [tankMode, setTankMode]   = useState('lleno'); // 'lleno' | 'litros'
+  const [tankLitros, setTankLitros] = useState('');
+  const [tankFuelType, setTankFuelType] = useState('');
+  const [creatingBulk, setCreatingBulk] = useState(false);
 
   const load = (f = appliedFilters) => {
     const params = {};
@@ -201,6 +209,50 @@ export default function FuelOrders() {
     }
   };
 
+  const loadTankStatus = async () => {
+    setTankLoading(true);
+    const today = new Date().toISOString().slice(0, 10);
+    const eligible = vehicles.filter(v => v.active && v.tank_capacity && v.km_per_liter);
+    const results = await Promise.all(eligible.map(async v => {
+      try {
+        const r = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
+          params: { vehicle_id: v.id, until_date: today }
+        });
+        const km = parseFloat(r.data.total_km) || 0;
+        const consumido = km / parseFloat(v.km_per_liter);
+        const restante  = Math.max(0, parseFloat(v.tank_capacity) - consumido);
+        const pct       = Math.min(100, Math.round((restante / parseFloat(v.tank_capacity)) * 100));
+        return { ...v, km_desde_carga: km, litros_restantes: restante.toFixed(1), pct };
+      } catch {
+        return { ...v, km_desde_carga: 0, litros_restantes: '—', pct: null };
+      }
+    }));
+    results.sort((a, b) => (a.pct ?? 999) - (b.pct ?? 999));
+    setTankStatus(results);
+    setTankLoading(false);
+  };
+
+  const handleBulkOrder = async () => {
+    const selected = tankStatus.filter(v => tankSelected[v.id]);
+    if (!selected.length) return;
+    if (!tankFuelType) { alert('Seleccioná el tipo de combustible'); return; }
+    setCreatingBulk(true);
+    for (const v of selected) {
+      const liters = tankMode === 'lleno'
+        ? parseFloat(v.tank_capacity) - parseFloat(v.litros_restantes)
+        : parseFloat(tankLitros);
+      if (!liters || liters <= 0) continue;
+      await axios.post('/fuel-control/backend/api/fuel_orders.php', {
+        vehicle_id: v.id, fuel_type: tankFuelType,
+        liters_requested: liters.toFixed(2), driver_name: '-', notes: 'Generada desde panel de tanques',
+      });
+    }
+    setCreatingBulk(false);
+    setTankSelected({});
+    setTab('ordenes');
+    load();
+  };
+
   const handleDelete = async (id) => {
     if (!confirm('¿Eliminar esta orden?')) return;
     await axios.delete(`/fuel-control/backend/api/fuel_orders.php?id=${id}`);
@@ -218,8 +270,111 @@ export default function FuelOrders() {
 
   if (loading) return <div className="spinner" />;
 
+  const pctColor = (pct) => {
+    if (pct === null) return '#94a3b8';
+    if (pct < 25) return '#ef4444';
+    if (pct < 50) return '#f59e0b';
+    return '#22c55e';
+  };
+
   return (
     <div>
+      {/* Pestañas */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid var(--gray-200)' }}>
+        <button
+          className={`btn btn-sm ${tab === 'ordenes' ? 'btn-primary' : 'btn-ghost'}`}
+          style={{ borderRadius: '6px 6px 0 0' }}
+          onClick={() => setTab('ordenes')}>
+          Órdenes de carga
+        </button>
+        <button
+          className={`btn btn-sm ${tab === 'tanques' ? 'btn-primary' : 'btn-ghost'}`}
+          style={{ borderRadius: '6px 6px 0 0' }}
+          onClick={() => { setTab('tanques'); loadTankStatus(); }}>
+          Estado de tanques
+        </button>
+      </div>
+
+      {/* Panel estado de tanques */}
+      {tab === 'tanques' && (
+        <div>
+          {tankLoading && <div className="spinner" />}
+          {!tankLoading && tankStatus.length === 0 && (
+            <div className="card" style={{ padding: 24, color: 'var(--gray-500)' }}>
+              Sin vehículos con tanque y rendimiento configurados. Editá los vehículos para agregar esos datos.
+            </div>
+          )}
+          {!tankLoading && tankStatus.length > 0 && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12, marginBottom: 20 }}>
+                {tankStatus.map(v => {
+                  const color = pctColor(v.pct);
+                  const checked = !!tankSelected[v.id];
+                  return (
+                    <div key={v.id} className="card" onClick={() => setTankSelected(s => ({ ...s, [v.id]: !s[v.id] }))}
+                      style={{ padding: 16, cursor: 'pointer', border: checked ? `2px solid ${color}` : '2px solid transparent', transition: 'border .15s' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                        <input type="checkbox" checked={checked} onChange={() => {}} style={{ width: 16, height: 16 }} />
+                        <span style={{ fontSize: 20 }}>🚛</span>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 14 }}>{v.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--gray-500)' }}>{v.plate}</div>
+                        </div>
+                        <div style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 18, color }}>
+                          {v.pct !== null ? `${v.pct}%` : '—'}
+                        </div>
+                      </div>
+                      {/* Barra de progreso */}
+                      <div style={{ background: '#e2e8f0', borderRadius: 99, height: 10, overflow: 'hidden' }}>
+                        <div style={{ width: `${v.pct ?? 0}%`, background: color, height: '100%', borderRadius: 99, transition: 'width .3s' }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--gray-500)', marginTop: 6 }}>
+                        <span>{v.litros_restantes} L restantes</span>
+                        <span>Tanque: {v.tank_capacity} L</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 4 }}>
+                        {v.km_desde_carga > 0 ? `${v.km_desde_carga.toFixed(1)} km desde última carga` : 'Sin km GPS registrados'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Controles de orden masiva */}
+              <div className="card" style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>
+                  {Object.values(tankSelected).filter(Boolean).length} vehículo(s) seleccionado(s)
+                </span>
+                <select className="form-input form-input-sm" style={{ width: 180 }} value={tankFuelType}
+                  onChange={e => setTankFuelType(e.target.value)}>
+                  <option value="">Tipo de combustible</option>
+                  {fuelTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                </select>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                  <input type="radio" checked={tankMode === 'lleno'} onChange={() => setTankMode('lleno')} /> Tanque lleno
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                  <input type="radio" checked={tankMode === 'litros'} onChange={() => setTankMode('litros')} /> Litros fijos:
+                </label>
+                {tankMode === 'litros' && (
+                  <input className="form-input form-input-sm" type="number" step="0.1" min="0"
+                    style={{ width: 90 }} value={tankLitros} placeholder="Litros"
+                    onChange={e => setTankLitros(e.target.value)} />
+                )}
+                <button className="btn btn-primary btn-sm" onClick={handleBulkOrder} disabled={creatingBulk || !Object.values(tankSelected).filter(Boolean).length}>
+                  {creatingBulk ? 'Generando...' : 'Generar órdenes'}
+                </button>
+                <button className="btn btn-ghost btn-sm"
+                  onClick={() => setTankSelected(Object.fromEntries(tankStatus.filter(v => v.pct !== null && v.pct < 25).map(v => [v.id, true])))}>
+                  Marcar críticos (&lt;25%)
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === 'ordenes' && <div>
       <div className="page-actions">
         <div className="filters">
           <select className="form-input form-input-sm" value={filters.vehicle_id}
@@ -400,6 +555,7 @@ export default function FuelOrders() {
           </table>
         </div>
       </div>
+      </div>}
     </div>
   );
 }
