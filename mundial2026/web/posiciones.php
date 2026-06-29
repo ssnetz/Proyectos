@@ -3,7 +3,7 @@ $dsn = 'mysql:host=localhost;dbname=mundial2026;charset=utf8mb4';
 $opciones = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC];
 
 try {
-    $pdo = new PDO($dsn, 'root', '', $opciones);
+    $pdo = new PDO($dsn, 'fuel_user', 'Mateo1212**', $opciones);
 } catch (PDOException $e) {
     die('<p class="error">Error de conexión: ' . htmlspecialchars($e->getMessage()) . '</p>');
 }
