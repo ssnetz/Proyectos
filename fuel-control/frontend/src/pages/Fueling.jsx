@@ -4,7 +4,7 @@ import axios from 'axios';
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
 const emptyForm = {
-  vehicle_id: '', liters: '', liters_before: '', km_recorridos: '', price_per_liter: '',
+  vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
   fuel_type: '', station: '', notes: '',
   fueled_at: new Date().toISOString().slice(0, 16),
 };
@@ -274,47 +274,9 @@ export default function Fueling() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">
-                    Litros *
-                    {form.vehicle_id && (() => {
-                      const v = vehicles.find(v => String(v.id) === String(form.vehicle_id));
-                      return v?.tank_capacity
-                        ? <span style={{ fontWeight: 400, color: 'var(--gray-500)', marginLeft: 8 }}>Tanque: {v.tank_capacity} L</span>
-                        : null;
-                    })()}
-                  </label>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input className="form-input" type="number" step="0.01" required value={form.liters}
-                      onChange={e => setForm(f => ({ ...f, liters: e.target.value }))} />
-                    {form.vehicle_id && (() => {
-                      const v = vehicles.find(v => String(v.id) === String(form.vehicle_id));
-                      if (!v?.tank_capacity) return null;
-                      const antes = parseFloat(form.liters_before) || 0;
-                      const falta = Math.max(0, parseFloat(v.tank_capacity) - antes);
-                      return (
-                        <button type="button" className="btn btn-ghost btn-sm"
-                          style={{ whiteSpace: 'nowrap' }}
-                          title={`Llena hasta ${v.tank_capacity} L`}
-                          onClick={() => setForm(f => ({ ...f, liters: falta.toFixed(2) }))}>
-                          Tanque lleno
-                        </button>
-                      );
-                    })()}
-                  </div>
-                  {form.vehicle_id && (() => {
-                    const v = vehicles.find(v => String(v.id) === String(form.vehicle_id));
-                    if (!v?.tank_capacity) return null;
-                    return (
-                      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <label style={{ fontSize: 12, color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>Litros antes de cargar:</label>
-                        <input className="form-input form-input-sm" type="number" step="0.01" min="0"
-                          style={{ width: 90 }}
-                          value={form.liters_before}
-                          placeholder="0"
-                          onChange={e => setForm(f => ({ ...f, liters_before: e.target.value }))} />
-                      </div>
-                    );
-                  })()}
+                  <label className="form-label">Litros *</label>
+                  <input className="form-input" type="number" step="0.01" required value={form.liters}
+                    onChange={e => setForm(f => ({ ...f, liters: e.target.value }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Precio por litro</label>
