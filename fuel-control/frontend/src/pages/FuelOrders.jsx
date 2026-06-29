@@ -136,6 +136,17 @@ export default function FuelOrders() {
     load({ vehicle_id: '', from: '', to: '', status: '' });
   }, []);
 
+  const fetchLastLiters = async (vehicle_id) => {
+    if (!vehicle_id) return;
+    try {
+      const r = await axios.get('/fuel-control/backend/api/fueling.php', { params: { vehicle_id } });
+      if (r.data.length > 0) {
+        const last = r.data[0]; // ya viene ordenado DESC
+        setForm(f => ({ ...f, liters_before: last.liters ?? '' }));
+      }
+    } catch {}
+  };
+
   const openNew = () => {
     setEditing(null);
     setForm(emptyForm);
@@ -235,7 +246,11 @@ export default function FuelOrders() {
                 <div className="form-group">
                   <label className="form-label">Vehículo *</label>
                   <select className="form-input" required value={form.vehicle_id}
-                    onChange={e => setForm(f => ({ ...f, vehicle_id: e.target.value }))}>
+                    onChange={e => {
+                      const vid = e.target.value;
+                      setForm(f => ({ ...f, vehicle_id: vid, liters_before: '' }));
+                      fetchLastLiters(vid);
+                    }}>
                     <option value="">Seleccionar...</option>
                     {vehicles.filter(v => v.active).map(v =>
                       <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>
