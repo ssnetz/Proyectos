@@ -3,7 +3,7 @@ $dsn = 'mysql:host=localhost;dbname=mundial2026;charset=utf8mb4';
 $opciones = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC];
 
 try {
-    $pdo = new PDO($dsn, 'mundial_user', 'Mateo1212**', $opciones);
+    $pdo = new PDO($dsn, 'mundial_user', 'Mundial2026**', $opciones);
 } catch (PDOException $e) {
     die('<p class="error">Error de conexión: ' . htmlspecialchars($e->getMessage()) . '</p>');
 }
@@ -200,6 +200,6 @@ $jugadores = $pdo->query("
     </div>
 </main>
 
-<footer>Mundial FIFA 2026 &mdash; Proyecto Aplicaciones Informáticas</footer>
+<footer>Mundial FIFA 2026 &mdash; Desarrollado por 6to Año D de Informática &mdash; Escuela Presidente Sarmiento</footer>
 </body>
 </html>

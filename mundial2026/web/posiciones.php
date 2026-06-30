@@ -3,7 +3,7 @@ $dsn = 'mysql:host=localhost;dbname=mundial2026;charset=utf8mb4';
 $opciones = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC];
 
 try {
-    $pdo = new PDO($dsn, 'mundial_user', 'Mateo1212**', $opciones);
+    $pdo = new PDO($dsn, 'mundial_user', 'Mundial2026**', $opciones);
 } catch (PDOException $e) {
     die('<p class="error">Error de conexión: ' . htmlspecialchars($e->getMessage()) . '</p>');
 }
@@ -206,6 +206,6 @@ $tabla = $posiciones->fetchAll();
     <p class="nota">Los datos se calculan en tiempo real a partir de los partidos finalizados. Las dos primeras selecciones avanzan a Octavos de Final.</p>
 </main>
 
-<footer>Mundial FIFA 2026 &mdash; Proyecto Aplicaciones Informáticas</footer>
+<footer>Mundial FIFA 2026 &mdash; Desarrollado por 6to Año D de Informática &mdash; Escuela Presidente Sarmiento</footer>
 </body>
 </html>
