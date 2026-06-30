@@ -79,6 +79,19 @@ $sql .= ' ORDER BY p.fecha_hora DESC';
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $partidos = $stmt->fetchAll();
+
+// Partidos pendientes para el formulario (Programado o En curso)
+$pendientes = $pdo->query("
+    SELECT p.id_partido, p.fecha_hora,
+           l.nombre AS local, v.nombre AS visitante,
+           f.nombre AS fase
+    FROM partidos p
+    JOIN selecciones l ON l.id_seleccion = p.id_seleccion_local
+    JOIN selecciones v ON v.id_seleccion = p.id_seleccion_visit
+    JOIN fases f ON f.id_fase = p.id_fase
+    WHERE p.estado IN ('Programado', 'En curso')
+    ORDER BY p.fecha_hora ASC
+")->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -203,12 +216,24 @@ $partidos = $stmt->fetchAll();
 
     <div class="form-card">
         <h3>Cargar resultado de partido</h3>
+        <?php if (empty($pendientes)): ?>
+            <p style="color:#666;font-size:0.9rem">No hay partidos pendientes de resultado.</p>
+        <?php else: ?>
         <form method="post">
             <input type="hidden" name="accion" value="cargar_resultado">
             <div class="form-grid">
-                <div class="form-group">
-                    <label for="id_partido">ID de partido</label>
-                    <input type="number" id="id_partido" name="id_partido" min="1" required placeholder="Ej: 1">
+                <div class="form-group" style="grid-column: 1 / -1">
+                    <label for="id_partido">Partido</label>
+                    <select id="id_partido" name="id_partido" required style="background:#0d0d3b;color:#eee;border:1px solid #444;padding:8px 10px;border-radius:4px;font-size:0.9rem;width:100%">
+                        <option value="">— Seleccioná el partido —</option>
+                        <?php foreach ($pendientes as $pen): ?>
+                            <option value="<?= $pen['id_partido'] ?>">
+                                <?= date('d/m H:i', strtotime($pen['fecha_hora'])) ?>
+                                — <?= htmlspecialchars($pen['local']) ?> vs <?= htmlspecialchars($pen['visitante']) ?>
+                                (<?= htmlspecialchars($pen['fase']) ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="goles_local">Goles local</label>
@@ -233,6 +258,7 @@ $partidos = $stmt->fetchAll();
                 <button type="submit" class="btn">Guardar resultado</button>
             </div>
         </form>
+        <?php endif; ?>
     </div>
 </main>
 
