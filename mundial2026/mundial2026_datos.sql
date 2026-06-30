@@ -19,12 +19,13 @@ INSERT INTO confederaciones (nombre, sigla) VALUES
 -- FASES
 -- ------------------------------------------------------------
 INSERT INTO fases (nombre, orden) VALUES
-('Fase de Grupos',  1),
-('Octavos de Final',2),
-('Cuartos de Final',3),
-('Semifinales',     4),
-('Tercer Puesto',   5),
-('Final',           6);
+('Fase de Grupos',    1),
+('16avos de Final',   2),
+('Octavos de Final',  3),
+('Cuartos de Final',  4),
+('Semifinales',       5),
+('Tercer Puesto',     6),
+('Final',             7);
 
 -- ------------------------------------------------------------
 -- GRUPOS (A a L — 12 grupos)

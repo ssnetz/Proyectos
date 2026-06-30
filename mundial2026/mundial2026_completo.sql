@@ -171,14 +171,15 @@ INSERT INTO confederaciones (nombre, sigla) VALUES
 ('Confederación Oceánica de Fútbol',             'OFC');
 
 -- FASES
--- id: 1=Grupos, 2=Octavos, 3=Cuartos, 4=Semi, 5=3er Puesto, 6=Final
+-- id: 1=Grupos, 2=16avos, 3=Octavos, 4=Cuartos, 5=Semi, 6=3er Puesto, 7=Final
 INSERT INTO fases (nombre, orden) VALUES
 ('Fase de Grupos',   1),
-('Octavos de Final', 2),
-('Cuartos de Final', 3),
-('Semifinales',      4),
-('Tercer Puesto',    5),
-('Final',            6);
+('16avos de Final',  2),
+('Octavos de Final', 3),
+('Cuartos de Final', 4),
+('Semifinales',      5),
+('Tercer Puesto',    6),
+('Final',            7);
 
 -- GRUPOS
 INSERT INTO grupos (id_grupo, nombre) VALUES
