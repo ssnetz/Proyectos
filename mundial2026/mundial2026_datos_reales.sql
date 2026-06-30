@@ -9,7 +9,6 @@ TRUNCATE TABLE partidos;
 TRUNCATE TABLE grupos_selecciones;
 TRUNCATE TABLE selecciones;
 TRUNCATE TABLE jugadores;
-SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================
 -- SEDES (ya existentes, solo actualizamos si es necesario)
@@ -369,3 +368,5 @@ INSERT INTO goles (id_partido, id_jugador, minuto, tipo) VALUES
 -- Davies 1 gol (Canadá)
 INSERT INTO goles (id_partido, id_jugador, minuto, tipo) VALUES
 (73, 12, 54, 'Normal');
+
+SET FOREIGN_KEY_CHECKS = 1;
