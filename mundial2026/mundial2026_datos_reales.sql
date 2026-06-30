@@ -5,10 +5,15 @@
 
 SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE goles;
+TRUNCATE TABLE tarjetas;
+TRUNCATE TABLE sustituciones;
 TRUNCATE TABLE partidos;
+TRUNCATE TABLE posiciones;
 TRUNCATE TABLE grupos_selecciones;
-TRUNCATE TABLE selecciones;
 TRUNCATE TABLE jugadores;
+TRUNCATE TABLE selecciones;
+TRUNCATE TABLE confederaciones;
+TRUNCATE TABLE arbitros;
 
 -- ============================================================
 -- SEDES (ya existentes, solo actualizamos si es necesario)
@@ -55,69 +60,81 @@ INSERT INTO fases (id_fase, nombre, orden) VALUES
 (7,'Final',7);
 
 -- ============================================================
+-- CONFEDERACIONES
+-- ============================================================
+DELETE FROM confederaciones;
+INSERT INTO confederaciones (id_confederacion, nombre, sigla) VALUES
+(1, 'Unión de Asociaciones Europeas de Fútbol',           'UEFA'),
+(2, 'Confederación Sudamericana de Fútbol',               'CONMEBOL'),
+(3, 'Confederación de Norte, Centroamérica y el Caribe',  'CONCACAF'),
+(4, 'Confederación Africana de Fútbol',                   'CAF'),
+(5, 'Confederación Asiática de Fútbol',                   'AFC'),
+(6, 'Confederación de Fútbol de Oceanía',                 'OFC');
+
+-- ============================================================
 -- SELECCIONES (48 equipos reales)
 -- ============================================================
-INSERT INTO selecciones (id_seleccion, nombre, confederacion, escudo_url) VALUES
+INSERT INTO selecciones (id_seleccion, nombre, codigo_fifa, id_confederacion) VALUES
 -- Grupo A
-(1,  'México',         'CONCACAF', NULL),
-(2,  'Sudáfrica',      'CAF',      NULL),
-(3,  'Rep. Corea',     'AFC',      NULL),
-(4,  'Rep. Checa',     'UEFA',     NULL),
+(1,  'México',         'MEX', 3),
+(2,  'Sudáfrica',      'RSA', 4),
+(3,  'Rep. Corea',     'KOR', 5),
+(4,  'Rep. Checa',     'CZE', 1),
 -- Grupo B
-(5,  'Suiza',          'UEFA',     NULL),
-(6,  'Canadá',         'CONCACAF', NULL),
-(7,  'Bosnia',         'UEFA',     NULL),
-(8,  'Qatar',          'AFC',      NULL),
+(5,  'Suiza',          'SUI', 1),
+(6,  'Canadá',         'CAN', 3),
+(7,  'Bosnia',         'BIH', 1),
+(8,  'Qatar',          'QAT', 5),
 -- Grupo C
-(9,  'Brasil',         'CONMEBOL', NULL),
-(10, 'Marruecos',      'CAF',      NULL),
-(11, 'Escocia',        'UEFA',     NULL),
-(12, 'Haití',          'CONCACAF', NULL),
+(9,  'Brasil',         'BRA', 2),
+(10, 'Marruecos',      'MAR', 4),
+(11, 'Escocia',        'SCO', 1),
+(12, 'Haití',          'HAI', 3),
 -- Grupo D
-(13, 'Estados Unidos', 'CONCACAF', NULL),
-(14, 'Australia',      'AFC',      NULL),
-(15, 'Paraguay',       'CONMEBOL', NULL),
-(16, 'Turquía',        'UEFA',     NULL),
+(13, 'Estados Unidos', 'USA', 3),
+(14, 'Australia',      'AUS', 5),
+(15, 'Paraguay',       'PAR', 2),
+(16, 'Turquía',        'TUR', 1),
 -- Grupo E
-(17, 'Alemania',       'UEFA',     NULL),
-(18, 'C. de Marfil',   'CAF',      NULL),
-(19, 'Ecuador',        'CONMEBOL', NULL),
-(20, 'Curazao',        'CONCACAF', NULL),
+(17, 'Alemania',       'GER', 1),
+(18, 'C. de Marfil',   'CIV', 4),
+(19, 'Ecuador',        'ECU', 2),
+(20, 'Curazao',        'CUW', 3),
 -- Grupo F
-(21, 'Países Bajos',   'UEFA',     NULL),
-(22, 'Japón',          'AFC',      NULL),
-(23, 'Suecia',         'UEFA',     NULL),
-(24, 'Túnez',          'CAF',      NULL),
+(21, 'Países Bajos',   'NED', 1),
+(22, 'Japón',          'JPN', 5),
+(23, 'Suecia',         'SWE', 1),
+(24, 'Túnez',          'TUN', 4),
 -- Grupo G
-(25, 'Bélgica',        'UEFA',     NULL),
-(26, 'Egipto',         'CAF',      NULL),
-(27, 'Irán',           'AFC',      NULL),
-(28, 'Nueva Zelanda',  'OFC',      NULL),
+(25, 'Bélgica',        'BEL', 1),
+(26, 'Egipto',         'EGY', 4),
+(27, 'Irán',           'IRN', 5),
+(28, 'Nueva Zelanda',  'NZL', 6),
 -- Grupo H
-(29, 'España',         'UEFA',     NULL),
-(30, 'Cabo Verde',     'CAF',      NULL),
-(31, 'Uruguay',        'CONMEBOL', NULL),
-(32, 'Arabia Saudita', 'AFC',      NULL),
+(29, 'España',         'ESP', 1),
+(30, 'Cabo Verde',     'CPV', 4),
+(31, 'Uruguay',        'URU', 2),
+(32, 'Arabia Saudita', 'KSA', 5),
 -- Grupo I
-(33, 'Francia',        'UEFA',     NULL),
-(34, 'Noruega',        'UEFA',     NULL),
-(35, 'Senegal',        'CAF',      NULL),
-(36, 'Irak',           'AFC',      NULL),
+(33, 'Francia',        'FRA', 1),
+(34, 'Noruega',        'NOR', 1),
+(35, 'Senegal',        'SEN', 4),
+(36, 'Irak',           'IRQ', 5),
 -- Grupo J
-(37, 'Argentina',      'CONMEBOL', NULL),
-(38, 'Austria',        'UEFA',     NULL),
-(39, 'Argelia',        'CAF',      NULL),
-(40, 'Jordania',       'AFC',      NULL),
+(37, 'Argentina',      'ARG', 2),
+(38, 'Austria',        'AUT', 1),
+(39, 'Argelia',        'ALG', 4),
+(40, 'Jordania',       'JOR', 5),
 -- Grupo K
-(41, 'Colombia',       'CONMEBOL', NULL),
-(42, 'Portugal',       'UEFA',     NULL),
-(43, 'RD Congo',       'CAF',      NULL),
-(44, 'Uzbekistán',     'AFC',      NULL),
+(41, 'Colombia',       'COL', 2),
+(42, 'Portugal',       'POR', 1),
+(43, 'RD Congo',       'COD', 4),
+(44, 'Uzbekistán',     'UZB', 5),
 -- Grupo L
-(45, 'Inglaterra',     'UEFA',     NULL),
-(46, 'Croacia',        'UEFA',     NULL),
-(47, 'Ghana',          'CAF',      NULL),
-(48, 'Panamá',         'CONCACAF', NULL);
+(45, 'Inglaterra',     'ENG', 1),
+(46, 'Croacia',        'CRO', 1),
+(47, 'Ghana',          'GHA', 4),
+(48, 'Panamá',         'PAN', 3);
 
 -- ============================================================
 -- GRUPOS_SELECCIONES
@@ -271,14 +288,14 @@ INSERT INTO jugadores (id_jugador, id_seleccion, nombre, apellido, posicion, dor
 (3,  33, 'Kylian',   'Mbappé',      'Delantero',   10),
 (4,  33, 'Ousmane',  'Dembélé',     'Delantero',   11),
 (5,  9,  'Vinícius', 'Jr.',         'Delantero',   7),
-(6,  13, 'Paxten',   'Aaronson',    'Mediocampo',  11),
+(6,  13, 'Paxten',   'Aaronson',    'Mediocampista', 11),
 (7,  45, 'Harry',    'Kane',        'Delantero',   9),
 (8,  35, 'Ismaila',  'Sarr',        'Delantero',   23),
 (9,  43, 'Manzambi', 'Ilungu',      'Delantero',   9),
 (10, 43, 'Yoane',    'Wissa',       'Delantero',   11),
 (11, 1,  'Raúl',     'Jiménez',     'Delantero',   9),
 (12, 6,  'Alphonso', 'Davies',      'Defensa',     3),
-(13, 9,  'Rodrygo',  '',            'Delantero',   11),
+(13, 9,  'Rodrygo',  'Goes',        'Delantero',   11),
 (14, 21, 'Cody',     'Gakpo',       'Delantero',   8),
 (15, 17, 'Kai',      'Havertz',     'Delantero',   7),
 (16, 41, 'Luis',     'Díaz',        'Delantero',   7);
