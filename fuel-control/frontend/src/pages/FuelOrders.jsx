@@ -218,11 +218,13 @@ export default function FuelOrders() {
         const r = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
           params: { vehicle_id: v.id, until_date: today }
         });
-        const km = parseFloat(r.data.total_km) || 0;
-        const consumido = km / parseFloat(v.km_per_liter);
-        const restante  = Math.max(0, parseFloat(v.tank_capacity) - consumido);
-        const pct       = Math.min(100, Math.round((restante / parseFloat(v.tank_capacity)) * 100));
-        return { ...v, km_desde_carga: km, litros_restantes: restante.toFixed(1), pct };
+        const km         = parseFloat(r.data.total_km)   || 0;
+        const lastLiters = parseFloat(r.data.last_liters) || parseFloat(v.tank_capacity);
+        const consumido  = km / parseFloat(v.km_per_liter);
+        const restante   = Math.max(0, lastLiters - consumido);
+        const pct        = Math.min(100, Math.round((restante / parseFloat(v.tank_capacity)) * 100));
+        const ultima_carga = r.data.ultima_carga ?? null;
+        return { ...v, km_desde_carga: km, litros_restantes: restante.toFixed(1), pct, ultima_carga, last_liters: lastLiters };
       } catch {
         return { ...v, km_desde_carga: 0, litros_restantes: '—', pct: null };
       }
@@ -333,7 +335,8 @@ export default function FuelOrders() {
                         <span>Tanque: {v.tank_capacity} L</span>
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 4 }}>
-                        {v.km_desde_carga > 0 ? `${v.km_desde_carga.toFixed(1)} km desde última carga` : 'Sin km GPS registrados'}
+                        {v.km_desde_carga > 0 ? `${v.km_desde_carga.toFixed(1)} km recorridos` : 'Sin km GPS registrados'}
+                        {v.ultima_carga && <span> · Última carga: {v.ultima_carga} ({v.last_liters.toFixed(0)} L)</span>}
                       </div>
                     </div>
                   );
