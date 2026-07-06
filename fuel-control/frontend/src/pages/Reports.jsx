@@ -84,12 +84,15 @@ const PRINT_CSS = `
   .badge-amber { background: #d97706; color: #fff; }
   .badge-red   { background: #dc2626; color: #fff; }
   .rpt-footer { margin-top: 24px; font-size: 9px; color: #8a93a6; border-top: 1px solid #dde2ea; padding-top: 8px; display: flex; justify-content: space-between; }
+  .rpt-logo { height: 48px; width: auto; margin-right: 14px; vertical-align: middle; }
+  .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-30deg); opacity: 0.04; pointer-events: none; z-index: 0; }
+  .watermark img { width: 380px; }
   @media print { @page { margin: 12mm; size: A4 landscape; } }
 `;
 
 function openPrintWindow(html) {
   const w = window.open('', '_blank', 'width=1100,height=800');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${PRINT_CSS}</style></head><body>${html}</body></html>`);
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${PRINT_CSS}</style></head><body><div class="watermark"><img src="/fuel-control/logo.png" alt=""/></div>${html}</body></html>`);
   w.document.close();
   setTimeout(() => w.print(), 600);
 }
@@ -100,9 +103,12 @@ function buildHeader(reportLabel, from, to, stats) {
   const now = new Date().toLocaleDateString('es-AR');
   return `
     <div class="rpt-header">
-      <div>
-        <h1>${reportLabel}</h1>
-        <div class="sub">Municipalidad de Cosquín · ${dateRange}</div>
+      <div style="display:flex;align-items:center;">
+        <img src="/fuel-control/logo.png" alt="Logo" class="rpt-logo" />
+        <div>
+          <h1>${reportLabel}</h1>
+          <div class="sub">Municipalidad de Cosquín · ${dateRange}</div>
+        </div>
       </div>
       <div class="meta">Generado: ${now}<br>Sistema de Control de Combustible</div>
     </div>

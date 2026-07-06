@@ -54,19 +54,22 @@ async function printOrder(order) {
   .sign { flex: 1; border-top: 1px solid #333; padding-top: 4px; font-size: 9px; text-align: center; color: #555; }
   .copy-tag { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #999; text-align: right; margin-bottom: 4px; }
   .qr-block { display: flex; align-items: flex-end; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; }
-  .qr-block img { width: 80px; height: 80px; }
+  .qr-block img.qr { width: 80px; height: 80px; }
   .qr-text { font-size: 8px; color: #666; line-height: 1.4; }
   .qr-text strong { display: block; font-size: 9px; color: #1a4fa0; margin-bottom: 2px; }
+  .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-30deg); opacity: 0.04; pointer-events: none; z-index: 0; }
+  .watermark img { width: 320px; }
   @media print { body { -webkit-print-color-adjust: exact; } }
 </style>
 </head>
 <body>
+<div class="watermark"><img src="/fuel-control/logo.png" alt="" /></div>
 <div class="page">
   ${['ORIGINAL', 'DUPLICADO'].map(tag => `
   <div class="copy">
     <div class="copy-tag">${tag}</div>
     <div class="header">
-      <div class="logo">⛽ Control de Combustible<small>SSNetz · Software Networks Solutions</small></div>
+      <div class="logo"><img src="/fuel-control/logo.png" alt="" style="height:36px;vertical-align:middle;margin-right:8px;" />⛽ Control de Combustible<small>Municipalidad de Cosquín · SSNetz</small></div>
       <div class="order-num">ORDEN #${String(order.id).padStart(5,'0')}<small>${fecha}</small></div>
     </div>
     <div class="grid">

@@ -126,6 +126,12 @@ function AppLayout() {
 
       <div className="main">
         <header className="topbar">
+          <img
+            src="/fuel-control/logo.png"
+            alt="Municipalidad de Cosquín"
+            style={{ height: 44, width: 'auto', marginRight: 12, flexShrink: 0 }}
+            onError={e => { e.target.style.display = 'none'; }}
+          />
           <h1 className="topbar-title">{title}</h1>
         </header>
         <main className="page-content">
