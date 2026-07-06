@@ -25,10 +25,11 @@ export default function Fueling() {
   const [form, setForm]         = useState(emptyForm);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
-  const [showGpsModal, setShowGpsModal] = useState(false);
-  const [gpsRecords, setGpsRecords]     = useState([]);
-  const [gpsSelected, setGpsSelected]  = useState({});
-  const [loadingKm, setLoadingKm]       = useState(false);
+  const [showGpsModal, setShowGpsModal]       = useState(false);
+  const [gpsRecords, setGpsRecords]           = useState([]);
+  const [gpsSelected, setGpsSelected]         = useState({});
+  const [loadingKm, setLoadingKm]             = useState(false);
+  const [gpsSuggestedDesde, setGpsSuggestedDesde] = useState(null);
 
   const load = (f = appliedFilters) => {
     const params = {};
@@ -92,16 +93,18 @@ export default function Fueling() {
       const r = await axios.get('/fuel-control/backend/api/gps_import.php', {
         params: { vehicle_id: form.vehicle_id }
       });
-      // Solo mostrar registros entre última carga y día anterior a esta carga
-      const filtered = r.data.filter(row =>
+      // Mostrar TODOS los registros hasta el día anterior a esta carga
+      const allUpToUntil = r.data.filter(row =>
         String(row.vehicle_id) === String(form.vehicle_id) &&
-        row.import_date <= until &&
-        (!desde || row.import_date > desde)
+        row.import_date <= until
       );
-      setGpsRecords(filtered);
-      // Pre-seleccionar todos
+      setGpsRecords(allUpToUntil);
+      setGpsSuggestedDesde(desde);
+      // Pre-seleccionar solo el rango sugerido (desde última carga detectada)
       const presel = {};
-      filtered.forEach(row => { presel[row.id] = true; });
+      allUpToUntil.forEach(row => {
+        if (!desde || row.import_date > desde) presel[row.id] = true;
+      });
       setGpsSelected(presel);
     } catch (e) {
       setGpsRecords([]);
@@ -353,7 +356,10 @@ export default function Fueling() {
             {!loadingKm && gpsRecords.length > 0 && (
               <>
                 <div style={{ padding: '4px 0 12px', fontSize: 13, color: 'var(--gray-500)' }}>
-                  Los días pre-seleccionados corresponden al período desde la última carga de combustible.
+                  {gpsSuggestedDesde
+                    ? <>Pre-seleccionados: días posteriores al <strong>{gpsSuggestedDesde}</strong> (última carga detectada). Podés marcar/desmarcar cualquier registro.</>
+                    : <>Pre-seleccionados: todos los registros hasta el día anterior a esta carga. Podés marcar/desmarcar cualquier registro.</>
+                  }
                 </div>
                 <div className="table-wrapper" style={{ maxHeight: 380, overflowY: 'auto' }}>
                   <table className="table">
