@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import QRCode from 'qrcode';
 import { useAuth } from '../context/AuthContext';
 
 const emptyForm = {
@@ -10,7 +11,14 @@ const emptyForm = {
 const STATUS_LABELS = { pendiente: 'Pendiente', completada: 'Completada', cancelada: 'Cancelada' };
 const STATUS_BADGES = { pendiente: 'badge-blue', completada: 'badge-green', cancelada: 'badge-red' };
 
-function printOrder(order) {
+async function printOrder(order) {
+  // Obtener firma y URL de verificación del backend
+  let qrDataUrl = '';
+  try {
+    const sigR = await axios.get('/fuel-control/backend/api/sign_order.php', { params: { id: order.id } });
+    qrDataUrl = await QRCode.toDataURL(sigR.data.verify_url, { width: 120, margin: 1, errorCorrectionLevel: 'M' });
+  } catch {}
+
   const win = window.open('', '_blank');
   const fecha = new Date(order.ordered_at).toLocaleString('es');
   const html = `<!DOCTYPE html>
@@ -45,6 +53,10 @@ function printOrder(order) {
   .footer { display: flex; justify-content: space-between; margin-top: 14px; gap: 20px; }
   .sign { flex: 1; border-top: 1px solid #333; padding-top: 4px; font-size: 9px; text-align: center; color: #555; }
   .copy-tag { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #999; text-align: right; margin-bottom: 4px; }
+  .qr-block { display: flex; align-items: flex-end; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; }
+  .qr-block img { width: 80px; height: 80px; }
+  .qr-text { font-size: 8px; color: #666; line-height: 1.4; }
+  .qr-text strong { display: block; font-size: 9px; color: #1a4fa0; margin-bottom: 2px; }
   @media print { body { -webkit-print-color-adjust: exact; } }
 </style>
 </head>
@@ -85,6 +97,17 @@ function printOrder(order) {
       <div class="sign">Firma Chofer</div>
       <div class="sign">Firma Entrega Combustible</div>
     </div>
+    ${qrDataUrl ? `
+    <div class="qr-block">
+      <img src="${qrDataUrl}" alt="QR verificación" />
+      <div class="qr-text">
+        <strong>🔒 Comprobante verificable</strong>
+        Escanear el código QR para verificar<br>
+        la autenticidad de esta orden.<br>
+        Firmado digitalmente · HMAC-SHA256<br>
+        Orden #${String(order.id).padStart(5,'0')}
+      </div>
+    </div>` : ''}
   </div>
   ${tag === 'ORIGINAL' ? '<div class="cut-line">✂ &nbsp; LÍNEA DE CORTE &nbsp; ✂</div>' : ''}
   `).join('')}
