@@ -78,23 +78,30 @@ export default function Fueling() {
     setGpsSelected({});
     setShowGpsModal(true);
     try {
+      // "until" = día anterior a esta carga (excluir el día de la carga)
+      const fuelingDay = form.fueled_at ? form.fueled_at.slice(0, 10) : new Date().toISOString().slice(0, 10);
+      const untilDate = new Date(fuelingDay + 'T12:00:00');
+      untilDate.setDate(untilDate.getDate() - 1);
+      const until = untilDate.toISOString().slice(0, 10);
+
+      const lastR = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
+        params: { vehicle_id: form.vehicle_id, until_date: fuelingDay }
+      });
+      const desde = lastR.data.ultima_carga ?? null;
+
       const r = await axios.get('/fuel-control/backend/api/gps_import.php', {
         params: { vehicle_id: form.vehicle_id }
       });
-      // filter only this vehicle
-      const filtered = r.data.filter(row => String(row.vehicle_id) === String(form.vehicle_id));
+      // Solo mostrar registros entre última carga y día anterior a esta carga
+      const filtered = r.data.filter(row =>
+        String(row.vehicle_id) === String(form.vehicle_id) &&
+        row.import_date <= until &&
+        (!desde || row.import_date > desde)
+      );
       setGpsRecords(filtered);
-      // pre-select suggested days (since last fuel)
-      const until = form.fueled_at ? form.fueled_at.slice(0, 10) : new Date().toISOString().slice(0, 10);
-      const lastR = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
-        params: { vehicle_id: form.vehicle_id, until_date: until }
-      });
-      const desde = lastR.data.ultima_carga;
+      // Pre-seleccionar todos
       const presel = {};
-      filtered.forEach(row => {
-        const inRange = row.import_date <= until && (!desde || row.import_date > desde);
-        presel[row.id] = inRange;
-      });
+      filtered.forEach(row => { presel[row.id] = true; });
       setGpsSelected(presel);
     } catch (e) {
       setGpsRecords([]);
