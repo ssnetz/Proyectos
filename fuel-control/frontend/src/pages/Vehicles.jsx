@@ -15,6 +15,10 @@ export default function Vehicles() {
   const [form, setForm]         = useState(emptyForm);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
+  const [showAutoKm, setShowAutoKm]   = useState(false);
+  const [autoKmData, setAutoKmData]   = useState([]);
+  const [autoKmLoading, setAutoKmLoading] = useState(false);
+  const [autoKmSaving, setAutoKmSaving]   = useState(false);
   const isAdmin = user?.role === 'admin';
 
   const load = () =>
@@ -54,12 +58,32 @@ export default function Vehicles() {
     load();
   };
 
+  const openAutoKm = async () => {
+    setShowAutoKm(true);
+    setAutoKmLoading(true);
+    setAutoKmData([]);
+    const r = await axios.get('/fuel-control/backend/api/auto_km_per_liter.php');
+    setAutoKmData(r.data);
+    setAutoKmLoading(false);
+  };
+
+  const applyAutoKm = async (overwrite) => {
+    setAutoKmSaving(true);
+    await axios.post('/fuel-control/backend/api/auto_km_per_liter.php', { overwrite });
+    setAutoKmSaving(false);
+    setShowAutoKm(false);
+    load();
+  };
+
   if (loading) return <div className="spinner" />;
 
   return (
     <div>
       {isAdmin && (
         <div className="page-actions">
+          <button className="btn btn-ghost btn-sm" onClick={openAutoKm} title="Calcular rendimiento automáticamente desde datos GPS + cargas">
+            ⚡ Auto rendimiento (km/L)
+          </button>
           <button className="btn btn-primary" onClick={openNew}>+ Nuevo vehículo</button>
         </div>
       )}
@@ -166,6 +190,68 @@ export default function Vehicles() {
           </table>
         </div>
       </div>
+
+      {/* Modal auto rendimiento */}
+      {showAutoKm && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 640 }}>
+            <div className="modal-header">
+              <h2 className="modal-title">⚡ Rendimiento automático (km/L)</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowAutoKm(false)}>✕</button>
+            </div>
+            <div style={{ padding: '0 0 12px', fontSize: 13, color: 'var(--gray-500)' }}>
+              Calculado a partir del total de km GPS y litros cargados históricos por vehículo.
+            </div>
+            {autoKmLoading && <div className="spinner" />}
+            {!autoKmLoading && autoKmData.length === 0 && (
+              <div style={{ color: 'var(--gray-500)', padding: 12 }}>
+                Sin datos suficientes (se necesitan registros GPS y cargas para el mismo vehículo).
+              </div>
+            )}
+            {!autoKmLoading && autoKmData.length > 0 && (
+              <>
+                <div className="table-wrapper" style={{ maxHeight: 360, overflowY: 'auto', marginBottom: 16 }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Vehículo</th>
+                        <th>Patente</th>
+                        <th style={{ textAlign: 'right' }}>Total km</th>
+                        <th style={{ textAlign: 'right' }}>Total litros</th>
+                        <th style={{ textAlign: 'right' }}>Calculado</th>
+                        <th style={{ textAlign: 'right' }}>Actual</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {autoKmData.map(v => (
+                        <tr key={v.id}>
+                          <td>{v.name}</td>
+                          <td>{v.plate}</td>
+                          <td style={{ textAlign: 'right' }}>{Number(v.total_km).toFixed(0)}</td>
+                          <td style={{ textAlign: 'right' }}>{Number(v.total_litros).toFixed(0)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--blue-600)' }}>{v.km_l_calculado}</td>
+                          <td style={{ textAlign: 'right', color: v.actual ? 'var(--gray-700)' : 'var(--gray-400)' }}>
+                            {v.actual ?? '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="modal-footer" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button className="btn btn-ghost" onClick={() => setShowAutoKm(false)}>Cancelar</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => applyAutoKm(false)} disabled={autoKmSaving}>
+                    {autoKmSaving ? 'Guardando...' : 'Aplicar solo sin valor'}
+                  </button>
+                  <button className="btn btn-primary" onClick={() => applyAutoKm(true)} disabled={autoKmSaving}>
+                    {autoKmSaving ? 'Guardando...' : 'Aplicar todos (sobreescribir)'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
