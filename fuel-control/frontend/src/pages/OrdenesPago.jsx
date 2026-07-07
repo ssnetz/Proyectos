@@ -26,6 +26,10 @@ export default function OrdenesPago() {
   const [cargasSel, setCargasSel]           = useState({});
   const [loadingCargas, setLoadingCargas]   = useState(false);
   const [filterText, setFilterText]         = useState('');
+  const today = new Date().toISOString().slice(0, 10);
+  const firstOfMonth = today.slice(0, 7) + '-01';
+  const [cargasFrom, setCargasFrom]         = useState(firstOfMonth);
+  const [cargasTo, setCargasTo]             = useState(today);
 
   // Detalle de OP
   const [showDetalle, setShowDetalle]       = useState(false);
@@ -82,18 +86,22 @@ export default function OrdenesPago() {
   };
 
   // Abrir modal de cargas disponibles
-  const openCargasModal = async (opId, supplierId) => {
+  const openCargasModal = async (opId, supplierId, from, to) => {
+    const f = from || cargasFrom;
+    const t = to   || cargasTo;
     setShowCargas({ opId, supplierId });
     setLoadingCargas(true);
     setCargasDisp([]);
     setCargasSel({});
     setFilterText('');
     const r = await axios.get('/fuel-control/backend/api/ordenes_pago.php', {
-      params: { unassigned: 1, supplier_id: supplierId }
+      params: { unassigned: 1, supplier_id: supplierId, from: f, to: t }
     });
     setCargasDisp(r.data);
     setLoadingCargas(false);
   };
+
+  const recargarCargas = () => openCargasModal(showCargas.opId, showCargas.supplierId, cargasFrom, cargasTo);
 
   const toggleCarga = (id) => setCargasSel(s => ({ ...s, [id]: !s[id] }));
   const toggleAll   = (ids, val) => {
@@ -255,16 +263,24 @@ export default function OrdenesPago() {
               <h2 className="modal-title">➕ Agregar cargas a la orden</h2>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowCargas(false)}>✕</button>
             </div>
-            <div style={{ padding: '0 0 12px', fontSize: 13, color: 'var(--gray-500)' }}>
-              Se muestran solo las cargas <strong>sin orden de pago asignada</strong>. Seleccioná las que pertenecen a esta OP.
+            <div style={{ padding: '0 0 10px', fontSize: 13, color: 'var(--gray-500)' }}>
+              Se muestran solo las cargas <strong>sin orden de pago asignada</strong>. Filtrá por período y seleccioná las que pertenecen a esta OP.
             </div>
-            <input
-              className="form-input form-input-sm"
-              placeholder="Filtrar por vehículo, patente o tipo..."
-              value={filterText}
-              onChange={e => setFilterText(e.target.value)}
-              style={{ marginBottom: 10 }}
-            />
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <input type="date" className="form-input form-input-sm" style={{ width: 140 }}
+                value={cargasFrom} onChange={e => setCargasFrom(e.target.value)} />
+              <span style={{ fontSize: 12 }}>al</span>
+              <input type="date" className="form-input form-input-sm" style={{ width: 140 }}
+                value={cargasTo} onChange={e => setCargasTo(e.target.value)} />
+              <button className="btn btn-primary btn-sm" onClick={recargarCargas}>Buscar</button>
+              <input
+                className="form-input form-input-sm"
+                placeholder="Filtrar por vehículo, patente o tipo..."
+                value={filterText}
+                onChange={e => setFilterText(e.target.value)}
+                style={{ flex: 1, minWidth: 160 }}
+              />
+            </div>
             {loadingCargas && <div className="spinner" />}
             {!loadingCargas && cargasDisp.length === 0 && (
               <div style={{ padding: 20, color: 'var(--gray-500)', textAlign: 'center' }}>
