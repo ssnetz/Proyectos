@@ -12,6 +12,7 @@ $db     = getDB();
 if ($method === 'GET') {
     $id         = getId();
     $vehicle_id = isset($_GET['vehicle_id']) ? (int)$_GET['vehicle_id'] : null;
+    $area_id    = isset($_GET['area_id'])    ? (int)$_GET['area_id']    : null;
     $from       = $_GET['from'] ?? null;
     $to         = $_GET['to'] ?? null;
     $plate      = strtoupper(trim($_GET['plate'] ?? ''));
@@ -34,6 +35,7 @@ if ($method === 'GET') {
     $params = [];
 
     if ($vehicle_id) { $where[] = 'f.vehicle_id = ?';      $params[] = $vehicle_id; }
+    if ($area_id)    { $where[] = 'v.area_id = ?';          $params[] = $area_id; }
     if ($from)       { $where[] = 'f.fueled_at >= ?';      $params[] = $from . ' 00:00:00'; }
     if ($to)         { $where[] = 'f.fueled_at <= ?';      $params[] = $to   . ' 23:59:59'; }
     if ($plate)      { $where[] = 'v.plate LIKE ?';        $params[] = '%' . $plate . '%'; }
