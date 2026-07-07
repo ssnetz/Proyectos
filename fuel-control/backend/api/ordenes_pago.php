@@ -14,21 +14,18 @@ $action = $_GET['action'] ?? '';
 /* ── Cargas sin OP (modal selector) ─────────────────────────── */
 if ($method === 'GET' && isset($_GET['unassigned'])) {
     $supplier_id = isset($_GET['supplier_id']) ? (int)$_GET['supplier_id'] : 0;
-    $from        = $_GET['from'] ?? date('Y-m-01'); // primer día del mes actual por defecto
-    $to          = $_GET['to']   ?? date('Y-m-d');
+    $from = $_GET['from'] ?? '';
+    $to   = $_GET['to']   ?? '';
     $sql = "
         SELECT f.id, f.fueled_at, f.liters, f.total_cost, f.fuel_type, f.station, f.notes,
                v.name AS vehicle_name, v.plate
         FROM fueling f
         JOIN vehicles v ON v.id = f.vehicle_id
         WHERE f.op_id IS NULL
-          AND DATE(f.fueled_at) BETWEEN ? AND ?
     ";
-    $params = [$from, $to];
-    if ($supplier_id) {
-        $sql .= " AND EXISTS (SELECT 1 FROM suppliers s WHERE s.id = ? AND LOWER(f.station) LIKE LOWER(CONCAT('%', s.name, '%')))";
-        $params[] = $supplier_id;
-    }
+    $params = [];
+    if ($from) { $sql .= " AND DATE(f.fueled_at) >= ?"; $params[] = $from; }
+    if ($to)   { $sql .= " AND DATE(f.fueled_at) <= ?"; $params[] = $to;   }
     $sql .= " ORDER BY f.fueled_at DESC LIMIT 500";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);

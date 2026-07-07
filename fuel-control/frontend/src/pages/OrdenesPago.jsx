@@ -26,10 +26,8 @@ export default function OrdenesPago() {
   const [cargasSel, setCargasSel]           = useState({});
   const [loadingCargas, setLoadingCargas]   = useState(false);
   const [filterText, setFilterText]         = useState('');
-  const today = new Date().toISOString().slice(0, 10);
-  const firstOfMonth = today.slice(0, 7) + '-01';
-  const [cargasFrom, setCargasFrom]         = useState(firstOfMonth);
-  const [cargasTo, setCargasTo]             = useState(today);
+  const [cargasFrom, setCargasFrom] = useState('');
+  const [cargasTo, setCargasTo]     = useState('');
 
   // Detalle de OP
   const [showDetalle, setShowDetalle]       = useState(false);
