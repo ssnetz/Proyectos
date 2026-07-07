@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 const VEHICLE_TYPES = ['Auto', 'Camioneta', 'Utilitario', 'Moto', 'Camión', 'Motoniveladora', 'Pala de Carga', 'Bobcat', 'Tractor', 'Otros'];
 
-const emptyForm = { name: '', plate: '', type: 'Auto', tank_capacity: '', km_per_liter: '', active: true };
+const emptyForm = { name: '', plate: '', type: 'Auto', tank_capacity: '', km_per_liter: '', area_id: '', active: true };
 
 export default function Vehicles() {
   const { user }              = useAuth();
@@ -19,17 +19,21 @@ export default function Vehicles() {
   const [autoKmData, setAutoKmData]   = useState([]);
   const [autoKmLoading, setAutoKmLoading] = useState(false);
   const [autoKmSaving, setAutoKmSaving]   = useState(false);
+  const [areas, setAreas]             = useState([]);
   const isAdmin = user?.role === 'admin';
 
   const load = () =>
     axios.get('/fuel-control/backend/api/vehicles.php').then(r => { setVehicles(r.data); setLoading(false); });
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    axios.get('/fuel-control/backend/api/areas.php').then(r => setAreas(r.data));
+  }, []);
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setError(''); setShowForm(true); };
   const openEdit = (v) => {
     setEditing(v.id);
-    setForm({ name: v.name, plate: v.plate, type: v.type, tank_capacity: v.tank_capacity ?? '', km_per_liter: v.km_per_liter ?? '', active: Boolean(v.active) });
+    setForm({ name: v.name, plate: v.plate, type: v.type, tank_capacity: v.tank_capacity ?? '', km_per_liter: v.km_per_liter ?? '', area_id: v.area_id ?? '', active: Boolean(v.active) });
     setError('');
     setShowForm(true);
   };
@@ -127,6 +131,14 @@ export default function Vehicles() {
                     onChange={e => setForm(f => ({ ...f, km_per_liter: e.target.value }))}
                     placeholder="Ej: 3.5" />
                 </div>
+                <div className="form-group">
+                  <label className="form-label">Área municipal</label>
+                  <select className="form-input" value={form.area_id}
+                    onChange={e => setForm(f => ({ ...f, area_id: e.target.value }))}>
+                    <option value="">— Sin área asignada —</option>
+                    {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
                 {editing && (
                   <div className="form-group">
                     <label className="form-label">Estado</label>
@@ -157,6 +169,7 @@ export default function Vehicles() {
                 <th>Nombre</th>
                 <th>Patente / ID</th>
                 <th>Tipo</th>
+                <th>Área</th>
                 <th>Tanque</th>
                 <th>Rendimiento</th>
                 <th>Estado</th>
@@ -172,6 +185,9 @@ export default function Vehicles() {
                   <td><strong>{v.name}</strong></td>
                   <td>{v.plate}</td>
                   <td><span className="badge badge-gray">{v.type}</span></td>
+                  <td style={{ fontSize: '.85em', color: 'var(--gray-500)' }}>
+                    {v.area_name ?? '—'}
+                  </td>
                   <td>{v.tank_capacity ? `${v.tank_capacity} L` : '—'}</td>
                   <td>{v.km_per_liter ? `${v.km_per_liter} km/L` : '—'}</td>
                   <td>

@@ -18,6 +18,7 @@ import GpsImport     from './pages/GpsImport';
 import Suppliers    from './pages/Suppliers';
 import OrdenesPago  from './pages/OrdenesPago';
 import Reports      from './pages/Reports';
+import Areas        from './pages/Areas';
 import Login     from './pages/Login';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -72,6 +73,7 @@ const pageTitles = {
   '/suppliers':        'Proveedores',
   '/ordenes-pago':     'Órdenes de Pago',
   '/reports':          'Reportes',
+  '/areas':            'Áreas Municipales',
 };
 
 function AppLayout() {
@@ -86,6 +88,7 @@ function AppLayout() {
     { to: '/vehicles',    icon: '🚛', label: 'Vehículos' },
     { to: '/fuel-prices', icon: '💲', label: 'Precios' },
     { to: '/suppliers',        icon: '🏪', label: 'Proveedores' },
+    { to: '/areas',            icon: '🏛️', label: 'Áreas' },
     { to: '/fuel-orders',      icon: '📋', label: 'Órdenes de Carga' },
     { to: '/ordenes-pago',     icon: '💳', label: 'Órdenes de Pago' },
     { to: '/cost-dashboard',   icon: '📈', label: 'Tablero Costos' },
@@ -157,6 +160,7 @@ function AppLayout() {
             <Route path="/suppliers"       element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/ordenes-pago"    element={<ProtectedRoute><OrdenesPago /></ProtectedRoute>} />
             <Route path="/reports"         element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/areas"           element={<ProtectedRoute><Areas /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>

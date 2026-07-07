@@ -137,7 +137,16 @@ export default function FuelOrders() {
   const [form, setForm]         = useState(emptyForm);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
-  const [tab, setTab]           = useState('ordenes'); // 'ordenes' | 'tanques'
+  const [tab, setTab]           = useState('ordenes'); // 'ordenes' | 'tanques' | 'presupuesto'
+  // Presupuesto por área
+  const [budgetYear, setBudgetYear]     = useState(new Date().getFullYear());
+  const [budgetMonth, setBudgetMonth]   = useState(new Date().getMonth() + 1); // 0 = anual
+  const [budgetData, setBudgetData]     = useState([]);
+  const [budgetLoading, setBudgetLoading] = useState(false);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [budgetArea, setBudgetArea]     = useState(null); // area being edited
+  const [budgetForm, setBudgetForm]     = useState({ budget_type: 'litros', budget_amount: '' });
+  const [budgetSaving, setBudgetSaving] = useState(false);
   const [tankStatus, setTankStatus]   = useState([]);
   const [tankLoading, setTankLoading] = useState(false);
   const [tankSelected, setTankSelected] = useState({});
@@ -298,6 +307,49 @@ export default function FuelOrders() {
 
   if (loading) return <div className="spinner" />;
 
+  const loadBudget = async (year = budgetYear, month = budgetMonth) => {
+    setBudgetLoading(true);
+    const params = { year };
+    if (month > 0) params.month = month;
+    const r = await axios.get('/fuel-control/backend/api/area_budgets.php', { params });
+    setBudgetData(r.data);
+    setBudgetLoading(false);
+  };
+
+  const openBudgetEdit = (area) => {
+    setBudgetArea(area);
+    setBudgetForm({
+      budget_type:   area.budget_type   ?? 'litros',
+      budget_amount: area.budget_amount ?? '',
+    });
+    setShowBudgetModal(true);
+  };
+
+  const saveBudget = async (e) => {
+    e.preventDefault();
+    setBudgetSaving(true);
+    try {
+      await axios.post('/fuel-control/backend/api/area_budgets.php', {
+        area_id:      budgetArea.id,
+        period_year:  budgetYear,
+        period_month: budgetMonth > 0 ? budgetMonth : null,
+        budget_type:  budgetForm.budget_type,
+        budget_amount: parseFloat(budgetForm.budget_amount),
+      });
+      setShowBudgetModal(false);
+      loadBudget();
+    } finally {
+      setBudgetSaving(false);
+    }
+  };
+
+  const deleteBudget = async (area) => {
+    if (!area.budget_id) return;
+    if (!confirm(`¿Eliminar el presupuesto de "${area.name}"?`)) return;
+    await axios.delete(`/fuel-control/backend/api/area_budgets.php?id=${area.budget_id}`);
+    loadBudget();
+  };
+
   const pctColor = (pct) => {
     if (pct === null) return '#94a3b8';
     if (pct < 25) return '#ef4444';
@@ -320,6 +372,12 @@ export default function FuelOrders() {
           style={{ borderRadius: '6px 6px 0 0' }}
           onClick={() => { setTab('tanques'); loadTankStatus(); }}>
           Estado de tanques
+        </button>
+        <button
+          className={`btn btn-sm ${tab === 'presupuesto' ? 'btn-primary' : 'btn-ghost'}`}
+          style={{ borderRadius: '6px 6px 0 0' }}
+          onClick={() => { setTab('presupuesto'); loadBudget(); }}>
+          🏛️ Presupuesto por Área
         </button>
       </div>
 
@@ -399,6 +457,171 @@ export default function FuelOrders() {
                 </button>
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {/* ── Pestaña Presupuesto por Área ─────────────────────── */}
+      {tab === 'presupuesto' && (
+        <div>
+          {/* Selector período */}
+          <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '12px 16px' }}>
+            <label className="form-label" style={{ margin: 0 }}>Período:</label>
+            <select className="form-input form-input-sm" style={{ width: 80 }} value={budgetMonth}
+              onChange={e => { const m = +e.target.value; setBudgetMonth(m); loadBudget(budgetYear, m); }}>
+              <option value={0}>Anual</option>
+              {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+                .map((name, i) => <option key={i+1} value={i+1}>{name}</option>)}
+            </select>
+            <input type="number" className="form-input form-input-sm" style={{ width: 90 }} value={budgetYear}
+              onChange={e => { const y = +e.target.value; setBudgetYear(y); loadBudget(y, budgetMonth); }} />
+            <button className="btn btn-ghost btn-sm" onClick={() => loadBudget()}>↺ Actualizar</button>
+            <span style={{ marginLeft: 'auto', fontSize: '.8rem', color: 'var(--gray-500)' }}>
+              Verde &lt; 70% · Amarillo 70–90% · Rojo &ge; 90%
+            </span>
+          </div>
+
+          {budgetLoading && <div className="spinner" />}
+
+          {!budgetLoading && budgetData.length === 0 && (
+            <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--gray-500)' }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>🏛️</div>
+              No hay áreas municipales registradas. Creá áreas en el menú <strong>Áreas</strong>.
+            </div>
+          )}
+
+          {!budgetLoading && budgetData.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              {budgetData.map(area => {
+                const hasBudget  = area.budget_amount != null && area.budget_amount > 0;
+                const consumed   = area.budget_type === 'litros'
+                  ? parseFloat(area.consumed_litros) || 0
+                  : parseFloat(area.consumed_pesos)  || 0;
+                const budget     = parseFloat(area.budget_amount) || 0;
+                const pct        = hasBudget ? Math.min(100, Math.round((consumed / budget) * 100)) : null;
+
+                // Colors: green <70, amber 70-90, red >=90
+                const barColor = pct === null ? '#94a3b8'
+                  : pct >= 90 ? '#ef4444'
+                  : pct >= 70 ? '#f59e0b'
+                  : '#22c55e';
+                const bgColor = pct === null ? 'var(--card-bg)'
+                  : pct >= 90 ? '#fef2f2'
+                  : pct >= 70 ? '#fffbeb'
+                  : '#f0fdf4';
+
+                const fmt = (n, dec = 0) => n == null ? '—' : Number(n).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+                const unit = area.budget_type === 'litros' ? 'L' : '$';
+
+                return (
+                  <div key={area.id} className="card" style={{ padding: 20, background: bgColor, border: `1.5px solid ${barColor}22` }}>
+                    {/* Header área */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 15 }}>🏛️ {area.name}</div>
+                        {area.description && (
+                          <div style={{ fontSize: 11, color: 'var(--gray-500)', marginTop: 2 }}>{area.description}</div>
+                        )}
+                        <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>
+                          {area.num_vehiculos} vehículo{area.num_vehiculos !== 1 ? 's' : ''}
+                          {area.num_activos > 0 && ` · ${area.num_activos} activo${area.num_activos !== 1 ? 's' : ''}`}
+                        </div>
+                      </div>
+                      {pct !== null && (
+                        <div style={{ fontWeight: 800, fontSize: 22, color: barColor, minWidth: 52, textAlign: 'right' }}>
+                          {pct}%
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Barra de progreso */}
+                    {hasBudget ? (
+                      <>
+                        <div style={{ background: '#e2e8f0', borderRadius: 99, height: 12, overflow: 'hidden', marginBottom: 8 }}>
+                          <div style={{ width: `${pct}%`, background: barColor, height: '100%', borderRadius: 99, transition: 'width .4s' }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 10 }}>
+                          <span style={{ color: 'var(--gray-600)' }}>
+                            Consumido: <strong>{area.budget_type === 'litros' ? fmt(area.consumed_litros, 1)+' L' : '$'+fmt(area.consumed_pesos)}</strong>
+                          </span>
+                          <span style={{ color: 'var(--gray-500)' }}>
+                            Presupuesto: <strong>{area.budget_type === 'litros' ? fmt(budget, 0)+' L' : '$'+fmt(budget)}</strong>
+                          </span>
+                        </div>
+                        {/* Detalle ambos valores */}
+                        <div style={{ fontSize: 11, color: 'var(--gray-400)', marginBottom: 10 }}>
+                          Litros: {fmt(area.consumed_litros, 1)} L &nbsp;·&nbsp; Pesos: ${fmt(area.consumed_pesos)}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 12, color: 'var(--gray-400)', marginBottom: 10, fontStyle: 'italic' }}>
+                        Sin presupuesto asignado para este período.
+                        &nbsp;Litros: {fmt(area.consumed_litros, 1)} L &nbsp;·&nbsp; Pesos: ${fmt(area.consumed_pesos)}
+                      </div>
+                    )}
+
+                    {/* Acciones (admin) */}
+                    {isAdmin && (
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                        <button className="btn btn-sm btn-ghost" onClick={() => openBudgetEdit(area)}>
+                          {hasBudget ? '✏️ Editar presupuesto' : '+ Asignar presupuesto'}
+                        </button>
+                        {hasBudget && (
+                          <button className="btn btn-sm btn-ghost" style={{ color: 'var(--danger)' }}
+                            onClick={() => deleteBudget(area)}>🗑️</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Modal asignar/editar presupuesto */}
+          {showBudgetModal && budgetArea && (
+            <div className="modal-overlay" onClick={() => setShowBudgetModal(false)}>
+              <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>Presupuesto — {budgetArea.name}</h3>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setShowBudgetModal(false)}>✕</button>
+                </div>
+                <form onSubmit={saveBudget}>
+                  <div className="modal-body">
+                    <div style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 14 }}>
+                      Período: <strong>
+                        {budgetMonth > 0
+                          ? ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][budgetMonth-1]
+                          : 'Anual'} {budgetYear}
+                      </strong>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Tipo de presupuesto</label>
+                      <select className="form-input" value={budgetForm.budget_type}
+                        onChange={e => setBudgetForm(f => ({ ...f, budget_type: e.target.value }))}>
+                        <option value="litros">Litros</option>
+                        <option value="pesos">Pesos ($)</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">
+                        Monto {budgetForm.budget_type === 'litros' ? '(litros)' : '(pesos $)'} *
+                      </label>
+                      <input className="form-input" type="number" min="1" step="0.01" required
+                        value={budgetForm.budget_amount}
+                        onChange={e => setBudgetForm(f => ({ ...f, budget_amount: e.target.value }))}
+                        placeholder={budgetForm.budget_type === 'litros' ? 'Ej: 5000' : 'Ej: 1500000'} />
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-ghost" onClick={() => setShowBudgetModal(false)}>Cancelar</button>
+                    <button type="submit" className="btn btn-primary" disabled={budgetSaving}>
+                      {budgetSaving ? 'Guardando...' : 'Guardar presupuesto'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
           )}
         </div>
       )}
