@@ -103,23 +103,14 @@ function fmtDate(d) {
   return `${day}/${m}/${y}`;
 }
 
-function buildHeader(reportLabel, from, to, stats) {
-  const f = fmtDate(from);
-  const t = fmtDate(to);
-  let dateRange, dateLabel;
-  if (f && t) {
-    dateRange = `Período: ${f} al ${t}`;
-    dateLabel = `Del ${f} al ${t}`;
-  } else if (f) {
-    dateRange = `Desde el ${f}`;
-    dateLabel = `Desde el ${f}`;
-  } else if (t) {
-    dateRange = `Hasta el ${t}`;
-    dateLabel = `Hasta el ${t}`;
-  } else {
-    dateRange = 'Período: Todos los registros';
-    dateLabel = 'Todos los períodos';
-  }
+function buildHeader(reportLabel, from, to, stats, minDate, maxDate) {
+  const f = fmtDate(from) || fmtDate(minDate);
+  const t = fmtDate(to)   || fmtDate(maxDate);
+  let dateRange;
+  if (f && t)   dateRange = `Período: ${f} al ${t}`;
+  else if (f)   dateRange = `Desde el ${f}`;
+  else if (t)   dateRange = `Hasta el ${t}`;
+  else          dateRange = 'Período: sin datos';
   const statsHtml = stats.map(s => `<div class="rpt-stat"><div class="lbl">${s.label}</div><div class="val">${s.value}</div></div>`).join('');
   const now = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   return `
@@ -142,7 +133,13 @@ function buildFooter() {
 }
 
 /* ── Print builders por tipo ───────────────────────── */
-function printFuelByVehicle(data, from, to) {
+// Calcula min y max fecha de un array usando un campo date string
+function minMax(data, field) {
+  const dates = data.map(r => r[field]).filter(Boolean).sort();
+  return { minDate: dates[0]?.slice(0,10) || null, maxDate: dates[dates.length-1]?.slice(0,10) || null };
+}
+
+function printFuelByVehicle(data, from, to, minDate, maxDate) {
   const totLit  = data.reduce((a, r) => a + +r.total_litros, 0);
   const totCost = data.reduce((a, r) => a + +(r.total_costo || 0), 0);
   const totCar  = data.reduce((a, r) => a + +r.num_cargas, 0);
@@ -163,7 +160,7 @@ function printFuelByVehicle(data, from, to) {
     { label: 'Total cargas', value: fmt(totCar) },
     { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
     { label: 'Costo total', value: fmtPeso(totCost) },
-  ]) + `
+  ], minDate, maxDate) + `
     <table>
       <thead><tr><th>#</th><th>Vehículo</th><th>Patente</th><th>Tipo</th><th class="num">Cargas</th><th class="num">Total Litros</th><th class="num">Prom/Carga</th><th class="num">Costo Total</th><th class="num">Precio/L</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -172,7 +169,7 @@ function printFuelByVehicle(data, from, to) {
   openPrintWindow(html);
 }
 
-function printKmRanking(data, from, to) {
+function printKmRanking(data, from, to, minDate, maxDate) {
   const totKm = data.reduce((a, r) => a + +r.total_km, 0);
   const rows = data.map((r, i) => `
     <tr>
@@ -191,7 +188,7 @@ function printKmRanking(data, from, to) {
     { label: 'Vehículos', value: data.length },
     { label: 'Total km recorridos', value: fmt(totKm, 0) + ' km' },
     { label: 'Prom. por vehículo', value: fmt(totKm / (data.length || 1), 0) + ' km' },
-  ]) + `
+  ], minDate, maxDate) + `
     <table>
       <thead><tr><th>Pos.</th><th>Vehículo</th><th>Patente</th><th>Tipo</th><th class="num">Total Km</th><th class="num">Prom/Día</th><th class="num">Máx/Día</th><th class="num">Vel. Prom</th><th class="num">Vel. Máx</th><th class="num">Días GPS</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -200,7 +197,7 @@ function printKmRanking(data, from, to) {
   openPrintWindow(html);
 }
 
-function printEfficiency(data, from, to) {
+function printEfficiency(data, from, to, minDate, maxDate) {
   const rows = data.map(r => {
     const diff = r.km_l_real && r.km_l_teorico ? (r.km_l_real - r.km_l_teorico).toFixed(2) : null;
     const badge = !diff ? '' : +diff >= 0
@@ -218,7 +215,7 @@ function printEfficiency(data, from, to) {
   }).join('');
   const html = buildHeader('Eficiencia de Flota — Km/Litro Real vs Teórico', from, to, [
     { label: 'Vehículos analizados', value: data.length },
-  ]) + `
+  ], minDate, maxDate) + `
     <table>
       <thead><tr><th>Vehículo</th><th>Patente</th><th class="num">Km/L Teórico</th><th class="num">Km/L Real</th><th class="num">Total Km</th><th class="num">Total Litros</th><th class="num">Costo/Km</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -226,7 +223,7 @@ function printEfficiency(data, from, to) {
   openPrintWindow(html);
 }
 
-function printMonthlySummary(data, from, to) {
+function printMonthlySummary(data, from, to, minDate, maxDate) {
   const totLit  = data.reduce((a, r) => a + +r.total_litros, 0);
   const totCost = data.reduce((a, r) => a + +(r.total_costo || 0), 0);
   const rows = data.map(r => {
@@ -245,7 +242,7 @@ function printMonthlySummary(data, from, to) {
     { label: 'Meses', value: data.length },
     { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
     { label: 'Costo total', value: fmtPeso(totCost) },
-  ]) + `
+  ], minDate, maxDate) + `
     <table>
       <thead><tr><th>Mes</th><th class="num">Cargas</th><th class="num">Vehículos</th><th class="num">Total Litros</th><th class="num">Costo Total</th><th class="num">Precio Prom/L</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -254,7 +251,7 @@ function printMonthlySummary(data, from, to) {
   openPrintWindow(html);
 }
 
-function printByFuelType(data, from, to) {
+function printByFuelType(data, from, to, minDate, maxDate) {
   const totLit = data.reduce((a, r) => a + +r.total_litros, 0);
   const rows = data.map(r => `
     <tr>
@@ -270,7 +267,7 @@ function printByFuelType(data, from, to) {
     { label: 'Tipos', value: data.length },
     { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
     { label: 'Costo total', value: fmtPeso(data.reduce((a,r)=>a+ +(r.total_costo||0),0)) },
-  ]) + `
+  ], minDate, maxDate) + `
     <table>
       <thead><tr><th>Tipo</th><th class="num">Cargas</th><th class="num">Vehículos</th><th class="num">Total Litros</th><th class="num">% del Total</th><th class="num">Costo Total</th><th class="num">Precio Prom/L</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -278,7 +275,7 @@ function printByFuelType(data, from, to) {
   openPrintWindow(html);
 }
 
-function printBySupplier(data, from, to) {
+function printBySupplier(data, from, to, minDate, maxDate) {
   const totLit = data.reduce((a, r) => a + +r.total_litros, 0);
   const rows = data.map(r => `
     <tr>
@@ -293,7 +290,7 @@ function printBySupplier(data, from, to) {
     { label: 'Proveedores', value: data.length },
     { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
     { label: 'Costo total', value: fmtPeso(data.reduce((a,r)=>a+ +(r.total_costo||0),0)) },
-  ]) + `
+  ], minDate, maxDate) + `
     <table>
       <thead><tr><th>Proveedor</th><th class="num">Cargas</th><th class="num">Vehículos</th><th class="num">Total Litros</th><th class="num">% del Total</th><th class="num">Costo Total</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -404,6 +401,7 @@ export default function Reports() {
       if (from) params.from = from;
       if (to)   params.to   = to;
       const r = await axios.get('/fuel-control/backend/api/reports.php', { params });
+      // El backend ahora devuelve { data, min_date, max_date }
       setData(r.data);
     } catch (e) {
       setError(e.response?.data?.error ?? 'Error al obtener datos');
@@ -414,17 +412,22 @@ export default function Reports() {
 
   const handlePrint = () => {
     if (!data || !selected) return;
-    PRINT_FNS[selected](data, from, to);
+    // Pasar fechas reales del backend cuando el usuario no filtró
+    const rows    = data.data ?? data;
+    const minDate = data.min_date ?? null;
+    const maxDate = data.max_date ?? null;
+    PRINT_FNS[selected](rows, from, to, minDate, maxDate);
   };
 
   const rpt = REPORT_TYPES.find(r => r.id === selected);
 
   function renderPreview() {
     if (!data) return null;
-    if (selected === 'fuel_by_vehicle') return <PreviewFuelByVehicle data={data} />;
-    if (selected === 'km_ranking')      return <PreviewKmRanking data={data} />;
+    const rows = data.data ?? data;
+    if (selected === 'fuel_by_vehicle') return <PreviewFuelByVehicle data={rows} />;
+    if (selected === 'km_ranking')      return <PreviewKmRanking data={rows} />;
     if (selected === 'efficiency') return (
-      <PreviewGeneric data={data} columns={[
+      <PreviewGeneric data={rows} columns={[
         { key:'name', label:'Vehículo', render:r=><strong>{r.name}</strong> },
         { key:'plate', label:'Patente' },
         { key:'km_l_teorico', label:'Km/L Teórico', right:true, render:r=>r.km_l_teorico ? fmt(r.km_l_teorico,2) : '—' },
@@ -435,7 +438,7 @@ export default function Reports() {
       ]} />
     );
     if (selected === 'monthly_summary') return (
-      <PreviewGeneric data={data} columns={[
+      <PreviewGeneric data={rows} columns={[
         { key:'mes_label', label:'Mes', render:r=>{ const [m,y]=r.mes_label.split(' '); return <strong>{(MONTHS_ES[m]||m)+' '+y}</strong>; } },
         { key:'num_cargas', label:'Cargas', right:true, render:r=>fmt(r.num_cargas) },
         { key:'vehiculos', label:'Vehículos', right:true, render:r=>fmt(r.vehiculos) },
@@ -445,9 +448,9 @@ export default function Reports() {
       ]} />
     );
     if (selected === 'by_fuel_type') {
-      const totLit = data.reduce((a,r)=>a+ +r.total_litros,0);
+      const totLit = rows.reduce((a,r)=>a+ +r.total_litros,0);
       return (
-        <PreviewGeneric data={data} columns={[
+        <PreviewGeneric data={rows} columns={[
           { key:'fuel_type', label:'Tipo', render:r=><strong>{r.fuel_type}</strong> },
           { key:'num_cargas', label:'Cargas', right:true, render:r=>fmt(r.num_cargas) },
           { key:'vehiculos', label:'Vehículos', right:true, render:r=>fmt(r.vehiculos) },
@@ -458,9 +461,9 @@ export default function Reports() {
       );
     }
     if (selected === 'by_supplier') {
-      const totLit = data.reduce((a,r)=>a+ +r.total_litros,0);
+      const totLit = rows.reduce((a,r)=>a+ +r.total_litros,0);
       return (
-        <PreviewGeneric data={data} columns={[
+        <PreviewGeneric data={rows} columns={[
           { key:'proveedor', label:'Proveedor', render:r=><strong>{r.proveedor}</strong> },
           { key:'num_cargas', label:'Cargas', right:true, render:r=>fmt(r.num_cargas) },
           { key:'vehiculos', label:'Vehículos', right:true, render:r=>fmt(r.vehiculos) },
@@ -525,21 +528,31 @@ export default function Reports() {
       {/* Preview */}
       {data && (
         <div className="card">
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
-            <h2 style={{fontSize:'1rem', fontWeight:700}}>
-              {rpt?.icon} {rpt?.label}
-              {(from||to) && <span style={{fontWeight:400, fontSize:'.85rem', color:'var(--gray-500)', marginLeft:8}}>
-                {from && to ? `${from} → ${to}` : from ? `Desde ${from}` : `Hasta ${to}`}
-              </span>}
-            </h2>
-            <span style={{fontSize:'.8rem', color:'var(--gray-500)'}}>
-              {data.length} {data.length===1?'resultado':'resultados'}
-            </span>
-          </div>
-          {data.length === 0
-            ? <p style={{color:'var(--gray-500)', textAlign:'center', padding:32}}>Sin datos para el período seleccionado</p>
-            : renderPreview()
-          }
+          {(() => {
+            const rows = data.data ?? data;
+            const minDate = data.min_date ?? null;
+            const maxDate = data.max_date ?? null;
+            const f = from ? fmtDate(from) : fmtDate(minDate);
+            const t = to   ? fmtDate(to)   : fmtDate(maxDate);
+            const periodLabel = f && t ? `${f} al ${t}` : f ? `Desde ${f}` : t ? `Hasta ${t}` : 'Todos los registros';
+            return <>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
+                <h2 style={{fontSize:'1rem', fontWeight:700}}>
+                  {rpt?.icon} {rpt?.label}
+                  <span style={{fontWeight:400, fontSize:'.85rem', color:'var(--gray-500)', marginLeft:8}}>
+                    {periodLabel}
+                  </span>
+                </h2>
+                <span style={{fontSize:'.8rem', color:'var(--gray-500)'}}>
+                  {rows.length} {rows.length===1?'resultado':'resultados'}
+                </span>
+              </div>
+              {rows.length === 0
+                ? <p style={{color:'var(--gray-500)', textAlign:'center', padding:32}}>Sin datos para el período seleccionado</p>
+                : renderPreview()
+              }
+            </>;
+          })()}
         </div>
       )}
     </div>
