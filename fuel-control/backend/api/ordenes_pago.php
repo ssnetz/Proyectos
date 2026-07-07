@@ -18,7 +18,7 @@ if ($method === 'GET' && isset($_GET['unassigned'])) {
     $to   = $_GET['to']   ?? '';
     $sql = "
         SELECT f.id, f.fueled_at, f.liters, f.total_cost, f.fuel_type, f.station, f.notes,
-               v.name AS vehicle_name, v.plate
+               f.ticket_number, v.name AS vehicle_name, v.plate
         FROM fueling f
         JOIN vehicles v ON v.id = f.vehicle_id
         WHERE f.op_id IS NULL
@@ -83,7 +83,7 @@ if ($method === 'GET' && $id) {
 
     $stmt2 = $db->prepare("
         SELECT f.id, f.fueled_at, f.liters, f.total_cost, f.fuel_type, f.station, f.notes,
-               v.name AS vehicle_name, v.plate
+               f.ticket_number, v.name AS vehicle_name, v.plate
         FROM fueling f JOIN vehicles v ON v.id = f.vehicle_id
         WHERE f.op_id = ? ORDER BY f.fueled_at
     ");

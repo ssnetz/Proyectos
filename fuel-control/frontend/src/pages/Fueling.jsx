@@ -5,7 +5,7 @@ const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábad
 
 const emptyForm = {
   vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
-  fuel_type: '', station: '', notes: '',
+  fuel_type: '', station: '', notes: '', ticket_number: '',
   fueled_at: new Date().toISOString().slice(0, 16),
 };
 
@@ -141,6 +141,7 @@ export default function Fueling() {
       fuel_type:       r.fuel_type,
       station:         r.station ?? '',
       notes:           r.notes ?? '',
+      ticket_number:   r.ticket_number ?? '',
       fueled_at:       r.fueled_at?.slice(0, 16) ?? new Date().toISOString().slice(0, 16),
     });
     const v = vehicles.find(v => String(v.id) === String(r.vehicle_id));
@@ -310,13 +311,19 @@ export default function Fueling() {
                   <input className="form-input" type="datetime-local" required value={form.fueled_at}
                     onChange={e => setForm(f => ({ ...f, fueled_at: e.target.value }))} />
                 </div>
-                <div className="form-group form-group-full">
+                <div className="form-group">
                   <label className="form-label">Proveedor</label>
                   <select className="form-input" value={form.station}
                     onChange={e => setForm(f => ({ ...f, station: e.target.value }))}>
                     <option value="">— Seleccionar proveedor —</option>
                     {suppliers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">N° Ticket / Remito</label>
+                  <input className="form-input" value={form.ticket_number}
+                    placeholder="Ej: 0001-00012345"
+                    onChange={e => setForm(f => ({ ...f, ticket_number: e.target.value }))} />
                 </div>
                 <div className="form-group form-group-full">
                   <label className="form-label">Notas</label>

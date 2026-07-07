@@ -141,12 +141,18 @@ export default function OrdenesPago() {
 
   const fmt = (n) => Number(n || 0).toLocaleString('es', { minimumFractionDigits: 2 });
 
-  const cargasFiltradas = cargasDisp.filter(c =>
-    !filterText ||
-    c.vehicle_name?.toLowerCase().includes(filterText.toLowerCase()) ||
-    c.plate?.toLowerCase().includes(filterText.toLowerCase()) ||
-    c.fuel_type?.toLowerCase().includes(filterText.toLowerCase())
-  );
+  const cargasFiltradas = cargasDisp.filter(c => {
+    if (!filterText) return true;
+    const q = filterText.toLowerCase();
+    return (
+      c.vehicle_name?.toLowerCase().includes(q) ||
+      c.plate?.toLowerCase().includes(q) ||
+      c.fuel_type?.toLowerCase().includes(q) ||
+      c.ticket_number?.toLowerCase().includes(q) ||
+      String(c.total_cost ?? '').includes(q) ||
+      String(c.liters ?? '').includes(q)
+    );
+  });
 
   if (loading) return <div className="spinner" />;
 
@@ -278,10 +284,10 @@ export default function OrdenesPago() {
               <button className="btn btn-primary btn-sm" onClick={recargarCargas}>Buscar</button>
               <input
                 className="form-input form-input-sm"
-                placeholder="Filtrar por vehículo, patente o tipo..."
+                placeholder="Buscar por vehículo, patente, ticket o monto..."
                 value={filterText}
                 onChange={e => setFilterText(e.target.value)}
-                style={{ flex: 1, minWidth: 160 }}
+                style={{ flex: 1, minWidth: 180 }}
               />
             </div>
             {loadingCargas && <div className="spinner" />}
@@ -301,19 +307,21 @@ export default function OrdenesPago() {
                             checked={cargasFiltradas.length > 0 && cargasFiltradas.every(c => cargasSel[c.id])}
                             onChange={e => toggleAll(cargasFiltradas.map(c => c.id), e.target.checked)} />
                         </th>
+                        <th>Ticket</th>
                         <th>Fecha</th>
                         <th>Vehículo</th>
                         <th>Patente</th>
                         <th>Tipo</th>
                         <th className="num">Litros</th>
                         <th className="num">Monto</th>
-                        <th>Estación</th>
+                        <th>Proveedor</th>
                       </tr>
                     </thead>
                     <tbody>
                       {cargasFiltradas.map(c => (
                         <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => toggleCarga(c.id)}>
                           <td><input type="checkbox" checked={!!cargasSel[c.id]} onChange={() => toggleCarga(c.id)} onClick={e => e.stopPropagation()} /></td>
+                          <td style={{ fontWeight: 600, color: 'var(--blue-600)' }}>{c.ticket_number || '—'}</td>
                           <td>{c.fueled_at?.slice(0, 10)}</td>
                           <td>{c.vehicle_name}</td>
                           <td>{c.plate}</td>
@@ -380,13 +388,14 @@ export default function OrdenesPago() {
                   <table className="table">
                     <thead>
                       <tr>
+                        <th>Ticket</th>
                         <th>Fecha</th>
                         <th>Vehículo</th>
                         <th>Patente</th>
                         <th>Tipo combustible</th>
                         <th className="num">Litros</th>
                         <th className="num">Monto</th>
-                        <th>Estación</th>
+                        <th>Proveedor</th>
                         <th></th>
                       </tr>
                     </thead>
@@ -396,6 +405,7 @@ export default function OrdenesPago() {
                       )}
                       {(detalleOp.cargas ?? []).map(c => (
                         <tr key={c.id}>
+                          <td style={{ fontWeight: 600, color: 'var(--blue-600)' }}>{c.ticket_number || '—'}</td>
                           <td>{c.fueled_at?.slice(0, 10)}</td>
                           <td>{c.vehicle_name}</td>
                           <td>{c.plate}</td>

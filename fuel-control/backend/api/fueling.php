@@ -59,21 +59,22 @@ if ($method === 'POST') {
     $km_recorridos = isset($body['km_recorridos']) ? (float)$body['km_recorridos'] : null;
     $price_per_l  = isset($body['price_per_liter']) ? (float)$body['price_per_liter'] : null;
     $fuel_type    = trim($body['fuel_type'] ?? 'Diesel 500');
-    $station    = trim($body['station'] ?? '');
-    $notes      = trim($body['notes'] ?? '');
-    $fueled_at  = $body['fueled_at'] ?? date('Y-m-d H:i:s');
+    $station       = trim($body['station'] ?? '');
+    $notes         = trim($body['notes'] ?? '');
+    $ticket_number = trim($body['ticket_number'] ?? '');
+    $fueled_at     = $body['fueled_at'] ?? date('Y-m-d H:i:s');
 
     if (!$vehicle_id || $liters <= 0) jsonError('Vehículo y litros son requeridos');
 
     $total_cost = ($price_per_l && $liters) ? round($price_per_l * $liters, 2) : null;
 
     $stmt = $db->prepare('
-        INSERT INTO fueling (vehicle_id, user_id, liters, km_recorridos, price_per_liter, total_cost, fuel_type, station, notes, fueled_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO fueling (vehicle_id, user_id, liters, km_recorridos, price_per_liter, total_cost, fuel_type, station, notes, ticket_number, fueled_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ');
     $stmt->execute([
         $vehicle_id, $user['sub'], $liters, $km_recorridos, $price_per_l, $total_cost,
-        $fuel_type, $station, $notes, $fueled_at
+        $fuel_type, $station, $notes, $ticket_number, $fueled_at
     ]);
     jsonResponse(['id' => (int)$db->lastInsertId()], 201);
 }
@@ -90,6 +91,7 @@ if ($method === 'PUT') {
     $fuel_type     = trim($body['fuel_type'] ?? 'Diesel 500');
     $station       = trim($body['station'] ?? '');
     $notes         = trim($body['notes'] ?? '');
+    $ticket_number = trim($body['ticket_number'] ?? '');
     $fueled_at     = $body['fueled_at'] ?? date('Y-m-d H:i:s');
     $total_cost    = ($price_per_l && $liters) ? round($price_per_l * $liters, 2) : null;
 
@@ -97,11 +99,11 @@ if ($method === 'PUT') {
 
     $stmt = $db->prepare('
         UPDATE fueling SET vehicle_id=?, liters=?, km_recorridos=?, price_per_liter=?,
-        total_cost=?, fuel_type=?, station=?, notes=?, fueled_at=?
+        total_cost=?, fuel_type=?, station=?, notes=?, ticket_number=?, fueled_at=?
         WHERE id=?
     ');
     $stmt->execute([$vehicle_id, $liters, $km_recorridos, $price_per_l, $total_cost,
-        $fuel_type, $station, $notes, $fueled_at, $id]);
+        $fuel_type, $station, $notes, $ticket_number, $fueled_at, $id]);
     jsonResponse(['ok' => true]);
 }
 
