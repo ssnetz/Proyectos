@@ -85,23 +85,28 @@ export default function OrdenesPago() {
     load();
   };
 
-  // Abrir modal de cargas disponibles
-  const openCargasModal = async (opId, supplierId, from, to) => {
-    const f = from || cargasFrom;
-    const t = to   || cargasTo;
+  // Abrir modal — no busca automáticamente, espera que el usuario apriete Buscar
+  const openCargasModal = (opId, supplierId) => {
     setShowCargas({ opId, supplierId });
-    setLoadingCargas(true);
     setCargasDisp([]);
     setCargasSel({});
     setFilterText('');
-    const r = await axios.get('/fuel-control/backend/api/ordenes_pago.php', {
-      params: { unassigned: 1, supplier_id: supplierId, from: f, to: t }
-    });
-    setCargasDisp(r.data);
     setLoadingCargas(false);
   };
 
-  const recargarCargas = () => openCargasModal(showCargas.opId, showCargas.supplierId, cargasFrom, cargasTo);
+  const recargarCargas = async () => {
+    if (!showCargas) return;
+    setLoadingCargas(true);
+    setCargasDisp([]);
+    setCargasSel({});
+    try {
+      const r = await axios.get('/fuel-control/backend/api/ordenes_pago.php', {
+        params: { unassigned: 1, supplier_id: showCargas.supplierId, from: cargasFrom, to: cargasTo }
+      });
+      setCargasDisp(r.data);
+    } catch {}
+    setLoadingCargas(false);
+  };
 
   const toggleCarga = (id) => setCargasSel(s => ({ ...s, [id]: !s[id] }));
   const toggleAll   = (ids, val) => {
@@ -283,8 +288,8 @@ export default function OrdenesPago() {
             </div>
             {loadingCargas && <div className="spinner" />}
             {!loadingCargas && cargasDisp.length === 0 && (
-              <div style={{ padding: 20, color: 'var(--gray-500)', textAlign: 'center' }}>
-                No hay cargas sin asignar para este proveedor.
+              <div style={{ padding: 24, color: 'var(--gray-500)', textAlign: 'center' }}>
+                Seleccioná el período y apretá <strong>Buscar</strong> para ver las cargas disponibles.
               </div>
             )}
             {!loadingCargas && cargasDisp.length > 0 && (
@@ -420,7 +425,7 @@ export default function OrdenesPago() {
                   </table>
                 </div>
                 <div className="modal-footer">
-                  <button className="btn btn-ghost btn-sm" onClick={() => openCargasModal(detalleOp.id, detalleOp.supplier_id)}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setShowDetalle(false); openCargasModal(detalleOp.id, detalleOp.supplier_id); }}>
                     ➕ Agregar más cargas
                   </button>
                   <button className="btn btn-ghost" onClick={() => setShowDetalle(false)}>Cerrar</button>
