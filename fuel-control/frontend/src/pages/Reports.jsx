@@ -97,17 +97,38 @@ function openPrintWindow(html) {
   setTimeout(() => w.print(), 600);
 }
 
+function fmtDate(d) {
+  if (!d) return null;
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
 function buildHeader(reportLabel, from, to, stats) {
-  const dateRange = from && to ? `${from} al ${to}` : from ? `Desde ${from}` : to ? `Hasta ${to}` : 'Todos los períodos';
+  const f = fmtDate(from);
+  const t = fmtDate(to);
+  let dateRange, dateLabel;
+  if (f && t) {
+    dateRange = `Período: ${f} al ${t}`;
+    dateLabel = `Del ${f} al ${t}`;
+  } else if (f) {
+    dateRange = `Desde el ${f}`;
+    dateLabel = `Desde el ${f}`;
+  } else if (t) {
+    dateRange = `Hasta el ${t}`;
+    dateLabel = `Hasta el ${t}`;
+  } else {
+    dateRange = 'Período: Todos los registros';
+    dateLabel = 'Todos los períodos';
+  }
   const statsHtml = stats.map(s => `<div class="rpt-stat"><div class="lbl">${s.label}</div><div class="val">${s.value}</div></div>`).join('');
-  const now = new Date().toLocaleDateString('es-AR');
+  const now = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   return `
     <div class="rpt-header">
       <div style="display:flex;align-items:center;">
         <img src="/fuel-control/logo.png" alt="Logo" class="rpt-logo" />
         <div>
           <h1>${reportLabel}</h1>
-          <div class="sub">Municipalidad de Cosquín · ${dateRange}</div>
+          <div class="sub">Municipalidad de Cosquín &nbsp;·&nbsp; <strong>${dateRange}</strong></div>
         </div>
       </div>
       <div class="meta">Generado: ${now}<br>Sistema de Control de Combustible</div>
