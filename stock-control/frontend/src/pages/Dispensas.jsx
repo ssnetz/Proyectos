@@ -39,16 +39,17 @@ export default function Dispensas() {
     dispensasApi.list().then((r) => setDispensas(r.data)), []);
 
   useEffect(() => {
-    Promise.all([
+    Promise.allSettled([
       load(),
       productsApi.list(),
       locationsApi.list(),
     ]).then(([, prods, locs]) => {
-      setProducts(prods.data.filter((p) => p.active));
-      setLocations(locs.data);
-      if (locs.data.length === 1) setLocationId(String(locs.data[0].id));
-    }).catch(() => setError('Error cargando datos'))
-      .finally(() => setLoading(false));
+      if (prods.status === 'fulfilled') setProducts(prods.value.data.filter((p) => p.active));
+      if (locs.status  === 'fulfilled') {
+        setLocations(locs.value.data);
+        if (locs.value.data.length === 1) setLocationId(String(locs.value.data[0].id));
+      }
+    }).finally(() => setLoading(false));
   }, []);
 
   // Búsqueda de personas server-side con debounce (evita cargar todas al inicio)

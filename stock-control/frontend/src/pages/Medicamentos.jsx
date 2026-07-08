@@ -48,13 +48,12 @@ export default function Medicamentos() {
   }, [search, filterCat, showLow]);
 
   useEffect(() => {
-    Promise.all([loadItems(), catApi.list(), provApi.list(), ubApi.list()])
+    Promise.allSettled([loadItems(), catApi.list(), provApi.list(), ubApi.list()])
       .then(([, cats, provs, ubs]) => {
-        setCategorias(cats.data);
-        setProveedores(provs.data);
-        setUbicaciones(ubs.data);
+        if (cats.status  === 'fulfilled') setCategorias(cats.value.data);
+        if (provs.status === 'fulfilled') setProveedores(provs.value.data);
+        if (ubs.status   === 'fulfilled') setUbicaciones(ubs.value.data);
       })
-      .catch(() => setError('Error al cargar datos'))
       .finally(() => setLoading(false));
   }, []);
 

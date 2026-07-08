@@ -18,13 +18,17 @@ match ($method) {
 };
 
 function listCategorias(PDO $db): void {
-    $stmt = $db->query(
-        "SELECT c.*, COUNT(p.id) AS product_count
-         FROM categories c
-         LEFT JOIN products p ON c.id = p.category_id AND p.active = 1
-         GROUP BY c.id ORDER BY c.name"
-    );
-    jsonResponse($stmt->fetchAll());
+    try {
+        $stmt = $db->query(
+            "SELECT c.*, COUNT(p.id) AS product_count
+             FROM categories c
+             LEFT JOIN products p ON c.id = p.category_id AND p.active = 1
+             GROUP BY c.id ORDER BY c.name"
+        );
+        jsonResponse($stmt->fetchAll());
+    } catch (Exception $e) {
+        jsonError('Error al listar categorías: ' . $e->getMessage(), 500);
+    }
 }
 
 function createCategoria(PDO $db): void {

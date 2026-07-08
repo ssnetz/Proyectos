@@ -38,9 +38,10 @@ export default function Movimientos() {
   };
 
   useEffect(() => {
-    Promise.all([loadMovs(), medApi.list({ active: '1' })])
-      .then(([, meds]) => setMedicamentos(meds.data))
-      .catch(() => setError('Error al cargar datos'))
+    Promise.allSettled([loadMovs(), medApi.list({ active: '1' })])
+      .then(([, meds]) => {
+        if (meds.status === 'fulfilled') setMedicamentos(meds.value.data);
+      })
       .finally(() => setLoading(false));
   }, []);
 

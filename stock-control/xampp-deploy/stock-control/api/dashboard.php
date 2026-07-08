@@ -48,29 +48,43 @@ $movementsByDay = $db->query(
      ORDER BY day"
 )->fetchAll();
 
-$expiringSoon = $db->query(
-    "SELECT pl.id, pl.lot_number, pl.expiration_date AS expiry_date, pl.quantity,
-            p.name AS product_name,
-            DATEDIFF(pl.expiration_date, CURDATE()) AS days_left
-     FROM product_lots pl
-     JOIN products p ON pl.product_id = p.id
-     WHERE pl.expiration_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
-       AND pl.quantity > 0
-     ORDER BY pl.expiration_date ASC
-     LIMIT 20"
-)->fetchAll();
+// Detect expiry column name (expiration_date from XAMPP dump, expiry_date from fresh install)
+$expiryCol = 'expiration_date';
+try {
+    $db->query("SELECT expiration_date FROM product_lots LIMIT 0");
+} catch (Exception $e) {
+    $expiryCol = 'expiry_date';
+}
 
-$expiringCount = (int)$db->query(
-    "SELECT COUNT(*) FROM product_lots
-     WHERE expiration_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
-       AND quantity > 0"
-)->fetchColumn();
+try {
+    $expiringSoon = $db->query(
+        "SELECT pl.id, pl.lot_number, pl.`$expiryCol` AS expiry_date, pl.quantity,
+                p.name AS product_name,
+                DATEDIFF(pl.`$expiryCol`, CURDATE()) AS days_left
+         FROM product_lots pl
+         JOIN products p ON pl.product_id = p.id
+         WHERE pl.`$expiryCol` <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+           AND pl.quantity > 0
+         ORDER BY pl.`$expiryCol` ASC
+         LIMIT 20"
+    )->fetchAll();
 
-$expiredCount = (int)$db->query(
-    "SELECT COUNT(*) FROM product_lots
-     WHERE expiration_date < CURDATE()
-       AND quantity > 0"
-)->fetchColumn();
+    $expiringCount = (int)$db->query(
+        "SELECT COUNT(*) FROM product_lots
+         WHERE `$expiryCol` BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+           AND quantity > 0"
+    )->fetchColumn();
+
+    $expiredCount = (int)$db->query(
+        "SELECT COUNT(*) FROM product_lots
+         WHERE `$expiryCol` < CURDATE()
+           AND quantity > 0"
+    )->fetchColumn();
+} catch (Exception $e) {
+    $expiringSoon  = [];
+    $expiringCount = 0;
+    $expiredCount  = 0;
+}
 
 jsonResponse([
     'stats' => [

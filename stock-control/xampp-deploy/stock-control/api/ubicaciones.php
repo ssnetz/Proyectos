@@ -66,13 +66,17 @@ function stockByLocation(PDO $db): void {
 }
 
 function listUbicaciones(PDO $db): void {
-    $activeOnly = ($_GET['active_only'] ?? '1') !== '0';
-    $sql        = "SELECT * FROM locations WHERE 1=1";
-    if ($activeOnly) $sql .= " AND active = 1";
-    $sql .= " ORDER BY name";
-    $stmt = $db->prepare($sql);
-    $stmt->execute();
-    jsonResponse($stmt->fetchAll());
+    try {
+        $activeOnly = ($_GET['active_only'] ?? '1') !== '0';
+        $sql        = "SELECT * FROM locations WHERE 1=1";
+        if ($activeOnly) $sql .= " AND active = 1";
+        $sql .= " ORDER BY name";
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        jsonResponse($stmt->fetchAll());
+    } catch (Exception $e) {
+        jsonError('Error al listar ubicaciones: ' . $e->getMessage(), 500);
+    }
 }
 
 function createUbicacion(PDO $db): void {

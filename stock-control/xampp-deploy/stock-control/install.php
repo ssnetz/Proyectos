@@ -121,7 +121,7 @@ run($pdo, "CREATE TABLE IF NOT EXISTS product_lots (
     id              INT AUTO_INCREMENT PRIMARY KEY,
     product_id      INT NOT NULL,
     lot_number      VARCHAR(50),
-    expiry_date     DATE,
+    expiration_date DATE,
     quantity        INT DEFAULT 0,
     location_id     INT,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -186,6 +186,20 @@ run($pdo, "CREATE TABLE IF NOT EXISTS users (
 // ── Columnas que pueden faltar en tablas existentes ──────────────────────────
 // Nota: sin IF NOT EXISTS para compatibilidad con MySQL 8.0 (solo MariaDB lo soporta)
 // El try/catch de run() ya maneja "Duplicate column" como no-fatal.
+
+// Renombrar expiry_date → expiration_date si existe con el nombre antiguo
+try {
+    $cols = $pdo->query("SHOW COLUMNS FROM product_lots LIKE 'expiry_date'")->fetchAll();
+    if (!empty($cols)) {
+        run($pdo, "ALTER TABLE product_lots CHANGE COLUMN expiry_date expiration_date DATE",
+            "Columna product_lots: expiry_date → expiration_date");
+    } else {
+        info("Columna product_lots.expiration_date (ya con nombre correcto)");
+    }
+} catch (PDOException $e) {
+    err("Verificación product_lots.expiry_date — " . $e->getMessage());
+}
+
 run($pdo, "ALTER TABLE product_lots ADD COLUMN invoice_id INT AFTER location_id", "Columna product_lots.invoice_id");
 run($pdo, "ALTER TABLE product_lots ADD COLUMN marca VARCHAR(100) AFTER lot_number", "Columna product_lots.marca");
 run($pdo, "ALTER TABLE stock_movements ADD COLUMN location_id    INT AFTER product_id",   "Columna stock_movements.location_id");

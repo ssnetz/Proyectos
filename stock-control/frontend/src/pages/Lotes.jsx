@@ -43,13 +43,12 @@ export default function Lotes() {
     ubApi.stockByLocation().then((r) => setDistrib(r.data)).catch(() => {});
 
   useEffect(() => {
-    Promise.all([loadLotes('todos'), medApi.list({ active: '1' }), ubApi.list(), ubApi.stockByLocation()])
+    Promise.allSettled([loadLotes('todos'), medApi.list({ active: '1' }), ubApi.list(), ubApi.stockByLocation()])
       .then(([, meds, ubs, dist]) => {
-        setMedicamentos(meds.data);
-        setUbicaciones(ubs.data);
-        setDistrib(dist.data);
+        if (meds.status === 'fulfilled') setMedicamentos(meds.value.data);
+        if (ubs.status  === 'fulfilled') setUbicaciones(ubs.value.data);
+        if (dist.status === 'fulfilled') setDistrib(dist.value.data);
       })
-      .catch(() => setError('Error al cargar datos'))
       .finally(() => setLoading(false));
   }, []);
 

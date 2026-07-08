@@ -18,13 +18,17 @@ match ($method) {
 };
 
 function listProveedores(PDO $db): void {
-    $stmt = $db->query(
-        "SELECT s.*, COUNT(p.id) AS product_count
-         FROM suppliers s
-         LEFT JOIN products p ON s.id = p.supplier_id AND p.active = 1
-         GROUP BY s.id ORDER BY s.name"
-    );
-    jsonResponse($stmt->fetchAll());
+    try {
+        $stmt = $db->query(
+            "SELECT s.*, COUNT(p.id) AS product_count
+             FROM suppliers s
+             LEFT JOIN products p ON s.id = p.supplier_id AND p.active = 1
+             GROUP BY s.id ORDER BY s.name"
+        );
+        jsonResponse($stmt->fetchAll());
+    } catch (Exception $e) {
+        jsonError('Error al listar proveedores: ' . $e->getMessage(), 500);
+    }
 }
 
 function getProveedor(PDO $db, int $id): void {
