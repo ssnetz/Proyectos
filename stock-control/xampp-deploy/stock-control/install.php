@@ -211,6 +211,17 @@ run($pdo, "ALTER TABLE products        ADD COLUMN therapeutic_action VARCHAR(200
 run($pdo, "ALTER TABLE products        ADD COLUMN purchase_price    DECIMAL(10,2) DEFAULT 0 AFTER therapeutic_action", "Columna products.purchase_price");
 run($pdo, "ALTER TABLE products        ADD COLUMN sale_price        DECIMAL(10,2) DEFAULT 0 AFTER purchase_price",     "Columna products.sale_price");
 
+// ── Asegurar AUTO_INCREMENT en todas las PKs (puede faltar en dumps de MariaDB) ──
+run($pdo, "ALTER TABLE categories        MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT", "AUTO_INCREMENT categories.id");
+run($pdo, "ALTER TABLE suppliers         MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT", "AUTO_INCREMENT suppliers.id");
+run($pdo, "ALTER TABLE locations         MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT", "AUTO_INCREMENT locations.id");
+run($pdo, "ALTER TABLE personas          MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT", "AUTO_INCREMENT personas.id");
+run($pdo, "ALTER TABLE products          MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT", "AUTO_INCREMENT products.id");
+run($pdo, "ALTER TABLE product_lots      MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT", "AUTO_INCREMENT product_lots.id");
+run($pdo, "ALTER TABLE purchase_invoices MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT", "AUTO_INCREMENT purchase_invoices.id");
+run($pdo, "ALTER TABLE stock_movements   MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT", "AUTO_INCREMENT stock_movements.id");
+run($pdo, "ALTER TABLE users             MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT", "AUTO_INCREMENT users.id");
+
 // ── Ampliar ENUM type si falta 'dispensa' ────────────────────────────────────
 run($pdo, "ALTER TABLE stock_movements MODIFY COLUMN type ENUM('entrada','salida','ajuste','dispensa') NOT NULL",
     "ENUM stock_movements.type incluye 'dispensa'");
