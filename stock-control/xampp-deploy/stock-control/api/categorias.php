@@ -20,10 +20,10 @@ match ($method) {
 function listCategorias(PDO $db): void {
     try {
         $stmt = $db->query(
-            "SELECT c.*, COUNT(p.id) AS product_count
+            "SELECT c.*,
+                    (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.active = 1) AS product_count
              FROM categories c
-             LEFT JOIN products p ON c.id = p.category_id AND p.active = 1
-             GROUP BY c.id ORDER BY c.name"
+             ORDER BY c.name"
         );
         jsonResponse($stmt->fetchAll());
     } catch (Exception $e) {

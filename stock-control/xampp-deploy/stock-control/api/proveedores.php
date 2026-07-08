@@ -20,10 +20,10 @@ match ($method) {
 function listProveedores(PDO $db): void {
     try {
         $stmt = $db->query(
-            "SELECT s.*, COUNT(p.id) AS product_count
+            "SELECT s.*,
+                    (SELECT COUNT(*) FROM products p WHERE p.supplier_id = s.id AND p.active = 1) AS product_count
              FROM suppliers s
-             LEFT JOIN products p ON s.id = p.supplier_id AND p.active = 1
-             GROUP BY s.id ORDER BY s.name"
+             ORDER BY s.name"
         );
         jsonResponse($stmt->fetchAll());
     } catch (Exception $e) {
