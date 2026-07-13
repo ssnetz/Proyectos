@@ -16,9 +16,9 @@ if (!$vehicle_id) {
 }
 
 try {
-    // 1. Buscar la fecha de la última carga de combustible para este vehículo
+    // 1. Buscar la fecha y litros de la última carga de combustible para este vehículo
     $stmt = $pdo->prepare(
-        "SELECT DATE(fueled_at) AS last_date
+        "SELECT DATE(fueled_at) AS last_date, liters AS last_liters
          FROM fueling
          WHERE vehicle_id = ?
            AND DATE(fueled_at) < ?
@@ -28,7 +28,8 @@ try {
     $stmt->execute([$vehicle_id, $until_date]);
     $lastFuel = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    $from_date = $lastFuel ? $lastFuel['last_date'] : null;
+    $from_date   = $lastFuel ? $lastFuel['last_date']  : null;
+    $last_liters = $lastFuel ? (float)$lastFuel['last_liters'] : null;
 
     // 2. Sumar km GPS entre esas fechas (desde el día DESPUÉS de la última carga hasta until_date inclusive)
     $sql = "SELECT
@@ -63,6 +64,7 @@ try {
         'hasta'          => $result['hasta'],
         'detalle'        => $result['detalle'],
         'ultima_carga'   => $from_date,
+        'last_liters'    => $last_liters,
     ]);
 
 } catch (Exception $e) {

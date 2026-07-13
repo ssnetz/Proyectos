@@ -5,7 +5,7 @@ const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábad
 
 const emptyForm = {
   vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
-  fuel_type: '', station: '', notes: '',
+  fuel_type: '', station: '', notes: '', ticket_number: '',
   fueled_at: new Date().toISOString().slice(0, 16),
 };
 
@@ -20,19 +20,23 @@ export default function Fueling() {
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing]   = useState(null);
+  const [areas, setAreas]           = useState([]);
+  const [areaFilter, setAreaFilter] = useState('');
   const [filters, setFilters]       = useState({ vehicle_id: '', from: '', to: '', plate: '' });
   const [appliedFilters, setAppliedFilters] = useState({ vehicle_id: '', from: '', to: '', plate: '' });
   const [form, setForm]         = useState(emptyForm);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
-  const [showGpsModal, setShowGpsModal] = useState(false);
-  const [gpsRecords, setGpsRecords]     = useState([]);
-  const [gpsSelected, setGpsSelected]  = useState({});
-  const [loadingKm, setLoadingKm]       = useState(false);
+  const [showGpsModal, setShowGpsModal]       = useState(false);
+  const [gpsRecords, setGpsRecords]           = useState([]);
+  const [gpsSelected, setGpsSelected]         = useState({});
+  const [loadingKm, setLoadingKm]             = useState(false);
+  const [gpsSuggestedDesde, setGpsSuggestedDesde] = useState(null);
 
-  const load = (f = appliedFilters) => {
+  const load = (f = appliedFilters, area = areaFilter) => {
     const params = {};
     if (f.vehicle_id) params.vehicle_id = f.vehicle_id;
+    else if (area)    params.area_id    = area;
     if (f.from)       params.from       = f.from;
     if (f.to)         params.to         = f.to;
     if (f.plate)      params.plate      = f.plate;
@@ -44,18 +48,25 @@ export default function Fueling() {
 
   const handleSearch = () => {
     setAppliedFilters(filters);
-    load(filters);
+    load(filters, areaFilter);
   };
 
   const handleClearFilters = () => {
     const empty = { vehicle_id: '', from: '', to: '', plate: '' };
+    setAreaFilter('');
     setFilters(empty);
     setAppliedFilters(empty);
     load(empty);
   };
 
+  // Vehículos filtrados por área seleccionada (para el combo)
+  const vehiclesByArea = areaFilter
+    ? vehicles.filter(v => String(v.area_id) === areaFilter)
+    : vehicles;
+
   useEffect(() => {
     axios.get('/fuel-control/backend/api/vehicles.php').then(r => setVehicles(r.data));
+    axios.get('/fuel-control/backend/api/areas.php').then(r => setAreas(r.data));
     axios.get('/fuel-control/backend/api/suppliers.php').then(r => setSuppliers(r.data));
     axios.get('/fuel-control/backend/api/fuel_types.php').then(r => {
       setFuelTypes(r.data);
@@ -78,22 +89,31 @@ export default function Fueling() {
     setGpsSelected({});
     setShowGpsModal(true);
     try {
+      // "until" = día anterior a esta carga (excluir el día de la carga)
+      const fuelingDay = form.fueled_at ? form.fueled_at.slice(0, 10) : new Date().toISOString().slice(0, 10);
+      const untilDate = new Date(fuelingDay + 'T12:00:00');
+      untilDate.setDate(untilDate.getDate() - 1);
+      const until = untilDate.toISOString().slice(0, 10);
+
+      const lastR = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
+        params: { vehicle_id: form.vehicle_id, until_date: fuelingDay }
+      });
+      const desde = lastR.data.ultima_carga ?? null;
+
       const r = await axios.get('/fuel-control/backend/api/gps_import.php', {
         params: { vehicle_id: form.vehicle_id }
       });
-      // filter only this vehicle
-      const filtered = r.data.filter(row => String(row.vehicle_id) === String(form.vehicle_id));
-      setGpsRecords(filtered);
-      // pre-select suggested days (since last fuel)
-      const until = form.fueled_at ? form.fueled_at.slice(0, 10) : new Date().toISOString().slice(0, 10);
-      const lastR = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
-        params: { vehicle_id: form.vehicle_id, until_date: until }
-      });
-      const desde = lastR.data.ultima_carga;
+      // Mostrar TODOS los registros hasta el día anterior a esta carga
+      const allUpToUntil = r.data.filter(row =>
+        String(row.vehicle_id) === String(form.vehicle_id) &&
+        row.import_date <= until
+      );
+      setGpsRecords(allUpToUntil);
+      setGpsSuggestedDesde(desde);
+      // Pre-seleccionar solo el rango sugerido (desde última carga detectada)
       const presel = {};
-      filtered.forEach(row => {
-        const inRange = row.import_date <= until && (!desde || row.import_date > desde);
-        presel[row.id] = inRange;
+      allUpToUntil.forEach(row => {
+        if (!desde || row.import_date > desde) presel[row.id] = true;
       });
       setGpsSelected(presel);
     } catch (e) {
@@ -131,6 +151,7 @@ export default function Fueling() {
       fuel_type:       r.fuel_type,
       station:         r.station ?? '',
       notes:           r.notes ?? '',
+      ticket_number:   r.ticket_number ?? '',
       fueled_at:       r.fueled_at?.slice(0, 16) ?? new Date().toISOString().slice(0, 16),
     });
     const v = vehicles.find(v => String(v.id) === String(r.vehicle_id));
@@ -193,14 +214,24 @@ export default function Fueling() {
     <div>
       <div className="page-actions">
         <div className="filters">
+          {areas.length > 0 && (
+            <select className="form-input form-input-sm" value={areaFilter}
+              onChange={e => {
+                setAreaFilter(e.target.value);
+                setFilters(f => ({ ...f, vehicle_id: '' }));
+              }}>
+              <option value="">Todas las áreas</option>
+              {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          )}
           <input type="text" className="form-input form-input-sm" placeholder="Patente" value={filters.plate}
             style={{ width: 120, textTransform: 'uppercase' }}
             onChange={e => setFilters(f => ({ ...f, plate: e.target.value.toUpperCase(), vehicle_id: '' }))}
             onKeyDown={e => e.key === 'Enter' && handleSearch()} />
           <select className="form-input form-input-sm" value={filters.vehicle_id}
             onChange={e => setFilters(f => ({ ...f, vehicle_id: e.target.value, plate: '' }))}>
-            <option value="">Todos los vehículos</option>
-            {vehicles.map(v => <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>)}
+            <option value="">{areaFilter ? 'Todos los vehículos del área' : 'Todos los vehículos'}</option>
+            {vehiclesByArea.map(v => <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>)}
           </select>
           <input type="date" className="form-input form-input-sm" value={filters.from}
             onChange={e => setFilters(f => ({ ...f, from: e.target.value }))} />
@@ -300,13 +331,19 @@ export default function Fueling() {
                   <input className="form-input" type="datetime-local" required value={form.fueled_at}
                     onChange={e => setForm(f => ({ ...f, fueled_at: e.target.value }))} />
                 </div>
-                <div className="form-group form-group-full">
+                <div className="form-group">
                   <label className="form-label">Proveedor</label>
                   <select className="form-input" value={form.station}
                     onChange={e => setForm(f => ({ ...f, station: e.target.value }))}>
                     <option value="">— Seleccionar proveedor —</option>
                     {suppliers.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">N° Ticket / Remito</label>
+                  <input className="form-input" value={form.ticket_number}
+                    placeholder="Ej: 0001-00012345"
+                    onChange={e => setForm(f => ({ ...f, ticket_number: e.target.value }))} />
                 </div>
                 <div className="form-group form-group-full">
                   <label className="form-label">Notas</label>
@@ -346,7 +383,10 @@ export default function Fueling() {
             {!loadingKm && gpsRecords.length > 0 && (
               <>
                 <div style={{ padding: '4px 0 12px', fontSize: 13, color: 'var(--gray-500)' }}>
-                  Los días pre-seleccionados corresponden al período desde la última carga de combustible.
+                  {gpsSuggestedDesde
+                    ? <>Pre-seleccionados: días posteriores al <strong>{gpsSuggestedDesde}</strong> (última carga detectada). Podés marcar/desmarcar cualquier registro.</>
+                    : <>Pre-seleccionados: todos los registros hasta el día anterior a esta carga. Podés marcar/desmarcar cualquier registro.</>
+                  }
                 </div>
                 <div className="table-wrapper" style={{ maxHeight: 380, overflowY: 'auto' }}>
                   <table className="table">

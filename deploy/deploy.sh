@@ -18,6 +18,11 @@
 #   .deploy-keep     rutas (una por línea, relativas a la carpeta remota) que
 #                    nunca se borran aunque no estén en el bundle — para
 #                    archivos que solo existen en el servidor.
+#   .deploy-backend-prefix   prefijo de carpeta (ej. "backend/") donde van
+#                    api/ y config/ dentro de la carpeta remota, si el
+#                    frontend llama a las rutas así en vez de a la raíz.
+#   .htaccess (en la raíz del proyecto, no en backend/) — si existe, se usa
+#                    tal cual en vez del genérico de deploy/htaccess.template.
 
 set -euo pipefail
 
@@ -55,26 +60,37 @@ elif [ -d "$PROJECT_DIR/frontend/dist" ]; then
     cp -r "$PROJECT_DIR/frontend/dist/." "$BUNDLE/"
 fi
 
+BACKEND_PREFIX=""
+if [ -f "$PROJECT_DIR/.deploy-backend-prefix" ]; then
+    BACKEND_PREFIX="$(tr -d '[:space:]' < "$PROJECT_DIR/.deploy-backend-prefix")"
+fi
+
 if [ -d "$PROJECT_DIR/backend/api" ]; then
-    cp -r "$PROJECT_DIR/backend/api" "$BUNDLE/api"
+    mkdir -p "$BUNDLE/${BACKEND_PREFIX}"
+    cp -r "$PROJECT_DIR/backend/api" "$BUNDLE/${BACKEND_PREFIX}api"
 fi
 
 if [ -d "$PROJECT_DIR/backend/config" ]; then
-    mkdir -p "$BUNDLE/config"
+    mkdir -p "$BUNDLE/${BACKEND_PREFIX}config"
     for f in "$PROJECT_DIR/backend/config"/*; do
         base="$(basename "$f")"
         if [ "$base" = "database.php" ]; then
             # Nunca se sube tal cual; queda como plantilla .dist
-            cp "$f" "$BUNDLE/config/database.php.dist"
+            cp "$f" "$BUNDLE/${BACKEND_PREFIX}config/database.php.dist"
         else
-            cp "$f" "$BUNDLE/config/$base"
+            cp "$f" "$BUNDLE/${BACKEND_PREFIX}config/$base"
         fi
     done
 fi
 
-sed "s#__BASE__#/$TARGET/#g" "$REPO_ROOT/deploy/htaccess.template" > "$BUNDLE/.htaccess"
+if [ -f "$PROJECT_DIR/.htaccess" ]; then
+    # El proyecto trae su propio .htaccess (routing no estándar) — se usa tal cual.
+    cp "$PROJECT_DIR/.htaccess" "$BUNDLE/.htaccess"
+else
+    sed "s#__BASE__#/$TARGET/#g" "$REPO_ROOT/deploy/htaccess.template" > "$BUNDLE/.htaccess"
+fi
 
-RSYNC_EXCLUDES=(--exclude 'config/database.php')
+RSYNC_EXCLUDES=(--exclude "${BACKEND_PREFIX}config/database.php")
 if [ -f "$PROJECT_DIR/.deploy-keep" ]; then
     while IFS= read -r keep; do
         [ -z "$keep" ] && continue
@@ -103,6 +119,6 @@ fi
 
 echo "==> Verificando config/database.php en el servidor"
 ssh -o StrictHostKeyChecking=accept-new "$HOSTINGER_USER@$HOSTINGER_HOST" \
-    "test -f '$REMOTE_PATH/config/database.php' || cp '$REMOTE_PATH/config/database.php.dist' '$REMOTE_PATH/config/database.php'"
+    "test -f '$REMOTE_PATH/${BACKEND_PREFIX}config/database.php' || cp '$REMOTE_PATH/${BACKEND_PREFIX}config/database.php.dist' '$REMOTE_PATH/${BACKEND_PREFIX}config/database.php'"
 
 echo "==> Listo: $PROJECT desplegado en $REMOTE_PATH"

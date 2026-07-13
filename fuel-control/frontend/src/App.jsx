@@ -16,6 +16,9 @@ import RoutesPage      from './pages/Routes';
 import CostDashboard  from './pages/CostDashboard';
 import GpsImport     from './pages/GpsImport';
 import Suppliers    from './pages/Suppliers';
+import OrdenesPago  from './pages/OrdenesPago';
+import Reports      from './pages/Reports';
+import Areas        from './pages/Areas';
 import Login     from './pages/Login';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -68,6 +71,9 @@ const pageTitles = {
   '/cost-dashboard':   'Tablero de Costos',
   '/gps-import':       'Importar GPS (AmericaGIS)',
   '/suppliers':        'Proveedores',
+  '/ordenes-pago':     'Órdenes de Pago',
+  '/reports':          'Reportes',
+  '/areas':            'Áreas Municipales',
 };
 
 function AppLayout() {
@@ -82,8 +88,11 @@ function AppLayout() {
     { to: '/vehicles',    icon: '🚛', label: 'Vehículos' },
     { to: '/fuel-prices', icon: '💲', label: 'Precios' },
     { to: '/suppliers',        icon: '🏪', label: 'Proveedores' },
+    { to: '/areas',            icon: '🏛️', label: 'Áreas' },
     { to: '/fuel-orders',      icon: '📋', label: 'Órdenes de Carga' },
+    { to: '/ordenes-pago',     icon: '💳', label: 'Órdenes de Pago' },
     { to: '/cost-dashboard',   icon: '📈', label: 'Tablero Costos' },
+    { to: '/reports',          icon: '📄', label: 'Reportes' },
     { to: '/gps-import',       icon: '📡', label: 'Importar GPS' },
     { to: '/routes',           icon: '🗺️', label: 'Rutas' },
     { to: '/lubricants',      icon: '🛢️', label: 'Lubricantes' },
@@ -123,6 +132,12 @@ function AppLayout() {
 
       <div className="main">
         <header className="topbar">
+          <img
+            src="/fuel-control/logo.png"
+            alt="Municipalidad de Cosquín"
+            style={{ height: 44, width: 'auto', marginRight: 12, flexShrink: 0 }}
+            onError={e => { e.target.style.display = 'none'; }}
+          />
           <h1 className="topbar-title">{title}</h1>
         </header>
         <main className="page-content">
@@ -143,6 +158,9 @@ function AppLayout() {
             <Route path="/cost-dashboard"  element={<ProtectedRoute><CostDashboard /></ProtectedRoute>} />
             <Route path="/gps-import"      element={<ProtectedRoute><GpsImport /></ProtectedRoute>} />
             <Route path="/suppliers"       element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
+            <Route path="/ordenes-pago"    element={<ProtectedRoute><OrdenesPago /></ProtectedRoute>} />
+            <Route path="/reports"         element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/areas"           element={<ProtectedRoute><Areas /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
