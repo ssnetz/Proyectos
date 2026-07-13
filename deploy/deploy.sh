@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 # Arma el bundle de producción de un proyecto (backend/api + backend/config +
-# frontend build) y lo sincroniza por rsync/ssh a /var/www/html/<proyecto> en
+# frontend build) y lo sincroniza por rsync/ssh a /var/www/html/<destino> en
 # el servidor. Pensado para correr desde GitHub Actions, pero también sirve
 # a mano: HOSTINGER_HOST=x HOSTINGER_USER=root ./deploy/deploy.sh <proyecto>
 #
 # config/database.php NUNCA se sube: la primera vez se crea en el servidor a
 # partir de config/database.php.dist, y de ahí en más el deploy no la toca,
 # así las credenciales reales de producción no se pisan en cada push.
+#
+# Archivos opcionales por proyecto:
+#   .deploy-target   nombre de la carpeta remota, si difiere del nombre del
+#                    proyecto en el repo (ej. stock-control -> farmacia).
+#   .deploy-keep     rutas (una por línea, relativas a la carpeta remota) que
+#                    nunca se borran aunque no estén en el bundle — para
+#                    archivos que solo existen en el servidor.
 
 set -euo pipefail
 
@@ -17,14 +24,19 @@ BUNDLE="/tmp/deploy-bundle/$PROJECT"
 
 : "${HOSTINGER_HOST:?falta HOSTINGER_HOST}"
 : "${HOSTINGER_USER:?falta HOSTINGER_USER}"
-REMOTE_PATH="/var/www/html/$PROJECT"
 
 if [ ! -d "$PROJECT_DIR" ]; then
     echo "No existe la carpeta $PROJECT_DIR" >&2
     exit 1
 fi
 
-echo "==> Armando bundle para $PROJECT"
+TARGET="$PROJECT"
+if [ -f "$PROJECT_DIR/.deploy-target" ]; then
+    TARGET="$(tr -d '[:space:]' < "$PROJECT_DIR/.deploy-target")"
+fi
+REMOTE_PATH="/var/www/html/$TARGET"
+
+echo "==> Armando bundle para $PROJECT (destino: $TARGET)"
 rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE"
 
@@ -51,13 +63,21 @@ if [ -d "$PROJECT_DIR/backend/config" ]; then
     done
 fi
 
-sed "s#__BASE__#/$PROJECT/#g" "$REPO_ROOT/deploy/htaccess.template" > "$BUNDLE/.htaccess"
+sed "s#__BASE__#/$TARGET/#g" "$REPO_ROOT/deploy/htaccess.template" > "$BUNDLE/.htaccess"
+
+RSYNC_EXCLUDES=(--exclude 'config/database.php')
+if [ -f "$PROJECT_DIR/.deploy-keep" ]; then
+    while IFS= read -r keep; do
+        [ -z "$keep" ] && continue
+        RSYNC_EXCLUDES+=(--exclude "$keep")
+    done < "$PROJECT_DIR/.deploy-keep"
+fi
 
 echo "==> Sincronizando con $HOSTINGER_USER@$HOSTINGER_HOST:$REMOTE_PATH"
 ssh -o StrictHostKeyChecking=accept-new "$HOSTINGER_USER@$HOSTINGER_HOST" "mkdir -p '$REMOTE_PATH'"
 
 rsync -az --delete \
-    --exclude 'config/database.php' \
+    "${RSYNC_EXCLUDES[@]}" \
     -e "ssh -o StrictHostKeyChecking=accept-new" \
     "$BUNDLE/" "$HOSTINGER_USER@$HOSTINGER_HOST:$REMOTE_PATH/"
 
