@@ -73,13 +73,24 @@ if [ -f "$PROJECT_DIR/.deploy-keep" ]; then
     done < "$PROJECT_DIR/.deploy-keep"
 fi
 
-echo "==> Sincronizando con $HOSTINGER_USER@$HOSTINGER_HOST:$REMOTE_PATH"
+RSYNC_FLAGS=(-az --delete --itemize-changes)
+if [ "${DRY_RUN:-0}" = "1" ]; then
+    RSYNC_FLAGS+=(--dry-run)
+    echo "==> DRY RUN: mostrando qué cambiaría, sin tocar nada, en $HOSTINGER_USER@$HOSTINGER_HOST:$REMOTE_PATH"
+else
+    echo "==> Sincronizando con $HOSTINGER_USER@$HOSTINGER_HOST:$REMOTE_PATH"
+fi
 ssh -o StrictHostKeyChecking=accept-new "$HOSTINGER_USER@$HOSTINGER_HOST" "mkdir -p '$REMOTE_PATH'"
 
-rsync -az --delete \
+rsync "${RSYNC_FLAGS[@]}" \
     "${RSYNC_EXCLUDES[@]}" \
     -e "ssh -o StrictHostKeyChecking=accept-new" \
     "$BUNDLE/" "$HOSTINGER_USER@$HOSTINGER_HOST:$REMOTE_PATH/"
+
+if [ "${DRY_RUN:-0}" = "1" ]; then
+    echo "==> DRY RUN terminado, no se modificó nada en el servidor."
+    exit 0
+fi
 
 echo "==> Verificando config/database.php en el servidor"
 ssh -o StrictHostKeyChecking=accept-new "$HOSTINGER_USER@$HOSTINGER_HOST" \
