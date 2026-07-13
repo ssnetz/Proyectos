@@ -1,0 +1,42 @@
+name: Traer respaldo desde el servidor
+
+on:
+  workflow_dispatch:
+    inputs:
+      remote_path:
+        description: "Carpeta dentro de /var/www/html en el servidor (ej. farmacia)"
+        required: true
+        type: string
+      branch_name:
+        description: "Nombre de la rama nueva a crear con el respaldo"
+        required: true
+        type: string
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preparar acceso SSH
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.HOSTINGER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          eval "$(ssh-agent -s)"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          ssh-add - <<< "${{ secrets.HOSTINGER_SSH_KEY }}"
+
+      - name: Crear rama y traer archivos (solo lectura, no toca el servidor)
+        env:
+          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+        run: |
+          git checkout -b "${{ inputs.branch_name }}"
+          bash deploy/pull-from-server.sh "${{ inputs.remote_path }}" "_server-backups/${{ inputs.remote_path }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "_server-backups/${{ inputs.remote_path }}"
+          git commit -m "Respaldo de solo lectura: /var/www/html/${{ inputs.remote_path }} tal como está en vivo"
+          git push -u origin "${{ inputs.branch_name }}"
