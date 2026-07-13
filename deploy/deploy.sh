@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Arma el bundle de producción de un proyecto (backend/api + backend/config +
+# frontend build) y lo sincroniza por rsync/ssh a /var/www/html/<proyecto> en
+# el servidor. Pensado para correr desde GitHub Actions, pero también sirve
+# a mano: HOSTINGER_HOST=x HOSTINGER_USER=root ./deploy/deploy.sh <proyecto>
+#
+# config/database.php NUNCA se sube: la primera vez se crea en el servidor a
+# partir de config/database.php.dist, y de ahí en más el deploy no la toca,
+# así las credenciales reales de producción no se pisan en cada push.
+
+set -euo pipefail
+
+PROJECT="${1:?Uso: deploy.sh <nombre-del-proyecto>}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="$REPO_ROOT/$PROJECT"
+BUNDLE="/tmp/deploy-bundle/$PROJECT"
+
+: "${HOSTINGER_HOST:?falta HOSTINGER_HOST}"
+: "${HOSTINGER_USER:?falta HOSTINGER_USER}"
+REMOTE_PATH="/var/www/html/$PROJECT"
+
+if [ ! -d "$PROJECT_DIR" ]; then
+    echo "No existe la carpeta $PROJECT_DIR" >&2
+    exit 1
+fi
+
+echo "==> Armando bundle para $PROJECT"
+rm -rf "$BUNDLE"
+mkdir -p "$BUNDLE"
+
+if [ -f "$PROJECT_DIR/frontend/package.json" ]; then
+    echo "==> Build del frontend"
+    (cd "$PROJECT_DIR/frontend" && npm ci && npm run build)
+    cp -r "$PROJECT_DIR/frontend/dist/." "$BUNDLE/"
+fi
+
+if [ -d "$PROJECT_DIR/backend/api" ]; then
+    cp -r "$PROJECT_DIR/backend/api" "$BUNDLE/api"
+fi
+
+if [ -d "$PROJECT_DIR/backend/config" ]; then
+    mkdir -p "$BUNDLE/config"
+    for f in "$PROJECT_DIR/backend/config"/*; do
+        base="$(basename "$f")"
+        if [ "$base" = "database.php" ]; then
+            # Nunca se sube tal cual; queda como plantilla .dist
+            cp "$f" "$BUNDLE/config/database.php.dist"
+        else
+            cp "$f" "$BUNDLE/config/$base"
+        fi
+    done
+fi
+
+sed "s#__BASE__#/$PROJECT/#g" "$REPO_ROOT/deploy/htaccess.template" > "$BUNDLE/.htaccess"
+
+echo "==> Sincronizando con $HOSTINGER_USER@$HOSTINGER_HOST:$REMOTE_PATH"
+ssh -o StrictHostKeyChecking=accept-new "$HOSTINGER_USER@$HOSTINGER_HOST" "mkdir -p '$REMOTE_PATH'"
+
+rsync -az --delete \
+    --exclude 'config/database.php' \
+    -e "ssh -o StrictHostKeyChecking=accept-new" \
+    "$BUNDLE/" "$HOSTINGER_USER@$HOSTINGER_HOST:$REMOTE_PATH/"
+
+echo "==> Verificando config/database.php en el servidor"
+ssh -o StrictHostKeyChecking=accept-new "$HOSTINGER_USER@$HOSTINGER_HOST" \
+    "test -f '$REMOTE_PATH/config/database.php' || cp '$REMOTE_PATH/config/database.php.dist' '$REMOTE_PATH/config/database.php'"
+
+echo "==> Listo: $PROJECT desplegado en $REMOTE_PATH"

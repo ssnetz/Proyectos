@@ -1,0 +1,65 @@
+name: Deploy a Hostinger
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      project:
+        description: "Carpeta del proyecto a desplegar (vacío = autodetectar por el último push)"
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detectar proyectos a desplegar
+        id: detect
+        run: |
+          if [ -n "${{ inputs.project }}" ]; then
+            PROJECTS="${{ inputs.project }}"
+          else
+            CHANGED=$(git diff --name-only HEAD^ HEAD | cut -d/ -f1 | sort -u)
+            PROJECTS=""
+            for d in $CHANGED; do
+              if [ -d "$d/backend" ] && [ -d "$d/frontend" ]; then
+                PROJECTS="$PROJECTS $d"
+              fi
+            done
+          fi
+          echo "Proyectos a desplegar:$PROJECTS"
+          echo "projects=$PROJECTS" >> "$GITHUB_OUTPUT"
+
+      - name: Configurar Node.js
+        if: steps.detect.outputs.projects != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Preparar acceso SSH
+        if: steps.detect.outputs.projects != ''
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.HOSTINGER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          eval "$(ssh-agent -s)"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          ssh-add - <<< "${{ secrets.HOSTINGER_SSH_KEY }}"
+
+      - name: Desplegar cada proyecto detectado
+        if: steps.detect.outputs.projects != ''
+        env:
+          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+        run: |
+          for p in ${{ steps.detect.outputs.projects }}; do
+            echo "::group::Deploy $p"
+            bash deploy/deploy.sh "$p"
+            echo "::endgroup::"
+          done
