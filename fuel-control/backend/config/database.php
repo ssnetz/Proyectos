@@ -7,6 +7,7 @@ define('DB_CHARSET', 'utf8mb4');
 
 define('JWT_SECRET', 'cambiar_en_produccion');
 define('JWT_EXPIRY', 8 * 3600);
+define('QR_SECRET', 'cambiar_en_produccion');
 
 function getDB(): PDO {
     static $pdo = null;

@@ -6,8 +6,6 @@ setCorsHeaders();
 handleOptions();
 requireAuth();
 
-define('QR_SECRET', 'cambiar_en_produccion');
-
 $db = getDB();
 $id = intval($_GET['id'] ?? 0);
 if (!$id) jsonError('id requerido', 400);
