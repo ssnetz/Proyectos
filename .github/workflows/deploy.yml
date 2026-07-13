@@ -28,7 +28,7 @@ jobs:
             CHANGED=$(git diff --name-only HEAD^ HEAD | cut -d/ -f1 | sort -u)
             PROJECTS=""
             for d in $CHANGED; do
-              if [ -d "$d/backend" ] && [ -d "$d/frontend" ]; then
+              if [ -d "$d/backend" ] && [ -d "$d/frontend" ] && [ ! -f "$d/.no-autodeploy" ]; then
                 PROJECTS="$PROJECTS $d"
               fi
             done
