@@ -8,28 +8,28 @@ handleOptions();
 $db = getDB();
 $method = getMethod();
 $id = getId();
-$peopleTable = '`' . PEOPLE_DB . '`.`people`';
+$personasTable = '`' . PEOPLE_DB . '`.`personas`';
 
 match($method) {
-    'GET'    => (requireAuth() && ($id ? getTurno($db, $peopleTable, $id) : listTurnos($db, $peopleTable))),
-    'POST'   => (requireAuth() && createTurno($db, $peopleTable)),
+    'GET'    => (requireAuth() && ($id ? getTurno($db, $personasTable, $id) : listTurnos($db, $personasTable))),
+    'POST'   => (requireAuth() && createTurno($db, $personasTable)),
     'PUT'    => (requireAuth() && ($id ? updateTurno($db, $id) : jsonError('ID requerido', 400))),
     'DELETE' => (requireAuth() && ($id ? cancelTurno($db, $id) : jsonError('ID requerido', 400))),
     default  => jsonError('Método no permitido', 405),
 };
 
-function baseSelect(string $peopleTable): string {
+function baseSelect(string $personasTable): string {
     return "SELECT t.*, pr.apellidos AS profesional_apellidos, pr.nombres AS profesional_nombres,
                    pr.especialidad AS profesional_especialidad,
                    i.nombre AS institucion_nombre,
-                   p.document_number AS persona_documento, p.first_name AS persona_nombres, p.last_name AS persona_apellidos
+                   p.documento AS persona_documento, p.nombre AS persona_nombres, p.apellido AS persona_apellidos
             FROM turnos_prioritarios t
             JOIN profesionales pr ON t.profesional_id = pr.id
             JOIN instituciones i ON t.institucion_id = i.id
-            LEFT JOIN $peopleTable p ON t.persona_id = p.id";
+            LEFT JOIN $personasTable p ON t.persona_id = p.id";
 }
 
-function listTurnos(PDO $db, string $peopleTable): void {
+function listTurnos(PDO $db, string $personasTable): void {
     $where  = [];
     $params = [];
 
@@ -62,7 +62,7 @@ function listTurnos(PDO $db, string $peopleTable): void {
         $params[] = (int)$_GET['persona_id'];
     }
 
-    $sql = baseSelect($peopleTable);
+    $sql = baseSelect($personasTable);
     if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
     $sql .= ' ORDER BY t.fecha, t.hora';
 
@@ -71,28 +71,28 @@ function listTurnos(PDO $db, string $peopleTable): void {
     jsonResponse($stmt->fetchAll());
 }
 
-function getTurno(PDO $db, string $peopleTable, int $id): void {
-    $stmt = $db->prepare(baseSelect($peopleTable) . ' WHERE t.id = ?');
+function getTurno(PDO $db, string $personasTable, int $id): void {
+    $stmt = $db->prepare(baseSelect($personasTable) . ' WHERE t.id = ?');
     $stmt->execute([$id]);
     $t = $stmt->fetch();
     if (!$t) jsonError('Turno no encontrado', 404);
     jsonResponse($t);
 }
 
-function validatePersona(PDO $db, string $peopleTable, int $personaId): void {
-    $stmt = $db->prepare("SELECT id FROM $peopleTable WHERE id = ?");
+function validatePersona(PDO $db, string $personasTable, int $personaId): void {
+    $stmt = $db->prepare("SELECT id FROM $personasTable WHERE id = ?");
     $stmt->execute([$personaId]);
     if (!$stmt->fetch()) jsonError('Persona no encontrada', 404);
 }
 
-function createTurno(PDO $db, string $peopleTable): void {
+function createTurno(PDO $db, string $personasTable): void {
     $data = getBody();
 
     foreach (['persona_id', 'profesional_id', 'institucion_id', 'fecha', 'hora'] as $field) {
         if (empty($data[$field])) jsonError("El campo $field es requerido");
     }
 
-    validatePersona($db, $peopleTable, (int)$data['persona_id']);
+    validatePersona($db, $personasTable, (int)$data['persona_id']);
 
     $prioridad = $data['prioridad'] ?? 'media';
     if (!in_array($prioridad, ['alta', 'media', 'baja'])) jsonError('Prioridad inválida');

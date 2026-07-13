@@ -1,11 +1,13 @@
 CREATE DATABASE IF NOT EXISTS turnos_prioritarios CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE turnos_prioritarios;
 
--- Nota: los datos de personas (pacientes/beneficiarios) viven en la base
--- `stock_control`, tabla `people` (compartida con el sistema de stock de la
--- farmacia del hospital). Este módulo la referencia por id (persona_id) sin
--- clave foránea real, ya que es una base de datos distinta en el mismo
--- servidor MySQL.
+-- Nota: los datos de personas (pacientes/beneficiarios) viven en la tabla
+-- `personas` ya existente en la base `stock_control` (padrón compartido con
+-- el sistema de stock de la farmacia del hospital, ~96.000 registros).
+-- Este módulo la referencia por id (persona_id) sin clave foránea real, ya
+-- que es una base de datos distinta en el mismo servidor MySQL. Columnas
+-- relevantes de esa tabla: id, tipo_documento, documento, apellido, nombre,
+-- sexo, calle, numeracion, departamento, piso, barrio, cuit_cuil, active.
 
 CREATE TABLE IF NOT EXISTS profesionales (
     id INT AUTO_INCREMENT PRIMARY KEY,
