@@ -8,9 +8,13 @@
 # partir de config/database.php.dist, y de ahí en más el deploy no la toca,
 # así las credenciales reales de producción no se pisan en cada push.
 #
+# Si frontend/ tiene package.json se compila (npm ci && npm run build); si
+# no, pero existe frontend/dist ya commiteado, se copia tal cual (proyectos
+# sin código fuente de frontend disponible, solo el build).
+#
 # Archivos opcionales por proyecto:
 #   .deploy-target   nombre de la carpeta remota, si difiere del nombre del
-#                    proyecto en el repo (ej. stock-control -> farmacia).
+#                    proyecto en el repo.
 #   .deploy-keep     rutas (una por línea, relativas a la carpeta remota) que
 #                    nunca se borran aunque no estén en el bundle — para
 #                    archivos que solo existen en el servidor.
@@ -43,6 +47,11 @@ mkdir -p "$BUNDLE"
 if [ -f "$PROJECT_DIR/frontend/package.json" ]; then
     echo "==> Build del frontend"
     (cd "$PROJECT_DIR/frontend" && npm ci && npm run build)
+    cp -r "$PROJECT_DIR/frontend/dist/." "$BUNDLE/"
+elif [ -d "$PROJECT_DIR/frontend/dist" ]; then
+    # Sin código fuente del frontend (solo el build ya compilado, commiteado
+    # tal cual) — se copia directo, sin paso de build.
+    echo "==> Frontend sin fuente disponible, copiando el build ya compilado"
     cp -r "$PROJECT_DIR/frontend/dist/." "$BUNDLE/"
 fi
 
