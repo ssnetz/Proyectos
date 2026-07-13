@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { usePersonas } from '../hooks/useApi';
 import Modal from '../components/Modal';
 
-const emptyForm = { documento: '', apellidos: '', nombres: '', domicilio: '', celular: '' };
+const emptyForm = { documento: '', apellidos: '', nombres: '', domicilio: '' };
 
 export default function Personas() {
   const { list, create, update } = usePersonas();
@@ -30,7 +30,7 @@ export default function Personas() {
 
   const openCreate = () => { setForm(emptyForm); setModal('create'); setError(''); };
   const openEdit   = (p) => {
-    setForm({ documento: p.documento, apellidos: p.apellidos, nombres: p.nombres, domicilio: p.domicilio || '', celular: p.celular || '' });
+    setForm({ documento: p.documento, apellidos: p.apellidos, nombres: p.nombres, domicilio: p.domicilio || '' });
     setModal(p.id);
     setError('');
   };
@@ -77,7 +77,7 @@ export default function Personas() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Documento</th><th>Apellidos</th><th>Nombres</th><th>Domicilio</th><th>Celular</th><th>Acciones</th></tr>
+                <tr><th>Documento</th><th>Apellidos</th><th>Nombres</th><th>Domicilio</th><th>Acciones</th></tr>
               </thead>
               <tbody>
                 {personas.map((p) => (
@@ -86,7 +86,6 @@ export default function Personas() {
                     <td><strong>{p.apellidos}</strong></td>
                     <td>{p.nombres}</td>
                     <td style={{ color: 'var(--gray-500)' }}>{p.domicilio || '—'}</td>
-                    <td>{p.celular || '—'}</td>
                     <td>
                       <button className="btn btn-ghost btn-sm" onClick={() => openEdit(p)}>✏️</button>
                     </td>
@@ -129,10 +128,6 @@ export default function Personas() {
           <div className="form-group">
             <label className="form-label">Domicilio</label>
             <input className="form-control" value={form.domicilio} onChange={(e) => setForm({ ...form, domicilio: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Celular</label>
-            <input className="form-control" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} />
           </div>
         </Modal>
       )}

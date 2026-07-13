@@ -7,7 +7,7 @@ handleOptions();
 requireAuth();
 
 $db = getDB();
-$peopleTable = '`' . PEOPLE_DB . '`.`people`';
+$personasTable = '`' . PEOPLE_DB . '`.`personas`';
 
 $totalProfesionales = $db->query("SELECT COUNT(*) FROM profesionales WHERE activo = 1")->fetchColumn();
 $totalInstituciones = $db->query("SELECT COUNT(*) FROM instituciones")->fetchColumn();
@@ -22,11 +22,11 @@ $agendaHoy = $db->query(
     "SELECT t.id, t.hora, t.motivo, t.prioridad, t.estado,
             pr.apellidos AS profesional_apellidos, pr.nombres AS profesional_nombres,
             i.nombre AS institucion_nombre,
-            p.first_name AS persona_nombres, p.last_name AS persona_apellidos
+            p.nombre AS persona_nombres, p.apellido AS persona_apellidos
      FROM turnos_prioritarios t
      JOIN profesionales pr ON t.profesional_id = pr.id
      JOIN instituciones i ON t.institucion_id = i.id
-     LEFT JOIN $peopleTable p ON t.persona_id = p.id
+     LEFT JOIN $personasTable p ON t.persona_id = p.id
      WHERE t.fecha = CURDATE() AND t.estado != 'cancelado'
      ORDER BY t.hora"
 )->fetchAll();
