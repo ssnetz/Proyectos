@@ -61,7 +61,17 @@ if ($method === 'POST') {
             (:import_date, :vehicle_name, :plate, :vehicle_id, :km_recorridos,
              :tiempo_marcha, :tiempo_ralenti, :tiempo_detenido,
              :vel_max, :vel_prom, :total_eventos,
-             :ubicacion_inicio, :ubicacion_fin, :user_id)");
+             :ubicacion_inicio, :ubicacion_fin, :user_id)
+            ON DUPLICATE KEY UPDATE
+             km_recorridos    = VALUES(km_recorridos),
+             tiempo_marcha    = VALUES(tiempo_marcha),
+             tiempo_ralenti   = VALUES(tiempo_ralenti),
+             tiempo_detenido  = VALUES(tiempo_detenido),
+             vel_max          = VALUES(vel_max),
+             vel_prom         = VALUES(vel_prom),
+             total_eventos    = VALUES(total_eventos),
+             ubicacion_inicio = VALUES(ubicacion_inicio),
+             ubicacion_fin    = VALUES(ubicacion_fin)");
 
         foreach ($rows as $row) {
             $importDate = trim($row['import_date'] ?? '');
@@ -92,7 +102,7 @@ if ($method === 'POST') {
                 ':ubicacion_fin'    => $row['ubicacion_fin']    ?: null,
                 ':user_id'          => $userId,
             ]);
-            $inserted++;
+            if ($ins->rowCount() > 0) $inserted++; else $skipped++;
         }
         $db->commit();
 

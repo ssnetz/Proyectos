@@ -1,11 +1,11 @@
 <?php
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'fuel_control');
-define('DB_USER', 'root');
+define('DB_USER', 'fuel_user');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 
-define('JWT_SECRET', 'fuel_control_secret_key_2024_cambiar_en_produccion');
+define('JWT_SECRET', 'cambiar_en_produccion');
 define('JWT_EXPIRY', 8 * 3600);
 
 function getDB(): PDO {
