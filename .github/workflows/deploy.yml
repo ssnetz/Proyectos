@@ -9,6 +9,11 @@ on:
         description: "Carpeta del proyecto a desplegar (vacío = autodetectar por el último push)"
         required: false
         type: string
+      dry_run:
+        description: "Dry run: mostrar qué cambiaría sin tocar el servidor"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   deploy:
@@ -57,6 +62,7 @@ jobs:
         env:
           HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
           HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
         run: |
           for p in ${{ steps.detect.outputs.projects }}; do
             echo "::group::Deploy $p"
