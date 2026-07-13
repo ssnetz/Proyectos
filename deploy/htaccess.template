@@ -16,6 +16,11 @@
     RewriteRule . index.html [L]
 </IfModule>
 
+# Tipo MIME para módulos JS (ej. worker de pdf.js)
+<IfModule mod_mime.c>
+    AddType application/javascript .mjs
+</IfModule>
+
 # Cabeceras de seguridad básicas
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
