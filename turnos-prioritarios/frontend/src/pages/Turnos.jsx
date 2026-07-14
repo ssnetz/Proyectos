@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTurnos, usePersonas, useProfesionales, useInstituciones } from '../hooks/useApi';
 import Modal from '../components/Modal';
-import { calcularEdad } from '../utils';
+import { calcularEdad, buildWhatsAppLink } from '../utils';
 
 const emptyForm = {
   persona_id: '', persona_label: '', personaMode: null,
@@ -9,11 +9,23 @@ const emptyForm = {
   persona_fecha_nacimiento: '', persona_email: '', persona_celular: '',
   profesional_id: '', institucion_id: '',
   fecha: '', hora: '', motivo: '', prioridad: 'media', estado: 'pendiente', observaciones: '',
-  creado_en: '',
+  creado_en: '', enviarWhatsapp: true,
 };
 
 const prioridadBadge = { alta: 'badge-red', media: 'badge-yellow', baja: 'badge-gray' };
 const estadoBadge = { pendiente: 'badge-yellow', confirmado: 'badge-blue', atendido: 'badge-green', cancelado: 'badge-red' };
+
+function WhatsAppIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="16" cy="16" r="16" fill="#25D366" />
+      <path
+        fill="#fff"
+        d="M23.47 8.52A9.9 9.9 0 0 0 16.06 5.5c-5.47 0-9.92 4.45-9.92 9.92 0 1.75.46 3.46 1.33 4.96L6 26.5l6.27-1.64a9.9 9.9 0 0 0 4.74 1.21h.01c5.47 0 9.92-4.45 9.92-9.92a9.86 9.86 0 0 0-2.91-6.63h.44Zm-7.4 15.26h-.01a8.2 8.2 0 0 1-4.2-1.15l-.3-.18-3.72.97 1-3.63-.2-.31a8.22 8.22 0 0 1-1.26-4.38c0-4.55 3.71-8.26 8.27-8.26a8.2 8.2 0 0 1 5.85 2.42 8.2 8.2 0 0 1 2.42 5.85c0 4.55-3.71 8.26-8.27 8.26Zm4.53-6.19c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.12-.16.25-.64.81-.78.97-.14.16-.29.18-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.7-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.16-.25.24-.41.08-.16.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.48-.4-.42-.56-.42h-.48c-.16 0-.43.06-.66.31-.23.25-.86.84-.86 2.04 0 1.2.88 2.36 1 2.52.12.16 1.73 2.64 4.19 3.7.59.25 1.04.4 1.4.52.59.19 1.12.16 1.54.1.47-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.14-1.18-.06-.1-.22-.16-.47-.28Z"
+      />
+    </svg>
+  );
+}
 
 function PersonaPicker({ value, onChange, onCreateNew }) {
   const { list } = usePersonas();
@@ -178,6 +190,11 @@ export default function Turnos() {
     if (!form.institucion_id) { setError('Selecciona una institución'); return; }
     if (!form.fecha || !form.hora) { setError('Fecha y hora son requeridas'); return; }
 
+    // Abrimos la pestaña en blanco ya (sincrónico con el clic) para que el
+    // navegador no la bloquee como pop-up; recién después de guardar el
+    // turno la redirigimos al link de WhatsApp (o la cerramos si falla algo).
+    const whatsappTab = (modal === 'create' && form.enviarWhatsapp) ? window.open('', '_blank', 'noopener') : null;
+
     setSaving(true);
     setError('');
     try {
@@ -202,11 +219,30 @@ export default function Turnos() {
       }
 
       const turnoPayload = { ...form, persona_id: personaId };
-      if (modal === 'create') { await create(turnoPayload); notify('Turno otorgado'); }
-      else { await update(modal, turnoPayload); notify('Turno actualizado'); }
+      if (modal === 'create') {
+        await create(turnoPayload);
+        notify('Turno otorgado');
+        if (whatsappTab) {
+          const profesional = profesionales.find((p) => String(p.id) === String(form.profesional_id));
+          const institucion = instituciones.find((i) => String(i.id) === String(form.institucion_id));
+          const fechaFmt = new Date(`${form.fecha}T00:00:00`).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const mensaje = `Hola ${form.persona_nombres}! Te confirmamos tu turno prioritario:\n` +
+            `📅 ${fechaFmt} a las ${form.hora}\n` +
+            `🩺 ${profesional ? `${profesional.apellidos}, ${profesional.nombres} (${profesional.especialidad})` : ''}\n` +
+            `🏥 ${institucion?.nombre || ''}\n\n` +
+            `Hospital Cima`;
+          const link = buildWhatsAppLink(form.persona_celular, mensaje);
+          if (link) whatsappTab.location.href = link;
+          else whatsappTab.close();
+        }
+      } else {
+        await update(modal, turnoPayload);
+        notify('Turno actualizado');
+      }
       setModal(null);
       await load();
     } catch (e) {
+      whatsappTab?.close();
       setError(e.response?.data?.error || 'Error al guardar');
     } finally {
       setSaving(false);
@@ -382,11 +418,22 @@ export default function Turnos() {
                   <label className="form-label">Celular / Teléfono *</label>
                   <input
                     className="form-control"
+                    placeholder="Ej: 261 500-0001 (sin 0 ni 15)"
                     value={form.persona_celular}
                     onChange={(e) => setForm({ ...form, persona_celular: e.target.value })}
                   />
                 </div>
               </div>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, cursor: 'pointer', fontSize: '.875rem' }}>
+                <input
+                  type="checkbox"
+                  checked={form.enviarWhatsapp}
+                  onChange={(e) => setForm({ ...form, enviarWhatsapp: e.target.checked })}
+                />
+                <WhatsAppIcon />
+                Enviar confirmación de turno por WhatsApp al celular al guardar
+              </label>
             </div>
           )}
 
