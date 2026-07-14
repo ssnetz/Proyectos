@@ -183,7 +183,6 @@ export default function Turnos() {
         if (!form.persona_nombres)   { setError('Los nombres de la persona son requeridos'); return; }
       }
       if (!form.persona_fecha_nacimiento) { setError('La fecha de nacimiento de la persona es requerida'); return; }
-      if (!form.persona_email)            { setError('El email de la persona es requerido'); return; }
       if (!form.persona_celular)          { setError('El celular/teléfono de la persona es requerido'); return; }
     }
     if (!form.profesional_id) { setError('Selecciona un profesional'); return; }
@@ -404,7 +403,7 @@ export default function Turnos() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Email *</label>
+                  <label className="form-label">Email</label>
                   <input
                     type="email" className="form-control"
                     value={form.persona_email}
