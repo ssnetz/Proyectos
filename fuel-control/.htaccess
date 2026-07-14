@@ -1,2 +1,29 @@
-Options -Indexes
-DirectoryIndex index.php
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /fuel-control/
+
+    # Pasar el header Authorization a PHP (algunos hosts lo eliminan por defecto)
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Las rutas /api/* las resuelve el PHP que vive en backend/api/
+    # (fuel-control guarda su backend bajo un subprefijo, ver .deploy-backend-prefix)
+    RewriteRule ^api/(.*)$ backend/api/$1 [L]
+
+    # Archivos y carpetas que existen se sirven tal cual
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Todo lo demás va al index.html (React SPA routing)
+    RewriteRule . index.html [L]
+</IfModule>
+
+# Tipo MIME para módulos JS (ej. worker de pdf.js)
+<IfModule mod_mime.c>
+    AddType application/javascript .mjs
+</IfModule>
+
+# Cabeceras de seguridad básicas
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>
