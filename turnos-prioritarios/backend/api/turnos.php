@@ -88,8 +88,8 @@ function validatePersona(PDO $db, string $personasTable, int $personaId): void {
     $stmt->execute([$personaId]);
     $persona = $stmt->fetch();
     if (!$persona) jsonError('Persona no encontrada', 404);
-    if (empty($persona['fecha_nacimiento']) || empty($persona['email']) || empty($persona['celular'])) {
-        jsonError('La persona debe tener fecha de nacimiento, email y celular cargados antes de otorgarle un turno', 409);
+    if (empty($persona['fecha_nacimiento']) || empty($persona['celular'])) {
+        jsonError('La persona debe tener fecha de nacimiento y celular cargados antes de otorgarle un turno', 409);
     }
 }
 

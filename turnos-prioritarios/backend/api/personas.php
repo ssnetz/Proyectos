@@ -56,9 +56,8 @@ function mapPersona(array $p): array {
 
 function validarDatosContacto(array $data): void {
     if (empty($data['fecha_nacimiento'])) jsonError('La fecha de nacimiento es requerida');
-    if (empty($data['email'])) jsonError('El email es requerido');
     if (empty($data['celular'])) jsonError('El celular/teléfono es requerido');
-    if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) jsonError('El email no es válido');
+    if (!empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) jsonError('El email no es válido');
 }
 
 function listPersonas(PDO $db, string $table): void {
@@ -103,7 +102,7 @@ function createPersona(PDO $db, string $table): void {
             $data['nombres'],
             $data['domicilio'] ?? null,
             $data['fecha_nacimiento'],
-            $data['email'],
+            $data['email'] ?? null,
             $data['celular'],
         ]);
         jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Persona creada'], 201);
@@ -135,7 +134,7 @@ function updatePersona(PDO $db, string $table, int $id): void {
             $data['nombres'],
             $data['domicilio'] ?? null,
             $data['fecha_nacimiento'],
-            $data['email'],
+            $data['email'] ?? null,
             $data['celular'],
             $id,
         ]);

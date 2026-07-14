@@ -49,7 +49,6 @@ export default function Personas() {
 
   const handleSave = async () => {
     if (!form.fecha_nacimiento) { setError('La fecha de nacimiento es requerida'); return; }
-    if (!form.email)            { setError('El email es requerido'); return; }
     if (!form.celular)          { setError('El celular/teléfono es requerido'); return; }
 
     setSaving(true);
@@ -167,7 +166,7 @@ export default function Personas() {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Email *</label>
+              <label className="form-label">Email</label>
               <input
                 type="email" className="form-control"
                 value={form.email}
