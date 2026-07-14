@@ -61,6 +61,10 @@ function listTurnos(PDO $db, string $personasTable): void {
         $where[] = 't.persona_id = ?';
         $params[] = (int)$_GET['persona_id'];
     }
+    if (!empty($_GET['solicitado'])) {
+        $where[] = 'DATE(t.created_at) = ?';
+        $params[] = $_GET['solicitado'];
+    }
 
     $sql = baseSelect($personasTable);
     if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
@@ -80,9 +84,13 @@ function getTurno(PDO $db, string $personasTable, int $id): void {
 }
 
 function validatePersona(PDO $db, string $personasTable, int $personaId): void {
-    $stmt = $db->prepare("SELECT id FROM $personasTable WHERE id = ?");
+    $stmt = $db->prepare("SELECT id, fecha_nacimiento, email, celular FROM $personasTable WHERE id = ?");
     $stmt->execute([$personaId]);
-    if (!$stmt->fetch()) jsonError('Persona no encontrada', 404);
+    $persona = $stmt->fetch();
+    if (!$persona) jsonError('Persona no encontrada', 404);
+    if (empty($persona['fecha_nacimiento']) || empty($persona['email']) || empty($persona['celular'])) {
+        jsonError('La persona debe tener fecha de nacimiento, email y celular cargados antes de otorgarle un turno', 409);
+    }
 }
 
 function createTurno(PDO $db, string $personasTable): void {
