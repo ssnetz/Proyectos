@@ -190,10 +190,25 @@ export default function Turnos() {
     if (!form.institucion_id) { setError('Selecciona una institución'); return; }
     if (!form.fecha || !form.hora) { setError('Fecha y hora son requeridas'); return; }
 
-    // Abrimos la pestaña en blanco ya (sincrónico con el clic) para que el
-    // navegador no la bloquee como pop-up; recién después de guardar el
-    // turno la redirigimos al link de WhatsApp (o la cerramos si falla algo).
-    const whatsappTab = (modal === 'create' && form.enviarWhatsapp) ? window.open('', '_blank', 'noopener') : null;
+    // El link de WhatsApp se abre ya, sincrónico con el clic (no después de
+    // los await de guardado): todos los datos del mensaje ya están en el
+    // formulario, no hace falta esperar la respuesta del servidor. Abrir la
+    // pestaña recién después de esperar una respuesta async hace que algunos
+    // navegadores la dejen "congelada" sin poder navegarla (por eso quedaba
+    // en blanco).
+    let whatsappTab = null;
+    if (modal === 'create' && form.enviarWhatsapp) {
+      const profesional = profesionales.find((p) => String(p.id) === String(form.profesional_id));
+      const institucion = instituciones.find((i) => String(i.id) === String(form.institucion_id));
+      const fechaFmt = new Date(`${form.fecha}T00:00:00`).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const mensaje = `Hola ${form.persona_nombres}! Te confirmamos tu turno prioritario:\n` +
+        `📅 ${fechaFmt} a las ${form.hora}\n` +
+        `🩺 ${profesional ? `${profesional.apellidos}, ${profesional.nombres} (${profesional.especialidad})` : ''}\n` +
+        `🏥 ${institucion?.nombre || ''}\n\n` +
+        `Hospital Cima`;
+      const link = buildWhatsAppLink(form.persona_celular, mensaje);
+      if (link) whatsappTab = window.open(link, '_blank', 'noopener');
+    }
 
     setSaving(true);
     setError('');
@@ -219,26 +234,8 @@ export default function Turnos() {
       }
 
       const turnoPayload = { ...form, persona_id: personaId };
-      if (modal === 'create') {
-        await create(turnoPayload);
-        notify('Turno otorgado');
-        if (whatsappTab) {
-          const profesional = profesionales.find((p) => String(p.id) === String(form.profesional_id));
-          const institucion = instituciones.find((i) => String(i.id) === String(form.institucion_id));
-          const fechaFmt = new Date(`${form.fecha}T00:00:00`).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-          const mensaje = `Hola ${form.persona_nombres}! Te confirmamos tu turno prioritario:\n` +
-            `📅 ${fechaFmt} a las ${form.hora}\n` +
-            `🩺 ${profesional ? `${profesional.apellidos}, ${profesional.nombres} (${profesional.especialidad})` : ''}\n` +
-            `🏥 ${institucion?.nombre || ''}\n\n` +
-            `Hospital Cima`;
-          const link = buildWhatsAppLink(form.persona_celular, mensaje);
-          if (link) whatsappTab.location.href = link;
-          else whatsappTab.close();
-        }
-      } else {
-        await update(modal, turnoPayload);
-        notify('Turno actualizado');
-      }
+      if (modal === 'create') { await create(turnoPayload); notify('Turno otorgado'); }
+      else { await update(modal, turnoPayload); notify('Turno actualizado'); }
       setModal(null);
       await load();
     } catch (e) {
