@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useTurnos, usePersonas, useProfesionales, useInstituciones } from '../hooks/useApi';
 import Modal from '../components/Modal';
+import { calcularEdad } from '../utils';
 
 const emptyForm = {
-  persona_id: '', persona_label: '',
+  persona_id: '', persona_label: '', personaMode: null,
+  persona_documento: '', persona_apellidos: '', persona_nombres: '', persona_domicilio: '',
+  persona_fecha_nacimiento: '', persona_email: '', persona_celular: '',
   profesional_id: '', institucion_id: '',
   fecha: '', hora: '', motivo: '', prioridad: 'media', estado: 'pendiente', observaciones: '',
+  creado_en: '',
 };
 
 const prioridadBadge = { alta: 'badge-red', media: 'badge-yellow', baja: 'badge-gray' };
 const estadoBadge = { pendiente: 'badge-yellow', confirmado: 'badge-blue', atendido: 'badge-green', cancelado: 'badge-red' };
 
-function PersonaPicker({ value, onChange }) {
+function PersonaPicker({ value, onChange, onCreateNew }) {
   const { list } = usePersonas();
   const [query, setQuery] = useState(value.persona_label || '');
   const [results, setResults] = useState([]);
@@ -28,7 +32,18 @@ function PersonaPicker({ value, onChange }) {
   }, [query, open]);
 
   const pick = (p) => {
-    onChange({ persona_id: p.id, persona_label: `${p.apellidos}, ${p.nombres} (DNI ${p.documento})` });
+    onChange({
+      persona_id: p.id,
+      persona_label: `${p.apellidos}, ${p.nombres} (DNI ${p.documento})`,
+      personaMode: 'existing',
+      persona_documento: p.documento,
+      persona_apellidos: p.apellidos,
+      persona_nombres: p.nombres,
+      persona_domicilio: p.domicilio || '',
+      persona_fecha_nacimiento: p.fecha_nacimiento || '',
+      persona_email: p.email || '',
+      persona_celular: p.celular || '',
+    });
     setQuery(`${p.apellidos}, ${p.nombres} (DNI ${p.documento})`);
     setOpen(false);
   };
@@ -40,10 +55,10 @@ function PersonaPicker({ value, onChange }) {
         placeholder="Buscar por documento, apellido o nombre..."
         value={query}
         onFocus={() => setOpen(true)}
-        onChange={(e) => { setQuery(e.target.value); onChange({ persona_id: '', persona_label: e.target.value }); setOpen(true); }}
+        onChange={(e) => { setQuery(e.target.value); onChange({ persona_id: '', persona_label: e.target.value, personaMode: null }); setOpen(true); }}
       />
-      {open && results.length > 0 && (
-        <div className="card" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, padding: 6, marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
+      {open && (
+        <div className="card" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, padding: 6, marginTop: 4, maxHeight: 260, overflowY: 'auto' }}>
           {results.map((p) => (
             <div
               key={p.id}
@@ -56,6 +71,15 @@ function PersonaPicker({ value, onChange }) {
               <strong>{p.apellidos}, {p.nombres}</strong> — DNI {p.documento}
             </div>
           ))}
+          <div
+            onClick={() => { onCreateNew(); setOpen(false); }}
+            onMouseDown={(e) => e.preventDefault()}
+            style={{ padding: '8px 10px', cursor: 'pointer', borderRadius: 6, fontSize: '.875rem', color: 'var(--primary)', borderTop: results.length ? '1px solid var(--gray-200)' : 'none' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--gray-100)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            + No está en la lista: crear persona nueva
+          </div>
         </div>
       )}
     </div>
@@ -64,6 +88,7 @@ function PersonaPicker({ value, onChange }) {
 
 export default function Turnos() {
   const { list, create, update, cancel } = useTurnos();
+  const { create: createPersona, update: updatePersona } = usePersonas();
   const { list: listProfesionales } = useProfesionales();
   const { list: listInstituciones } = useInstituciones();
 
@@ -80,11 +105,13 @@ export default function Turnos() {
   const today = new Date().toISOString().slice(0, 10);
   const [filterFecha, setFilterFecha] = useState(today);
   const [filterEstado, setFilterEstado] = useState('');
+  const [filterSolicitado, setFilterSolicitado] = useState('');
 
   const load = () => {
     const params = {};
     if (filterFecha) params.fecha = filterFecha;
     if (filterEstado) params.estado = filterEstado;
+    if (filterSolicitado) params.solicitado = filterSolicitado;
     return list(params).then((r) => setTurnos(r.data));
   };
 
@@ -97,7 +124,7 @@ export default function Turnos() {
   useEffect(() => {
     setLoading(true);
     load().catch(() => setError('Error cargando turnos')).finally(() => setLoading(false));
-  }, [filterFecha, filterEstado]);
+  }, [filterFecha, filterEstado, filterSolicitado]);
 
   const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); };
 
@@ -107,8 +134,18 @@ export default function Turnos() {
     setError('');
   };
 
+  const startNewPersona = () => {
+    setForm((f) => ({
+      ...f,
+      persona_id: '', persona_label: '', personaMode: 'new',
+      persona_documento: '', persona_apellidos: '', persona_nombres: '', persona_domicilio: '',
+      persona_fecha_nacimiento: '', persona_email: '', persona_celular: '',
+    }));
+  };
+
   const openEdit = (t) => {
     setForm({
+      ...emptyForm,
       persona_id: t.persona_id,
       persona_label: t.persona_apellidos ? `${t.persona_apellidos}, ${t.persona_nombres} (DNI ${t.persona_documento})` : '',
       profesional_id: t.profesional_id,
@@ -119,13 +156,24 @@ export default function Turnos() {
       prioridad: t.prioridad,
       estado: t.estado,
       observaciones: t.observaciones || '',
+      creado_en: t.created_at || '',
     });
     setModal(t.id);
     setError('');
   };
 
   const handleSave = async () => {
-    if (!form.persona_id) { setError('Selecciona una persona de la lista'); return; }
+    if (modal === 'create') {
+      if (!form.persona_id && form.personaMode !== 'new') { setError('Selecciona una persona de la lista o creá una nueva'); return; }
+      if (form.personaMode === 'new') {
+        if (!form.persona_documento) { setError('El documento de la persona es requerido'); return; }
+        if (!form.persona_apellidos) { setError('Los apellidos de la persona son requeridos'); return; }
+        if (!form.persona_nombres)   { setError('Los nombres de la persona son requeridos'); return; }
+      }
+      if (!form.persona_fecha_nacimiento) { setError('La fecha de nacimiento de la persona es requerida'); return; }
+      if (!form.persona_email)            { setError('El email de la persona es requerido'); return; }
+      if (!form.persona_celular)          { setError('El celular/teléfono de la persona es requerido'); return; }
+    }
     if (!form.profesional_id) { setError('Selecciona un profesional'); return; }
     if (!form.institucion_id) { setError('Selecciona una institución'); return; }
     if (!form.fecha || !form.hora) { setError('Fecha y hora son requeridas'); return; }
@@ -133,8 +181,29 @@ export default function Turnos() {
     setSaving(true);
     setError('');
     try {
-      if (modal === 'create') { await create(form); notify('Turno otorgado'); }
-      else { await update(modal, form); notify('Turno actualizado'); }
+      let personaId = form.persona_id;
+
+      if (modal === 'create') {
+        const personaPayload = {
+          documento: form.persona_documento,
+          apellidos: form.persona_apellidos,
+          nombres: form.persona_nombres,
+          domicilio: form.persona_domicilio,
+          fecha_nacimiento: form.persona_fecha_nacimiento,
+          email: form.persona_email,
+          celular: form.persona_celular,
+        };
+        if (form.personaMode === 'new') {
+          const r = await createPersona(personaPayload);
+          personaId = r.data.id;
+        } else {
+          await updatePersona(form.persona_id, personaPayload);
+        }
+      }
+
+      const turnoPayload = { ...form, persona_id: personaId };
+      if (modal === 'create') { await create(turnoPayload); notify('Turno otorgado'); }
+      else { await update(modal, turnoPayload); notify('Turno actualizado'); }
       setModal(null);
       await load();
     } catch (e) {
@@ -163,7 +232,7 @@ export default function Turnos() {
       <div className="card">
         <div className="table-actions">
           <div className="filters">
-            <input type="date" className="form-control" style={{ width: 170 }} value={filterFecha} onChange={(e) => setFilterFecha(e.target.value)} />
+            <input type="date" className="form-control" style={{ width: 170 }} value={filterFecha} onChange={(e) => setFilterFecha(e.target.value)} title="Fecha del turno" />
             <select className="form-control" style={{ width: 160 }} value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)}>
               <option value="">Todos los estados</option>
               <option value="pendiente">Pendiente</option>
@@ -173,6 +242,16 @@ export default function Turnos() {
             </select>
             {filterFecha && (
               <button className="btn btn-ghost btn-sm" onClick={() => setFilterFecha('')}>Ver todas las fechas</button>
+            )}
+            <span style={{ fontSize: '.8rem', color: 'var(--gray-500)', marginLeft: 8 }}>Solicitado el:</span>
+            <input
+              type="date" className="form-control" style={{ width: 170 }}
+              value={filterSolicitado}
+              onChange={(e) => setFilterSolicitado(e.target.value)}
+              title="Fecha en que se solicitó el turno (independiente de la fecha del turno)"
+            />
+            {filterSolicitado && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setFilterSolicitado('')}>Quitar filtro de solicitud</button>
             )}
           </div>
           <button className="btn btn-primary" onClick={openCreate}>+ Nuevo turno</button>
@@ -185,15 +264,21 @@ export default function Turnos() {
             <table>
               <thead>
                 <tr>
-                  <th>Fecha</th><th>Hora</th><th>Persona</th><th>Profesional</th><th>Institución</th>
+                  <th>Fecha</th><th>Hora</th><th>Solicitado</th><th>Persona</th><th>Profesional</th><th>Institución</th>
                   <th>Prioridad</th><th>Estado</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {turnos.map((t) => (
+                {turnos.map((t) => {
+                  const fechaSolicitud = t.created_at?.slice(0, 10);
+                  const esDiferido = fechaSolicitud && fechaSolicitud !== t.fecha;
+                  return (
                   <tr key={t.id}>
                     <td style={{ whiteSpace: 'nowrap' }}>{t.fecha}</td>
                     <td>{t.hora?.slice(0, 5)}</td>
+                    <td style={{ whiteSpace: 'nowrap', color: esDiferido ? 'var(--warning)' : 'var(--gray-400)' }} title={esDiferido ? 'Turno diferido: pedido en una fecha, agendado para otra' : ''}>
+                      {fechaSolicitud || '—'}
+                    </td>
                     <td>{t.persona_apellidos ? `${t.persona_apellidos}, ${t.persona_nombres}` : '—'}</td>
                     <td>{t.profesional_apellidos}, {t.profesional_nombres}<div style={{ fontSize: '.75rem', color: 'var(--gray-400)' }}>{t.profesional_especialidad}</div></td>
                     <td>{t.institucion_nombre}</td>
@@ -208,7 +293,8 @@ export default function Turnos() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -231,10 +317,78 @@ export default function Turnos() {
         >
           {error && <div className="alert alert-danger">{error}</div>}
 
+          <div className="form-group" style={{ fontSize: '.8rem', color: 'var(--gray-500)' }}>
+            Solicitado el: {modal === 'create' ? new Date().toLocaleDateString('es-AR') : (form.creado_en ? new Date(form.creado_en).toLocaleDateString('es-AR') : '—')}
+          </div>
+
           <div className="form-group">
             <label className="form-label">Persona *</label>
-            <PersonaPicker value={form} onChange={(v) => setForm({ ...form, ...v })} />
+            <PersonaPicker value={form} onChange={(v) => setForm({ ...form, ...v })} onCreateNew={startNewPersona} />
           </div>
+
+          {modal === 'create' && form.personaMode && (
+            <div className="card" style={{ padding: 12, marginBottom: 16, background: 'var(--gray-50)' }}>
+              <div style={{ fontWeight: 600, marginBottom: 8, fontSize: '.875rem' }}>
+                {form.personaMode === 'new' ? 'Nueva persona' : 'Confirmar / actualizar datos de contacto'}
+              </div>
+
+              {form.personaMode === 'new' && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Documento *</label>
+                    <input className="form-control" value={form.persona_documento} onChange={(e) => setForm({ ...form, persona_documento: e.target.value })} />
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Apellidos *</label>
+                      <input className="form-control" value={form.persona_apellidos} onChange={(e) => setForm({ ...form, persona_apellidos: e.target.value })} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Nombres *</label>
+                      <input className="form-control" value={form.persona_nombres} onChange={(e) => setForm({ ...form, persona_nombres: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Domicilio</label>
+                    <input className="form-control" value={form.persona_domicilio} onChange={(e) => setForm({ ...form, persona_domicilio: e.target.value })} />
+                  </div>
+                </>
+              )}
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Fecha de nacimiento *</label>
+                  <input
+                    type="date" className="form-control"
+                    value={form.persona_fecha_nacimiento}
+                    onChange={(e) => setForm({ ...form, persona_fecha_nacimiento: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Edad</label>
+                  <input className="form-control" value={calcularEdad(form.persona_fecha_nacimiento) ?? '—'} disabled />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Email *</label>
+                  <input
+                    type="email" className="form-control"
+                    value={form.persona_email}
+                    onChange={(e) => setForm({ ...form, persona_email: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Celular / Teléfono *</label>
+                  <input
+                    className="form-control"
+                    value={form.persona_celular}
+                    onChange={(e) => setForm({ ...form, persona_celular: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="form-row">
             <div className="form-group">

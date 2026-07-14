@@ -7,7 +7,10 @@ USE turnos_prioritarios;
 -- Este módulo la referencia por id (persona_id) sin clave foránea real, ya
 -- que es una base de datos distinta en el mismo servidor MySQL. Columnas
 -- relevantes de esa tabla: id, tipo_documento, documento, apellido, nombre,
--- sexo, calle, numeracion, departamento, piso, barrio, cuit_cuil, active.
+-- sexo, calle, numeracion, departamento, piso, barrio, cuit_cuil, active,
+-- fecha_nacimiento, email, celular (estas 3 últimas agregadas por
+-- farmacia/backend/migrations/add_persona_contact_fields.sql; este módulo
+-- las exige al otorgar un turno, farmacia no las usa).
 
 CREATE TABLE IF NOT EXISTS profesionales (
     id INT AUTO_INCREMENT PRIMARY KEY,
