@@ -178,6 +178,7 @@ export default function Personas() {
               <label className="form-label">Celular / Teléfono *</label>
               <input
                 className="form-control"
+                placeholder="Ej: 261 500-0001 (sin 0 ni 15)"
                 value={form.celular}
                 onChange={(e) => setForm({ ...form, celular: e.target.value })}
               />
