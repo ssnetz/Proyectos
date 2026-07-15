@@ -7,14 +7,17 @@ para personas atendidas en distintas instituciones de salud (Hospital Cima y
 centros de salud asociados), asignados a profesionales médicos con
 matrícula y especialidad. Es el sistema más pequeño de los tres, pensado
 para uso administrativo (recepción/gestión de agenda), no para
-autogestión del paciente. Base de datos: `turnos_prioritarios`.
+autogestión del paciente. Además de la agenda, incluye confirmación de
+turno por WhatsApp y reportes exportables en PDF (turnos pendientes por
+profesional/especialidad, listado de profesionales). Base de datos:
+`turnos_prioritarios`.
 
 ## 2. Arquitectura en capas
 
 ```mermaid
 flowchart TB
     subgraph FE["Frontend — React SPA (frontend/src)"]
-        UI["Páginas: Dashboard, Turnos, Personas,\nProfesionales, Instituciones, Usuarios, Login"]
+        UI["Páginas: Dashboard, Turnos, Personas,\nProfesionales, Instituciones, Reportes, Usuarios, Login"]
         CTX[AuthContext.jsx\nlocalStorage: tp_token]
     end
     subgraph BE["Backend — PHP 8 (backend/)"]
@@ -64,6 +67,12 @@ flowchart TB
   valida firma + expiración (`exp`). Duración: **8 horas**
   (`JWT_EXPIRY = 8 * 3600`).
 - **Frontend**: React 18 + Vite, `axios` para HTTP.
+- **Reportes en PDF**: `jsPDF` + `jspdf-autotable`, generados **enteramente
+  en el navegador** (no hay librería de PDF en el backend PHP) — decisión
+  de diseño explícita para no depender de Composer en un hosting compartido
+  sin gestor de paquetes PHP instalado. El logo institucional se dibuja con
+  primitivas vectoriales (rectángulos redondeados), no es un archivo de
+  imagen.
 - **Contraseñas**: bcrypt (`password_hash`/`password_verify`), columna
   `contrasena` en `usuarios`.
 
@@ -129,6 +138,9 @@ erDiagram
         varchar piso
         varchar barrio
         varchar cuit_cuil
+        date fecha_nacimiento "agregada para turnos-prioritarios"
+        varchar email "agregada, opcional"
+        varchar celular "agregada, obligatoria para otorgar turno"
         tinyint active
     }
 ```
@@ -150,6 +162,12 @@ erDiagram
   atiende automáticamente antes — la prioridad es informativa/de
   clasificación para que el operador ordene la agenda manualmente (no hay
   un algoritmo de scheduling automático).
+- `fecha_nacimiento`, `email` y `celular` en `personas` **no las agregó
+  este sistema** en su propia migración, sino
+  `farmacia/backend/migrations/add_persona_contact_fields.sql` — turnos-
+  prioritarios las exige al otorgar un turno (ver §5.2) pero farmacia no
+  las usa. Es un ejemplo de cómo dos sistemas que comparten una tabla
+  pueden evolucionarla en conjunto sin acoplar su código.
 
 ## 5. Funcionamiento interno — flujos de negocio clave
 
@@ -178,11 +196,21 @@ erDiagram
 
 1. Valida campos obligatorios (`persona_id, profesional_id, institucion_id,
    fecha, hora`).
-2. `validatePersona()` hace un `SELECT id FROM stock_control.personas WHERE
-   id = ?` para confirmar que el paciente exista en el padrón compartido
-   (sin esto, un `persona_id` inválido quedaría huérfano, ya que no hay FK).
+2. `validatePersona()` trae `fecha_nacimiento, email, celular` de la persona
+   y **exige que `fecha_nacimiento` y `celular` estén cargados** (`email` es
+   opcional desde que se relajó esa validación); si falta alguno, corta con
+   `409` y el mensaje "La persona debe tener fecha de nacimiento y celular
+   cargados antes de otorgarle un turno". Esta es la regla de negocio más
+   particular del flujo: no alcanza con que la persona *exista* en el
+   padrón — tiene que tener los datos de contacto completos, porque son los
+   que se usan después para la confirmación por WhatsApp (§5.4).
 3. Valida `prioridad` contra el enum permitido.
 4. Inserta con `estado` por defecto `pendiente`.
+
+Si la persona no está en el padrón compartido, `Turnos.jsx` permite darla de
+alta ahí mismo (o completar/actualizar sus datos de contacto si ya existe)
+antes de otorgar el turno, en el mismo formulario — sin salir a la pantalla
+de Personas.
 
 No hay lógica de **detección de choques de horario** (dos turnos del mismo
 profesional a la misma hora) en el backend revisado — la prevención de
@@ -196,7 +224,48 @@ confirmado → atendido`, o a `cancelado` en cualquier momento (`DELETE` hace
 un *soft cancel*: `UPDATE ... SET estado='cancelado'`, no borra la fila —
 preserva el historial).
 
-### 5.4 Dashboard (`dashboard.php`)
+### 5.4 Confirmación por WhatsApp (`Turnos.jsx`, sin backend involucrado)
+
+Al otorgar un turno, si el usuario deja tildada la opción correspondiente,
+el frontend arma un link de `wa.me/<celular>?text=<mensaje>` con fecha,
+hora, profesional e institución, y lo abre en una pestaña nueva. El celular
+argentino se normaliza a mano (`normalizarCelularAR()` en `utils.js`: saca
+el 0 y el 15 y antepone `549`) porque no hay forma confiable de detectar
+automáticamente dónde termina el código de área. El link se abre **antes**
+de esperar la respuesta del servidor (de forma síncrona con el clic): abrir
+la pestaña recién después de un `await` hace que algunos navegadores la
+dejen en blanco al no poder navegarla — es puramente client-side, WhatsApp
+no tiene una API server-to-server integrada acá.
+
+### 5.5 Búsqueda de turnos por texto
+
+`GET /api/turnos.php?q=...` agrega a los filtros existentes (fecha, rango,
+estado, profesional, especialidad, institución) una condición `OR` por
+subcadena (`LIKE '%...%'`) sobre `documento`, `apellido` y `nombre` de la
+persona del turno, combinable con los demás filtros. En la agenda
+(`Turnos.jsx`) el campo de búsqueda usa *debounce* de 300 ms para no
+disparar un pedido por cada tecla.
+
+### 5.6 Reportes en PDF (`Reportes.jsx` + `utils/pdfReportes.js`)
+
+Dos reportes, generados **sin pasar por el backend** (que solo devuelve los
+datos en JSON, igual que cualquier otra pantalla):
+
+- **Turnos**: agrupados por profesional o por especialidad, filtrables por
+  rango de fechas, estado (por defecto "pendiente") e institución, con
+  subtotal por grupo.
+- **Listado de profesionales**: agrupado por especialidad, filtrable por
+  búsqueda de texto, especialidad y activos/inactivos.
+
+Ambos comparten el mismo encabezado institucional (logo + "Municipalidad de
+Cosquín / Hospital Cima"), colorean prioridad/estado, y repiten el
+encabezado en cada página nueva. Un detalle encontrado y corregido durante
+el desarrollo: si una columna angosta (la fecha) fuerza el texto a dos
+líneas justo en el borde de una página, `jspdf-autotable` puede partir la
+fila entre dos páginas y dejar una línea huérfana — se resolvió ensanchando
+columnas y con la opción `rowPageBreak: 'avoid'`.
+
+### 5.7 Dashboard (`dashboard.php`)
 
 Devuelve contadores (`profesionales activos`, `instituciones`, `turnos
 hoy`, `turnos pendientes`), la agenda completa del día (`agenda_hoy`, join
@@ -208,8 +277,8 @@ por fecha (`proximos_turnos`) para graficar la carga de la semana.
 | Recurso | Archivo | Métodos | Notas |
 |---|---|---|---|
 | Autenticación | `auth.php` | `POST ?action=login`, otros | JWT |
-| Turnos | `turnos.php` | GET, POST, PUT, DELETE(soft cancel) | Filtros: fecha, rango, estado, profesional, institución, persona |
-| Personas | `personas.php` | CRUD | Sobre `stock_control.personas` (padrón compartido) |
+| Turnos | `turnos.php` | GET, POST, PUT, DELETE(soft cancel) | Filtros: fecha, rango, estado, profesional, especialidad, institución, persona, `q` (búsqueda por texto) |
+| Personas | `personas.php` | CRUD | Sobre `stock_control.personas` (padrón compartido); exige `fecha_nacimiento` y `celular` |
 | Profesionales | `profesionales.php` | CRUD | Matrícula única |
 | Instituciones | `instituciones.php` | CRUD | Nombre único |
 | Usuarios | `usuarios.php` | CRUD | Solo admin |
@@ -219,10 +288,10 @@ por fecha (`proximos_turnos`) para graficar la carga de la semana.
 
 `App.jsx` define un layout con sidebar fija y rutas protegidas
 (`ProtectedRoute`): `/` (Dashboard), `/turnos`, `/personas`,
-`/profesionales`, `/instituciones` y `/usuarios` (solo visible/accesible
-para `role === 'admin'`, doble protección: se oculta del menú **y** la ruta
-exige `adminOnly` en `ProtectedRoute`). `/login` redirige automáticamente a
-`/` si ya hay sesión válida (`LoginGuard`).
+`/profesionales`, `/instituciones`, `/reportes` y `/usuarios` (solo
+visible/accesible para `role === 'admin'`, doble protección: se oculta del
+menú **y** la ruta exige `adminOnly` en `ProtectedRoute`). `/login`
+redirige automáticamente a `/` si ya hay sesión válida (`LoginGuard`).
 
 ## 8. Seguridad
 
