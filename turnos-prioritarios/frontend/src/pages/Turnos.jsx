@@ -118,12 +118,14 @@ export default function Turnos() {
   const [filterFecha, setFilterFecha] = useState(today);
   const [filterEstado, setFilterEstado] = useState('');
   const [filterSolicitado, setFilterSolicitado] = useState('');
+  const [filterQ, setFilterQ] = useState('');
 
   const load = () => {
     const params = {};
     if (filterFecha) params.fecha = filterFecha;
     if (filterEstado) params.estado = filterEstado;
     if (filterSolicitado) params.solicitado = filterSolicitado;
+    if (filterQ.trim()) params.q = filterQ.trim();
     return list(params).then((r) => setTurnos(r.data));
   };
 
@@ -137,6 +139,14 @@ export default function Turnos() {
     setLoading(true);
     load().catch(() => setError('Error cargando turnos')).finally(() => setLoading(false));
   }, [filterFecha, filterEstado, filterSolicitado]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setLoading(true);
+      load().catch(() => setError('Error cargando turnos')).finally(() => setLoading(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [filterQ]);
 
   const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); };
 
@@ -264,6 +274,13 @@ export default function Turnos() {
       <div className="card">
         <div className="table-actions">
           <div className="filters">
+            <input
+              className="form-control"
+              style={{ width: 240 }}
+              placeholder="Buscar por documento, apellido o nombre..."
+              value={filterQ}
+              onChange={(e) => setFilterQ(e.target.value)}
+            />
             <input type="date" className="form-control" style={{ width: 170 }} value={filterFecha} onChange={(e) => setFilterFecha(e.target.value)} title="Fecha del turno" />
             <select className="form-control" style={{ width: 160 }} value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)}>
               <option value="">Todos los estados</option>

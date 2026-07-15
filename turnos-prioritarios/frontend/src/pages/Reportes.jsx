@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTurnos, useProfesionales, useInstituciones } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
-import { generarReportePDF } from '../utils/pdfReportes';
+import { generarReportePDF, generarListadoProfesionalesPDF } from '../utils/pdfReportes';
 
 const prioridadBadge = { alta: 'badge-red', media: 'badge-yellow', baja: 'badge-gray' };
 const estadoBadge = { pendiente: 'badge-yellow', confirmado: 'badge-blue', atendido: 'badge-green', cancelado: 'badge-red' };
@@ -38,6 +38,11 @@ export default function Reportes() {
   const [estado, setEstado] = useState('pendiente');
   const [desde, setDesde] = useState(today);
   const [hasta, setHasta] = useState(addDias(today, 30));
+
+  const [profQ, setProfQ] = useState('');
+  const [profEspecialidad, setProfEspecialidad] = useState('');
+  const [profSoloActivos, setProfSoloActivos] = useState(true);
+  const [generandoProf, setGenerandoProf] = useState(false);
 
   useEffect(() => {
     Promise.all([listProfesionales(), listInstituciones()])
@@ -101,9 +106,47 @@ export default function Reportes() {
     }
   };
 
+  const profesionalesFiltrados = useMemo(() => {
+    const q = profQ.trim().toLowerCase();
+    return profesionales
+      .filter((p) => {
+        if (profSoloActivos && !Number(p.activo)) return false;
+        if (profEspecialidad && p.especialidad !== profEspecialidad) return false;
+        if (q) {
+          const hay = `${p.apellidos} ${p.nombres} ${p.matricula} ${p.especialidad || ''}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => a.apellidos.localeCompare(b.apellidos, 'es'));
+  }, [profesionales, profQ, profEspecialidad, profSoloActivos]);
+
+  const handleDescargarProfesionales = () => {
+    if (profesionalesFiltrados.length === 0) { setError('No hay profesionales para generar el listado con estos filtros'); return; }
+    setGenerandoProf(true);
+    setError('');
+    try {
+      const partes = [profEspecialidad || 'Todas las especialidades', profSoloActivos ? 'Solo activos' : 'Activos e inactivos'];
+      if (profQ.trim()) partes.push(`Búsqueda: "${profQ.trim()}"`);
+      generarListadoProfesionalesPDF({
+        profesionales: profesionalesFiltrados,
+        filtroDescripcion: partes.join(' · '),
+        generadoPor: user?.username,
+      });
+    } catch (e) {
+      setError('Error al generar el PDF');
+    } finally {
+      setGenerandoProf(false);
+    }
+  };
+
   return (
     <div>
       {error && <div className="alert alert-danger">{error}</div>}
+
+      <div style={{ fontSize: '.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--gray-400)', margin: '4px 0 10px' }}>
+        Turnos prioritarios
+      </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="card-header">
@@ -235,6 +278,84 @@ export default function Reportes() {
               </table>
             </div>
           </>
+        )}
+      </div>
+
+      <div style={{ fontSize: '.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--gray-400)', margin: '28px 0 10px' }}>
+        Profesionales
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-header">
+          <span className="card-title">Listado de profesionales</span>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Buscar</label>
+            <input
+              className="form-control"
+              placeholder="Apellido, nombre, matrícula o especialidad..."
+              value={profQ}
+              onChange={(e) => setProfQ(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Especialidad</label>
+            <select className="form-control" value={profEspecialidad} onChange={(e) => setProfEspecialidad(e.target.value)}>
+              <option value="">Todas las especialidades</option>
+              {especialidades.map((esp) => (
+                <option key={esp} value={esp}>{esp}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group" style={{ justifyContent: 'flex-end' }}>
+            <label className="form-label">&nbsp;</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38, cursor: 'pointer' }}>
+              <input type="checkbox" checked={profSoloActivos} onChange={(e) => setProfSoloActivos(e.target.checked)} />
+              Solo profesionales activos
+            </label>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <button
+            className="btn btn-primary"
+            onClick={handleDescargarProfesionales}
+            disabled={generandoProf || profesionalesFiltrados.length === 0}
+          >
+            {generandoProf ? 'Generando...' : '📄 Descargar PDF'}
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Vista previa — {profesionalesFiltrados.length} profesional{profesionalesFiltrados.length === 1 ? '' : 'es'}</span>
+        </div>
+
+        {profesionalesFiltrados.length === 0 ? (
+          <div className="empty"><div className="empty-icon">🩺</div><p>No hay profesionales para los filtros seleccionados</p></div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Apellidos</th><th>Nombres</th><th>Matrícula</th><th>Especialidad</th><th>Celular</th><th>Estado</th></tr>
+              </thead>
+              <tbody>
+                {profesionalesFiltrados.map((p) => (
+                  <tr key={p.id}>
+                    <td><strong>{p.apellidos}</strong></td>
+                    <td>{p.nombres}</td>
+                    <td>{p.matricula}</td>
+                    <td>{p.especialidad || '—'}</td>
+                    <td>{p.celular || '—'}</td>
+                    <td>{Number(p.activo) ? <span className="badge badge-green">Activo</span> : <span className="badge badge-red">Inactivo</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
