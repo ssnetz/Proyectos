@@ -51,7 +51,7 @@ function formatFechaHoraActual() {
   });
 }
 
-function addHeader(doc, { subtitulo, desde, hasta, generadoPor }) {
+function addHeader(doc, { titulo = 'Reporte de turnos prioritarios', subtitulo, desde, hasta, generadoPor }) {
   drawLogo(doc, MARGIN, 12, 20);
 
   doc.setFont('helvetica', 'bold');
@@ -71,16 +71,18 @@ function addHeader(doc, { subtitulo, desde, hasta, generadoPor }) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(...PRIMARY_DARK);
-  doc.text('Reporte de turnos prioritarios', PAGE_W - MARGIN, 18, { align: 'right' });
+  doc.text(titulo, PAGE_W - MARGIN, 18, { align: 'right' });
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
   doc.setTextColor(...GRAY_600);
   doc.text(subtitulo, PAGE_W - MARGIN, 24, { align: 'right' });
 
-  doc.setFontSize(8.5);
-  doc.setTextColor(...GRAY_500);
-  doc.text(`Del ${formatFecha(desde)} al ${formatFecha(hasta)}`, PAGE_W - MARGIN, 29.5, { align: 'right' });
+  if (desde || hasta) {
+    doc.setFontSize(8.5);
+    doc.setTextColor(...GRAY_500);
+    doc.text(`Del ${formatFecha(desde)} al ${formatFecha(hasta)}`, PAGE_W - MARGIN, 29.5, { align: 'right' });
+  }
 
   doc.setDrawColor(...GRAY_200);
   doc.setLineWidth(0.4);
@@ -113,7 +115,7 @@ function ensureSpace(doc, y, needed, headerParams, headeredPages) {
   return y;
 }
 
-function drawSectionTitle(doc, y, titulo, subtitulo, cantidad) {
+function drawSectionTitle(doc, y, titulo, subtitulo, cantidad, unidad = 'turno', unidadPlural = 'turnos') {
   doc.setFillColor(...PRIMARY_LIGHT);
   doc.rect(MARGIN, y, CONTENT_W, 9, 'F');
   doc.setFont('helvetica', 'bold');
@@ -132,7 +134,7 @@ function drawSectionTitle(doc, y, titulo, subtitulo, cantidad) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...PRIMARY_DARK);
-  doc.text(`${cantidad} turno${cantidad === 1 ? '' : 's'}`, PAGE_W - MARGIN - 3, y + 6.2, { align: 'right' });
+  doc.text(`${cantidad} ${cantidad === 1 ? unidad : unidadPlural}`, PAGE_W - MARGIN - 3, y + 6.2, { align: 'right' });
 
   return y + 9 + 3;
 }
@@ -263,4 +265,99 @@ export function generarReportePDF({ turnos, agruparPor, desde, hasta, estadoDesc
 
   const nombre = `reporte-turnos-${agruparPor}_${desde}_a_${hasta}.pdf`;
   doc.save(nombre);
+}
+
+export function generarListadoProfesionalesPDF({ profesionales, filtroDescripcion, generadoPor }) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  const grupos = new Map();
+  for (const p of profesionales) {
+    const key = p.especialidad || 'Sin especialidad';
+    if (!grupos.has(key)) grupos.set(key, { titulo: key, items: [] });
+    grupos.get(key).items.push(p);
+  }
+  const gruposOrdenados = [...grupos.values()].sort((a, b) => a.titulo.localeCompare(b.titulo, 'es'));
+
+  const headerParams = {
+    titulo: 'Listado de profesionales',
+    subtitulo: filtroDescripcion || 'Todos los profesionales',
+    generadoPor,
+  };
+  let y = addHeader(doc, headerParams);
+  const headeredPages = new Set([1]);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...GRAY_600);
+  doc.text(
+    `Total: ${profesionales.length} profesional${profesionales.length === 1 ? '' : 'es'} en ${gruposOrdenados.length} especialidad(es)`,
+    MARGIN, y
+  );
+  y += 6;
+
+  if (gruposOrdenados.length === 0) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.setTextColor(...GRAY_500);
+    doc.text('No hay profesionales que coincidan con los filtros seleccionados.', MARGIN, y + 4);
+  }
+
+  for (const grupo of gruposOrdenados) {
+    y = ensureSpace(doc, y, 22, headerParams, headeredPages);
+    y = drawSectionTitle(doc, y, grupo.titulo, null, grupo.items.length, 'profesional', 'profesionales');
+
+    const body = grupo.items.map((p) => ({
+      apellidos: p.apellidos,
+      nombres: p.nombres,
+      matricula: p.matricula,
+      domicilio: p.domicilio || '—',
+      celular: p.celular || '—',
+      estado: Number(p.activo) ? 'Activo' : 'Inactivo',
+      _raw: p,
+    }));
+
+    autoTable(doc, {
+      startY: y,
+      margin: { top: 42, left: MARGIN, right: MARGIN, bottom: 22 },
+      theme: 'striped',
+      rowPageBreak: 'avoid',
+      styles: { fontSize: 8.5, cellPadding: 2.2, textColor: GRAY_800, lineColor: GRAY_200, lineWidth: 0.1 },
+      headStyles: { fillColor: PRIMARY, textColor: 255, fontStyle: 'bold', fontSize: 8.3 },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      columnStyles: {
+        matricula: { cellWidth: 24 },
+        celular: { cellWidth: 34 },
+        estado: { cellWidth: 24 },
+      },
+      columns: [
+        { header: 'Apellidos', dataKey: 'apellidos' },
+        { header: 'Nombres', dataKey: 'nombres' },
+        { header: 'Matrícula', dataKey: 'matricula' },
+        { header: 'Domicilio', dataKey: 'domicilio' },
+        { header: 'Celular', dataKey: 'celular' },
+        { header: 'Estado', dataKey: 'estado' },
+      ],
+      body,
+      didParseCell(data) {
+        if (data.section !== 'body' || data.column.dataKey !== 'estado') return;
+        const activo = Number(data.row.raw._raw.activo);
+        data.cell.styles.textColor = activo ? [22, 163, 74] : DANGER;
+        data.cell.styles.fontStyle = 'bold';
+      },
+      didDrawPage() {
+        const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+        if (!headeredPages.has(pageNum)) {
+          addHeader(doc, headerParams);
+          headeredPages.add(pageNum);
+        }
+      },
+    });
+
+    y = doc.lastAutoTable.finalY + 9;
+  }
+
+  addFooters(doc);
+
+  const fecha = new Date().toISOString().slice(0, 10);
+  doc.save(`listado-profesionales_${fecha}.pdf`);
 }

@@ -69,6 +69,13 @@ function listTurnos(PDO $db, string $personasTable): void {
         $where[] = 'DATE(t.created_at) = ?';
         $params[] = $_GET['solicitado'];
     }
+    if (!empty($_GET['q'])) {
+        $where[] = '(p.documento LIKE ? OR p.apellido LIKE ? OR p.nombre LIKE ?)';
+        $like = '%' . $_GET['q'] . '%';
+        $params[] = $like;
+        $params[] = $like;
+        $params[] = $like;
+    }
 
     $sql = baseSelect($personasTable);
     if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
