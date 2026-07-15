@@ -5,6 +5,7 @@ import Turnos         from './pages/Turnos';
 import Personas       from './pages/Personas';
 import Profesionales  from './pages/Profesionales';
 import Instituciones  from './pages/Instituciones';
+import Reportes       from './pages/Reportes';
 import Usuarios       from './pages/Usuarios';
 import Login          from './pages/Login';
 
@@ -52,6 +53,7 @@ const pageTitles = {
   '/personas':      'Personas',
   '/profesionales': 'Profesionales',
   '/instituciones': 'Instituciones',
+  '/reportes':      'Reportes',
   '/usuarios':      'Usuarios',
 };
 
@@ -67,6 +69,7 @@ function AppLayout() {
     { to: '/personas',      icon: '🧑', label: 'Personas' },
     { to: '/profesionales', icon: '🩺', label: 'Profesionales' },
     { to: '/instituciones', icon: '🏥', label: 'Instituciones' },
+    { to: '/reportes',      icon: '📄', label: 'Reportes' },
     ...(isAdmin ? [{ to: '/usuarios', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -104,6 +107,7 @@ function AppLayout() {
             <Route path="/personas"      element={<ProtectedRoute><Personas /></ProtectedRoute>} />
             <Route path="/profesionales" element={<ProtectedRoute><Profesionales /></ProtectedRoute>} />
             <Route path="/instituciones" element={<ProtectedRoute><Instituciones /></ProtectedRoute>} />
+            <Route path="/reportes"      element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
             <Route path="/usuarios"      element={<ProtectedRoute adminOnly><Usuarios /></ProtectedRoute>} />
           </Routes>
         </main>

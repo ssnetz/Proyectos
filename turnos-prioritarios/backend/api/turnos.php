@@ -53,6 +53,10 @@ function listTurnos(PDO $db, string $personasTable): void {
         $where[] = 't.profesional_id = ?';
         $params[] = (int)$_GET['profesional_id'];
     }
+    if (!empty($_GET['especialidad'])) {
+        $where[] = 'pr.especialidad = ?';
+        $params[] = $_GET['especialidad'];
+    }
     if (!empty($_GET['institucion_id'])) {
         $where[] = 't.institucion_id = ?';
         $params[] = (int)$_GET['institucion_id'];
