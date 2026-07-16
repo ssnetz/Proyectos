@@ -11,6 +11,7 @@ $type   = $_GET['type']       ?? '';
 $from   = $_GET['from']       ?? '';
 $to     = $_GET['to']         ?? '';
 $vid    = isset($_GET['vehicle_id']) ? (int)$_GET['vehicle_id'] : 0;
+$areaId = isset($_GET['area_id']) ? (int)$_GET['area_id'] : 0;
 
 $fromDt = $from ? $from . ' 00:00:00' : '2000-01-01 00:00:00';
 $toDt   = $to   ? $to   . ' 23:59:59' : '2099-12-31 23:59:59';
@@ -36,11 +37,13 @@ if ($type === 'fuel_by_vehicle') {
                v.km_per_liter
         FROM fueling f
         JOIN vehicles v ON v.id = f.vehicle_id
-        WHERE f.fueled_at BETWEEN :from AND :to
+        WHERE f.fueled_at BETWEEN :from AND :to" . ($areaId ? " AND v.area_id = :area_id" : "") . "
         GROUP BY v.id, v.name, v.plate, v.type, v.tank_capacity, v.km_per_liter
         ORDER BY total_litros DESC";
     $stmt = $db->prepare($sql);
-    $stmt->execute([':from' => $fromDt, ':to' => $toDt]);
+    $params = [':from' => $fromDt, ':to' => $toDt];
+    if ($areaId) $params[':area_id'] = $areaId;
+    $stmt->execute($params);
     jsonResponse(withMeta($db, $stmt->fetchAll(PDO::FETCH_ASSOC), 'fueling', 'fueled_at', $fromDt, $toDt));
 }
 
