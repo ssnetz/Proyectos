@@ -149,6 +149,7 @@ function printFuelByVehicle(data, from, to, minDate, maxDate) {
       <td><strong>${r.name}</strong></td>
       <td>${r.plate}</td>
       <td><span class="badge badge-blue">${r.type}</span></td>
+      <td>${r.tipos_combustible || '—'}</td>
       <td class="num">${fmt(r.num_cargas)}</td>
       <td class="num">${fmt(r.total_litros, 1)} L</td>
       <td class="num">${fmt(r.prom_litros, 1)} L</td>
@@ -162,9 +163,9 @@ function printFuelByVehicle(data, from, to, minDate, maxDate) {
     { label: 'Costo total', value: fmtPeso(totCost) },
   ], minDate, maxDate) + `
     <table>
-      <thead><tr><th>#</th><th>Vehículo</th><th>Patente</th><th>Tipo</th><th class="num">Cargas</th><th class="num">Total Litros</th><th class="num">Prom/Carga</th><th class="num">Costo Total</th><th class="num">Precio/L</th></tr></thead>
+      <thead><tr><th>#</th><th>Vehículo</th><th>Patente</th><th>Tipo</th><th>Combustible</th><th class="num">Cargas</th><th class="num">Total Litros</th><th class="num">Prom/Carga</th><th class="num">Costo Total</th><th class="num">Precio/L</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td colspan="4">TOTAL</td><td class="num">${fmt(totCar)}</td><td class="num">${fmt(totLit, 1)} L</td><td class="num">—</td><td class="num">${fmtPeso(totCost)}</td><td></td></tr></tfoot>
+      <tfoot><tr><td colspan="5">TOTAL</td><td class="num">${fmt(totCar)}</td><td class="num">${fmt(totLit, 1)} L</td><td class="num">—</td><td class="num">${fmtPeso(totCost)}</td><td></td></tr></tfoot>
     </table>` + buildFooter();
   openPrintWindow(html);
 }
@@ -320,7 +321,7 @@ function PreviewFuelByVehicle({ data }) {
   return (
     <div className="table-wrapper">
       <table className="table">
-        <thead><tr><th>#</th><th>Vehículo</th><th>Patente</th><th>Tipo</th><th style={{textAlign:'right'}}>Cargas</th><th style={{textAlign:'right'}}>Litros</th><th style={{textAlign:'right'}}>Costo Total</th><th style={{textAlign:'right'}}>Prom/Carga</th></tr></thead>
+        <thead><tr><th>#</th><th>Vehículo</th><th>Patente</th><th>Tipo</th><th>Combustible</th><th style={{textAlign:'right'}}>Cargas</th><th style={{textAlign:'right'}}>Litros</th><th style={{textAlign:'right'}}>Costo Total</th><th style={{textAlign:'right'}}>Prom/Carga</th></tr></thead>
         <tbody>
           {data.map((r, i) => (
             <tr key={r.id}>
@@ -328,6 +329,7 @@ function PreviewFuelByVehicle({ data }) {
               <td><strong>{r.name}</strong></td>
               <td>{r.plate}</td>
               <td><span className="badge badge-gray">{r.type}</span></td>
+              <td>{r.tipos_combustible || '—'}</td>
               <td style={{textAlign:'right'}}>{fmt(r.num_cargas)}</td>
               <td style={{textAlign:'right'}}>{fmt(r.total_litros,1)} L</td>
               <td style={{textAlign:'right'}}>{fmtPeso(r.total_costo)}</td>
@@ -336,7 +338,7 @@ function PreviewFuelByVehicle({ data }) {
           ))}
         </tbody>
         <tfoot><tr>
-          <td colSpan={4}><strong>TOTAL</strong></td>
+          <td colSpan={5}><strong>TOTAL</strong></td>
           <td style={{textAlign:'right'}}><strong>{fmt(data.reduce((a,r)=>a+ +r.num_cargas,0))}</strong></td>
           <td style={{textAlign:'right'}}><strong>{fmt(totLit,1)} L</strong></td>
           <td style={{textAlign:'right'}}><strong>{fmtPeso(totCost)}</strong></td>
@@ -483,9 +485,12 @@ export default function Reports() {
   const [error, setError]       = useState('');
   const [areaId, setAreaId]     = useState('');
   const [areas, setAreas]       = useState([]);
+  const [fuelType, setFuelType] = useState('');
+  const [fuelTypes, setFuelTypes] = useState([]);
 
   useEffect(() => {
     axios.get('/fuel-control/backend/api/areas.php').then(r => setAreas(r.data));
+    axios.get('/fuel-control/backend/api/fuel_types.php').then(r => setFuelTypes(r.data));
   }, []);
 
   const run = async () => {
@@ -496,6 +501,7 @@ export default function Reports() {
       if (from) params.from = from;
       if (to)   params.to   = to;
       if (areaId) params.area_id = areaId;
+      if (selected === 'fuel_by_vehicle' && fuelType) params.fuel_type = fuelType;
       const r = await axios.get('/fuel-control/backend/api/reports.php', { params });
       // El backend ahora devuelve { data, min_date, max_date }
       setData(r.data);
@@ -604,6 +610,15 @@ export default function Reports() {
                 {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
+            {selected === 'fuel_by_vehicle' && (
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label">Combustible</label>
+                <select className="form-input" value={fuelType} onChange={e=>setFuelType(e.target.value)} style={{width:180}}>
+                  <option value="">Todos los tipos</option>
+                  {fuelTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                </select>
+              </div>
+            )}
             <button className="btn btn-primary" onClick={run} disabled={loading} style={{height:38}}>
               {loading ? 'Cargando...' : '▶ Generar reporte'}
             </button>
