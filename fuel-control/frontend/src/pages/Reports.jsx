@@ -226,6 +226,7 @@ function printEfficiency(data, from, to, minDate, maxDate) {
 function printMonthlySummary(data, from, to, minDate, maxDate) {
   const totLit  = data.reduce((a, r) => a + +r.total_litros, 0);
   const totCost = data.reduce((a, r) => a + +(r.total_costo || 0), 0);
+  const totKm   = data.reduce((a, r) => a + +(r.total_km || 0), 0);
   const rows = data.map(r => {
     const [mName, yr] = r.mes_label.split(' ');
     const label = (MONTHS_ES[mName] || mName) + ' ' + yr;
@@ -234,6 +235,7 @@ function printMonthlySummary(data, from, to, minDate, maxDate) {
       <td class="num">${fmt(r.num_cargas)}</td>
       <td class="num">${fmt(r.vehiculos)}</td>
       <td class="num">${fmt(r.total_litros, 1)} L</td>
+      <td class="num">${r.total_km ? fmt(r.total_km, 0) + ' km' : '—'}</td>
       <td class="num">${fmtPeso(r.total_costo)}</td>
       <td class="num">${r.prom_precio ? '$' + fmt(r.prom_precio, 0) + '/L' : '—'}</td>
     </tr>`;
@@ -241,12 +243,13 @@ function printMonthlySummary(data, from, to, minDate, maxDate) {
   const html = buildHeader('Resumen Mensual de Combustible', from, to, [
     { label: 'Meses', value: data.length },
     { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
+    { label: 'Total km', value: fmt(totKm, 0) + ' km' },
     { label: 'Costo total', value: fmtPeso(totCost) },
   ], minDate, maxDate) + `
     <table>
-      <thead><tr><th>Mes</th><th class="num">Cargas</th><th class="num">Vehículos</th><th class="num">Total Litros</th><th class="num">Costo Total</th><th class="num">Precio Prom/L</th></tr></thead>
+      <thead><tr><th>Mes</th><th class="num">Cargas</th><th class="num">Vehículos</th><th class="num">Total Litros</th><th class="num">Total Km</th><th class="num">Costo Total</th><th class="num">Precio Prom/L</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td>TOTAL</td><td class="num">${fmt(data.reduce((a,r)=>a+ +r.num_cargas,0))}</td><td></td><td class="num">${fmt(totLit,1)} L</td><td class="num">${fmtPeso(totCost)}</td><td></td></tr></tfoot>
+      <tfoot><tr><td>TOTAL</td><td class="num">${fmt(data.reduce((a,r)=>a+ +r.num_cargas,0))}</td><td></td><td class="num">${fmt(totLit,1)} L</td><td class="num">${fmt(totKm,0)} km</td><td class="num">${fmtPeso(totCost)}</td><td></td></tr></tfoot>
     </table>` + buildFooter();
   openPrintWindow(html);
 }
@@ -450,6 +453,7 @@ export default function Reports() {
         { key:'num_cargas', label:'Cargas', right:true, render:r=>fmt(r.num_cargas) },
         { key:'vehiculos', label:'Vehículos', right:true, render:r=>fmt(r.vehiculos) },
         { key:'total_litros', label:'Total Litros', right:true, render:r=>fmt(r.total_litros,1)+' L' },
+        { key:'total_km', label:'Total Km', right:true, render:r=>r.total_km?fmt(r.total_km,0)+' km':'—' },
         { key:'total_costo', label:'Costo Total', right:true, render:r=>fmtPeso(r.total_costo) },
         { key:'prom_precio', label:'Precio Prom/L', right:true, render:r=>r.prom_precio?'$'+fmt(r.prom_precio,0)+'/L':'—' },
       ]} />

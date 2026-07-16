@@ -114,6 +114,8 @@ if ($type === 'efficiency') {
 
 /* ── 4. Resumen mensual ─────────────────────────────────────── */
 if ($type === 'monthly_summary') {
+    $fromG = $from ?: '2000-01-01';
+    $toG   = $to   ?: '2099-12-31';
     $sql = "
         SELECT DATE_FORMAT(f.fueled_at,'%Y-%m') AS mes,
                DATE_FORMAT(f.fueled_at,'%M %Y') AS mes_label,
@@ -121,14 +123,21 @@ if ($type === 'monthly_summary') {
                COUNT(DISTINCT f.vehicle_id)      AS vehiculos,
                SUM(f.liters)                     AS total_litros,
                SUM(f.total_cost)                 AS total_costo,
-               AVG(f.price_per_liter)            AS prom_precio
+               AVG(f.price_per_liter)            AS prom_precio,
+               MAX(km.total_km)                  AS total_km
         FROM fueling f" . ($areaId ? " JOIN vehicles v ON v.id = f.vehicle_id" : "") . "
+        LEFT JOIN (
+            SELECT DATE_FORMAT(g.import_date,'%Y-%m') AS mes, SUM(g.km_recorridos) AS total_km
+            FROM gps_daily_stats g" . ($areaId ? " JOIN vehicles v2 ON v2.id = g.vehicle_id AND v2.area_id = :area_id2" : "") . "
+            WHERE g.import_date BETWEEN :from3 AND :to3
+            GROUP BY mes
+        ) km ON km.mes = DATE_FORMAT(f.fueled_at,'%Y-%m')
         WHERE f.fueled_at BETWEEN :from AND :to" . ($areaId ? " AND v.area_id = :area_id" : "") . "
         GROUP BY mes, mes_label
         ORDER BY mes";
     $stmt = $db->prepare($sql);
-    $params = [':from' => $fromDt, ':to' => $toDt];
-    if ($areaId) $params[':area_id'] = $areaId;
+    $params = [':from' => $fromDt, ':to' => $toDt, ':from3' => $fromG, ':to3' => $toG];
+    if ($areaId) { $params[':area_id'] = $areaId; $params[':area_id2'] = $areaId; }
     $stmt->execute($params);
     jsonResponse(withMeta($db, $stmt->fetchAll(PDO::FETCH_ASSOC), 'fueling', 'fueled_at', $fromDt, $toDt, $areaId));
 }
