@@ -117,35 +117,6 @@ if ($type === 'efficiency') {
     jsonResponse(withMeta($db, $stmt->fetchAll(PDO::FETCH_ASSOC), 'fueling', 'fueled_at', $fromDt, $toDt, $areaId));
 }
 
-// Helper: filas agregadas por mes (litros, costo, precio prom, km) — usada por
-// el Resumen Mensual y la Comparativa Mensual para no duplicar el SQL.
-function monthlyAggregateRows(PDO $db, string $fromDt, string $toDt, string $fromG, string $toG, int $areaId): array {
-    $sql = "
-        SELECT DATE_FORMAT(f.fueled_at,'%Y-%m') AS mes,
-               DATE_FORMAT(f.fueled_at,'%M %Y') AS mes_label,
-               COUNT(*)                          AS num_cargas,
-               COUNT(DISTINCT f.vehicle_id)      AS vehiculos,
-               SUM(f.liters)                     AS total_litros,
-               SUM(f.total_cost)                 AS total_costo,
-               AVG(f.price_per_liter)            AS prom_precio,
-               MAX(km.total_km)                  AS total_km
-        FROM fueling f" . ($areaId ? " JOIN vehicles v ON v.id = f.vehicle_id" : "") . "
-        LEFT JOIN (
-            SELECT DATE_FORMAT(g.import_date,'%Y-%m') AS mes_key, SUM(g.km_recorridos) AS total_km
-            FROM gps_daily_stats g" . ($areaId ? " JOIN vehicles v2 ON v2.id = g.vehicle_id AND v2.area_id = :area_id2" : "") . "
-            WHERE g.import_date BETWEEN :from3 AND :to3
-            GROUP BY mes_key
-        ) km ON km.mes_key = DATE_FORMAT(f.fueled_at,'%Y-%m')
-        WHERE f.fueled_at BETWEEN :from AND :to" . ($areaId ? " AND v.area_id = :area_id" : "") . "
-        GROUP BY mes, mes_label
-        ORDER BY mes";
-    $stmt = $db->prepare($sql);
-    $params = [':from' => $fromDt, ':to' => $toDt, ':from3' => $fromG, ':to3' => $toG];
-    if ($areaId) { $params[':area_id'] = $areaId; $params[':area_id2'] = $areaId; }
-    $stmt->execute($params);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
 /* ── 4. Resumen mensual ─────────────────────────────────────── */
 if ($type === 'monthly_summary') {
     $fromG = $from ?: '2000-01-01';
