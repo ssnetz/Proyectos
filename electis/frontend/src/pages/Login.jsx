@@ -32,7 +32,7 @@ export default function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <span className="login-logo-icon">🗳️</span>
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Electis" className="login-logo-img" />
           <h1 className="login-logo-title">Electis</h1>
           <p className="login-logo-subtitle">Gestión integral electoral</p>
         </div>

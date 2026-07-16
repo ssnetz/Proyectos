@@ -75,7 +75,7 @@ function AppLayout() {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <span>🗳️</span> Electis
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Electis" className="sidebar-logo-img" /> Electis
         </div>
         <nav className="sidebar-nav">
           <NavLink to="/" end className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
