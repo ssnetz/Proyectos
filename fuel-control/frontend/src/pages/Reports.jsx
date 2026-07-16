@@ -294,14 +294,19 @@ function printMonthlyComparison(data, from, to, minDate, maxDate) {
       <td class="num">${r.prom_precio ? '$' + fmt(r.prom_precio, 0) + '/L' : '—'}</td>
       <td class="num">${r.total_km ? fmt(r.total_km, 0) + ' km' : '—'}</td>
     </tr>`).join('');
-  const detailRows = data.map(r => `
-    <tr>
+  const detailRows = data.map(r => {
+    const vehDetalle = (r.detalle_vehiculos || []).map(d => {
+      const cls = d.costo_delta > 0 ? 'delta-up' : d.costo_delta < 0 ? 'delta-down' : 'delta-flat';
+      return `<span class="${cls}"><strong>${d.name}</strong> (${d.plate}): ${formatDelta(d.litros_delta, 1, ' L', false)} — ${formatDelta(d.costo_delta, 0, '', true)}</span>`;
+    }).join('&nbsp;&nbsp;|&nbsp;&nbsp;');
+    return `<tr>
       <td><strong>${monthLabel(r)}</strong></td>
       <td class="num">${deltaHtml(r.total_litros_delta, r.total_litros_pct, 1, ' L')}</td>
       <td class="num">${deltaHtml(r.total_costo_delta, r.total_costo_pct, 0, '', true)}</td>
       <td class="num">${deltaHtml(r.prom_precio_delta, r.prom_precio_pct, 0, '', true)}</td>
       <td class="num">${deltaHtml(r.total_km_delta, r.total_km_pct, 0, ' km')}</td>
-    </tr>`).join('');
+    </tr>` + (vehDetalle ? `<tr><td colspan="5" style="padding:2px 8px 8px 20px;font-size:9px;">${vehDetalle}</td></tr>` : '');
+  }).join('');
   const html = buildHeader('Comparativa Mensual de Combustible', from, to, [
     { label: 'Meses', value: data.length },
     { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
@@ -555,6 +560,14 @@ function DeltaBadge({ delta, pct, unit = '', decimals = 1, money = false }) {
 
 function PreviewMonthlyComparison({ data }) {
   const monthLabel = r => { const [m, y] = r.mes_label.split(' '); return (MONTHS_ES[m] || m) + ' ' + y; };
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggle = (mes) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      next.has(mes) ? next.delete(mes) : next.add(mes);
+      return next;
+    });
+  };
   return (
     <div>
       <div className="table-wrapper">
@@ -585,10 +598,14 @@ function PreviewMonthlyComparison({ data }) {
       <h3 style={{fontSize:'.85rem', fontWeight:700, margin:'20px 0 8px', color:'var(--gray-600,#4b5563)'}}>
         Variación respecto al mes anterior
       </h3>
+      <p style={{fontSize:'.75rem', color:'var(--gray-500)', margin:'-4px 0 8px'}}>
+        Tocá un mes para ver qué vehículos explican la diferencia.
+      </p>
       <div className="table-wrapper">
         <table className="table">
           <thead>
             <tr>
+              <th style={{width:24}}></th>
               <th>Mes</th>
               <th style={{textAlign:'right'}}>Litros</th>
               <th style={{textAlign:'right'}}>Costo</th>
@@ -597,15 +614,60 @@ function PreviewMonthlyComparison({ data }) {
             </tr>
           </thead>
           <tbody>
-            {data.map(r => (
-              <tr key={r.mes + '-delta'}>
-                <td><strong>{monthLabel(r)}</strong></td>
-                <td style={{textAlign:'right'}}><DeltaBadge delta={r.total_litros_delta} pct={r.total_litros_pct} unit=" L" decimals={1} /></td>
-                <td style={{textAlign:'right'}}><DeltaBadge delta={r.total_costo_delta} pct={r.total_costo_pct} decimals={0} money /></td>
-                <td style={{textAlign:'right'}}><DeltaBadge delta={r.prom_precio_delta} pct={r.prom_precio_pct} decimals={0} money /></td>
-                <td style={{textAlign:'right'}}><DeltaBadge delta={r.total_km_delta} pct={r.total_km_pct} unit=" km" decimals={0} /></td>
-              </tr>
-            ))}
+            {data.map(r => {
+              const detalle = r.detalle_vehiculos || [];
+              const isOpen = expanded.has(r.mes);
+              return (
+                <Fragment key={r.mes + '-delta'}>
+                  <tr
+                    onClick={() => detalle.length && toggle(r.mes)}
+                    style={{cursor: detalle.length ? 'pointer' : 'default'}}
+                  >
+                    <td style={{textAlign:'center', color:'var(--gray-400)'}}>{detalle.length ? (isOpen ? '▾' : '▸') : ''}</td>
+                    <td><strong>{monthLabel(r)}</strong></td>
+                    <td style={{textAlign:'right'}}><DeltaBadge delta={r.total_litros_delta} pct={r.total_litros_pct} unit=" L" decimals={1} /></td>
+                    <td style={{textAlign:'right'}}><DeltaBadge delta={r.total_costo_delta} pct={r.total_costo_pct} decimals={0} money /></td>
+                    <td style={{textAlign:'right'}}><DeltaBadge delta={r.prom_precio_delta} pct={r.prom_precio_pct} decimals={0} money /></td>
+                    <td style={{textAlign:'right'}}><DeltaBadge delta={r.total_km_delta} pct={r.total_km_pct} unit=" km" decimals={0} /></td>
+                  </tr>
+                  {isOpen && (
+                    <tr>
+                      <td></td>
+                      <td colSpan={5} style={{padding:'0 0 8px'}}>
+                        <table className="table" style={{margin:0, background:'var(--gray-50,#f9fafb)'}}>
+                          <thead>
+                            <tr>
+                              <th>Vehículo</th>
+                              <th>Patente</th>
+                              <th style={{textAlign:'right'}}>Litros</th>
+                              <th style={{textAlign:'right'}}>Costo</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {detalle.map(d => (
+                              <tr key={d.vehicle_id}>
+                                <td>{d.name}</td>
+                                <td>{d.plate}</td>
+                                <td style={{textAlign:'right'}}>
+                                  <span style={{color: d.litros_delta > 0 ? '#dc2626' : d.litros_delta < 0 ? '#16a34a' : 'var(--gray-400)'}}>
+                                    {formatDelta(d.litros_delta, 1, ' L', false)}
+                                  </span>
+                                </td>
+                                <td style={{textAlign:'right'}}>
+                                  <span style={{color: d.costo_delta > 0 ? '#dc2626' : d.costo_delta < 0 ? '#16a34a' : 'var(--gray-400)'}}>
+                                    {formatDelta(d.costo_delta, 0, '', true)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

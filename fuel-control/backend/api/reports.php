@@ -208,6 +208,63 @@ if ($type === 'monthly_comparison') {
     }
     unset($row);
 
+    // Desglose por vehículo: qué vehículos explican la diferencia de cada mes
+    $sqlVeh = "
+        SELECT DATE_FORMAT(f.fueled_at,'%Y-%m') AS mes,
+               v.id AS vehicle_id, v.name, v.plate,
+               SUM(f.liters)     AS total_litros,
+               SUM(f.total_cost) AS total_costo
+        FROM fueling f
+        JOIN vehicles v ON v.id = f.vehicle_id
+        WHERE f.fueled_at BETWEEN :from AND :to" . ($areaId ? " AND v.area_id = :area_id" : "") . "
+        GROUP BY mes, v.id, v.name, v.plate
+        ORDER BY mes, v.name";
+    $stmtV = $db->prepare($sqlVeh);
+    $paramsV = [':from' => $fromDt, ':to' => $toDt];
+    if ($areaId) $paramsV[':area_id'] = $areaId;
+    $stmtV->execute($paramsV);
+    $porMesVehiculo = [];
+    foreach ($stmtV->fetchAll(PDO::FETCH_ASSOC) as $v) {
+        $porMesVehiculo[$v['mes']][$v['vehicle_id']] = [
+            'name'         => $v['name'],
+            'plate'        => $v['plate'],
+            'total_litros' => (float)$v['total_litros'],
+            'total_costo'  => (float)$v['total_costo'],
+        ];
+    }
+
+    $prevVeh = null;
+    foreach ($rows as &$row) {
+        $curVeh = $porMesVehiculo[$row['mes']] ?? [];
+        $detalleVeh = [];
+        if ($prevVeh !== null) {
+            $ids = array_unique(array_merge(array_keys($curVeh), array_keys($prevVeh)));
+            foreach ($ids as $vhId) {
+                $curL  = $curVeh[$vhId]['total_litros']  ?? 0.0;
+                $curC  = $curVeh[$vhId]['total_costo']   ?? 0.0;
+                $antL  = $prevVeh[$vhId]['total_litros'] ?? 0.0;
+                $antC  = $prevVeh[$vhId]['total_costo']  ?? 0.0;
+                $dLitros = $curL - $antL;
+                $dCosto  = $curC - $antC;
+                if (abs($dLitros) < 0.01 && abs($dCosto) < 0.01) continue;
+                $info = $curVeh[$vhId] ?? $prevVeh[$vhId];
+                $detalleVeh[] = [
+                    'vehicle_id'    => $vhId,
+                    'name'          => $info['name'],
+                    'plate'         => $info['plate'],
+                    'total_litros'  => $curL,
+                    'total_costo'   => $curC,
+                    'litros_delta'  => $dLitros,
+                    'costo_delta'   => $dCosto,
+                ];
+            }
+            usort($detalleVeh, fn($a, $b) => abs($b['costo_delta']) <=> abs($a['costo_delta']));
+        }
+        $row['detalle_vehiculos'] = $detalleVeh;
+        $prevVeh = $curVeh;
+    }
+    unset($row);
+
     jsonResponse(withMeta($db, $rows, 'fueling', 'fueled_at', $fromDt, $toDt, $areaId));
 }
 
