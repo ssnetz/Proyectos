@@ -406,7 +406,7 @@ export default function Reports() {
       const params = { type: selected };
       if (from) params.from = from;
       if (to)   params.to   = to;
-      if (selected === 'fuel_by_vehicle' && areaId) params.area_id = areaId;
+      if (areaId) params.area_id = areaId;
       const r = await axios.get('/fuel-control/backend/api/reports.php', { params });
       // El backend ahora devuelve { data, min_date, max_date }
       setData(r.data);
@@ -517,15 +517,13 @@ export default function Reports() {
               <label className="form-label">Hasta</label>
               <input type="date" className="form-input" value={to} onChange={e=>setTo(e.target.value)} style={{width:160}} />
             </div>
-            {selected === 'fuel_by_vehicle' && (
-              <div className="form-group" style={{marginBottom:0}}>
-                <label className="form-label">Área</label>
-                <select className="form-input" value={areaId} onChange={e=>setAreaId(e.target.value)} style={{width:200}}>
-                  <option value="">Todas las áreas</option>
-                  {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-              </div>
-            )}
+            <div className="form-group" style={{marginBottom:0}}>
+              <label className="form-label">Área</label>
+              <select className="form-input" value={areaId} onChange={e=>setAreaId(e.target.value)} style={{width:200}}>
+                <option value="">Todas las áreas</option>
+                {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
             <button className="btn btn-primary" onClick={run} disabled={loading} style={{height:38}}>
               {loading ? 'Cargando...' : '▶ Generar reporte'}
             </button>
