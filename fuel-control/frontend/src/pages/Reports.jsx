@@ -292,7 +292,7 @@ function printMonthlyComparison(data, from, to, minDate, maxDate) {
       <td class="num">${fmt(r.total_litros, 1)} L</td>
       <td class="num">${fmtPeso(r.total_costo)}</td>
       <td class="num">${r.prom_precio ? '$' + fmt(r.prom_precio, 0) + '/L' : '—'}</td>
-      <td class="num">${r.total_km ? fmt(r.total_km, 0) + ' km' : '—'}</td>
+      <td class="num">${r.total_km ? fmt(r.total_km, 0) + ' km' : '—'}${(r.total_km_delta !== null && r.total_km_delta !== undefined) ? `<br>${deltaHtml(r.total_km_delta, r.total_km_pct, 0, ' km')}` : ''}</td>
     </tr>`).join('');
   const detailRows = data.map(r => {
     const vehDetalle = (r.detalle_vehiculos || []).map(d => {
@@ -588,7 +588,14 @@ function PreviewMonthlyComparison({ data }) {
                 <td style={{textAlign:'right'}}>{fmt(r.total_litros,1)} L</td>
                 <td style={{textAlign:'right'}}>{fmtPeso(r.total_costo)}</td>
                 <td style={{textAlign:'right'}}>{r.prom_precio ? '$'+fmt(r.prom_precio,0)+'/L' : '—'}</td>
-                <td style={{textAlign:'right'}}>{r.total_km ? fmt(r.total_km,0)+' km' : '—'}</td>
+                <td style={{textAlign:'right'}}>
+                  {r.total_km ? fmt(r.total_km,0)+' km' : '—'}
+                  {(r.total_km_delta !== null && r.total_km_delta !== undefined) && (
+                    <div style={{fontSize:'.75em', marginTop:2}}>
+                      <DeltaBadge delta={r.total_km_delta} pct={r.total_km_pct} unit=" km" decimals={0} />
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
