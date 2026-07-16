@@ -12,18 +12,21 @@ $from   = $_GET['from']       ?? '';
 $to     = $_GET['to']         ?? '';
 $vid    = isset($_GET['vehicle_id']) ? (int)$_GET['vehicle_id'] : 0;
 $areaId = isset($_GET['area_id']) ? (int)$_GET['area_id'] : 0;
+$fuelType = trim($_GET['fuel_type'] ?? '');
 
 $fromDt = $from ? $from . ' 00:00:00' : '2000-01-01 00:00:00';
 $toDt   = $to   ? $to   . ' 23:59:59' : '2099-12-31 23:59:59';
 
 // Helper: agrega min_date y max_date reales al response.
 // Cuando hay area_id, filtra el rango de fechas contra vehicles.area_id también.
-function withMeta(PDO $db, array $rows, string $table, string $dateField, string $fromDt, string $toDt, int $areaId = 0, string $vehicleFk = 'vehicle_id'): array {
+function withMeta(PDO $db, array $rows, string $table, string $dateField, string $fromDt, string $toDt, int $areaId = 0, string $vehicleFk = 'vehicle_id', string $fuelType = ''): array {
     $join  = $areaId ? " JOIN vehicles v ON v.id = $table.$vehicleFk" : "";
     $extra = $areaId ? " AND v.area_id = ?" : "";
-    $sql   = "SELECT DATE(MIN($table.$dateField)) AS min_date, DATE(MAX($table.$dateField)) AS max_date FROM $table$join WHERE $table.$dateField BETWEEN ? AND ?$extra";
+    $extraFuel = $fuelType ? " AND $table.fuel_type = ?" : "";
+    $sql   = "SELECT DATE(MIN($table.$dateField)) AS min_date, DATE(MAX($table.$dateField)) AS max_date FROM $table$join WHERE $table.$dateField BETWEEN ? AND ?$extra$extraFuel";
     $params = [$fromDt, $toDt];
     if ($areaId) $params[] = $areaId;
+    if ($fuelType) $params[] = $fuelType;
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     $meta = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -40,17 +43,19 @@ if ($type === 'fuel_by_vehicle') {
                AVG(f.liters)        AS prom_litros,
                AVG(f.price_per_liter) AS prom_precio,
                v.tank_capacity,
-               v.km_per_liter
+               v.km_per_liter,
+               GROUP_CONCAT(DISTINCT f.fuel_type ORDER BY f.fuel_type SEPARATOR ', ') AS tipos_combustible
         FROM fueling f
         JOIN vehicles v ON v.id = f.vehicle_id
-        WHERE f.fueled_at BETWEEN :from AND :to" . ($areaId ? " AND v.area_id = :area_id" : "") . "
+        WHERE f.fueled_at BETWEEN :from AND :to" . ($areaId ? " AND v.area_id = :area_id" : "") . ($fuelType ? " AND f.fuel_type = :fuel_type" : "") . "
         GROUP BY v.id, v.name, v.plate, v.type, v.tank_capacity, v.km_per_liter
         ORDER BY total_litros DESC";
     $stmt = $db->prepare($sql);
     $params = [':from' => $fromDt, ':to' => $toDt];
     if ($areaId) $params[':area_id'] = $areaId;
+    if ($fuelType) $params[':fuel_type'] = $fuelType;
     $stmt->execute($params);
-    jsonResponse(withMeta($db, $stmt->fetchAll(PDO::FETCH_ASSOC), 'fueling', 'fueled_at', $fromDt, $toDt, $areaId));
+    jsonResponse(withMeta($db, $stmt->fetchAll(PDO::FETCH_ASSOC), 'fueling', 'fueled_at', $fromDt, $toDt, $areaId, 'vehicle_id', $fuelType));
 }
 
 /* ── 2. Ranking de kilometraje (GPS) ───────────────────────── */
