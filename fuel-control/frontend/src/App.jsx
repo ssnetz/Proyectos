@@ -99,7 +99,7 @@ function AppLayout() {
     { to: '/lubricant-types', icon: '🔧', label: 'Tipos Lubricante' },
     { to: '/fuel-types',      icon: '⚙️', label: 'Tipos Combustible' },
     { to: '/zones',           icon: '📍', label: 'Zonas' },
-    { to: '/drivers',         icon: '🧑‍✈️', label: 'Choferes' },
+    { to: '/drivers',         icon: '🪪', label: 'Choferes' },
     { to: '/cost-config',     icon: '💰', label: 'Config. Costos' },
     ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
   ];
