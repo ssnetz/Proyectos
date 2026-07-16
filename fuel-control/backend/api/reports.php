@@ -117,10 +117,9 @@ if ($type === 'efficiency') {
     jsonResponse(withMeta($db, $stmt->fetchAll(PDO::FETCH_ASSOC), 'fueling', 'fueled_at', $fromDt, $toDt, $areaId));
 }
 
-/* ── 4. Resumen mensual ─────────────────────────────────────── */
-if ($type === 'monthly_summary') {
-    $fromG = $from ?: '2000-01-01';
-    $toG   = $to   ?: '2099-12-31';
+// Helper: filas agregadas por mes (litros, costo, precio prom, km) — usada por
+// el Resumen Mensual y la Comparativa Mensual para no duplicar el SQL.
+function monthlyAggregateRows(PDO $db, string $fromDt, string $toDt, string $fromG, string $toG, int $areaId): array {
     $sql = "
         SELECT DATE_FORMAT(f.fueled_at,'%Y-%m') AS mes,
                DATE_FORMAT(f.fueled_at,'%M %Y') AS mes_label,
@@ -144,7 +143,14 @@ if ($type === 'monthly_summary') {
     $params = [':from' => $fromDt, ':to' => $toDt, ':from3' => $fromG, ':to3' => $toG];
     if ($areaId) { $params[':area_id'] = $areaId; $params[':area_id2'] = $areaId; }
     $stmt->execute($params);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/* ── 4. Resumen mensual ─────────────────────────────────────── */
+if ($type === 'monthly_summary') {
+    $fromG = $from ?: '2000-01-01';
+    $toG   = $to   ?: '2099-12-31';
+    $rows = monthlyAggregateRows($db, $fromDt, $toDt, $fromG, $toG, $areaId);
 
     // Desglose por tipo de combustible dentro de cada mes
     $sqlDetail = "
@@ -172,6 +178,33 @@ if ($type === 'monthly_summary') {
     }
     foreach ($rows as &$row) {
         $row['desglose_combustible'] = $detalles[$row['mes']] ?? [];
+    }
+    unset($row);
+
+    jsonResponse(withMeta($db, $rows, 'fueling', 'fueled_at', $fromDt, $toDt, $areaId));
+}
+
+/* ── 4b. Comparativa mensual ─────────────────────────────────── */
+if ($type === 'monthly_comparison') {
+    $fromG = $from ?: '2000-01-01';
+    $toG   = $to   ?: '2099-12-31';
+    $rows = monthlyAggregateRows($db, $fromDt, $toDt, $fromG, $toG, $areaId);
+
+    // Calcula variación (delta y %) de cada mes respecto al mes anterior
+    $prev = null;
+    foreach ($rows as &$row) {
+        foreach (['total_litros', 'total_costo', 'prom_precio', 'total_km'] as $field) {
+            $cur  = $row[$field] !== null ? (float)$row[$field] : null;
+            $ant  = ($prev && $prev[$field] !== null) ? (float)$prev[$field] : null;
+            if ($prev !== null && $cur !== null && $ant !== null) {
+                $row[$field . '_delta'] = $cur - $ant;
+                $row[$field . '_pct']   = $ant != 0 ? (($cur - $ant) / $ant) * 100 : null;
+            } else {
+                $row[$field . '_delta'] = null;
+                $row[$field . '_pct']   = null;
+            }
+        }
+        $prev = $row;
     }
     unset($row);
 

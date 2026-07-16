@@ -27,6 +27,12 @@ const REPORT_TYPES = [
     desc: 'Litros y costo agrupados por mes con comparativo',
   },
   {
+    id: 'monthly_comparison',
+    icon: '📈',
+    label: 'Comparativa Mensual',
+    desc: 'Compara cada mes contra el anterior y resalta aumentos en rojo',
+  },
+  {
     id: 'by_fuel_type',
     icon: '🛢️',
     label: 'Por Tipo de Combustible',
@@ -57,6 +63,20 @@ function fmtPeso(n) {
   return '$' + fmt(n, 0);
 }
 
+// Formatea una variación (delta) mes a mes: signo, valor absoluto y unidad/moneda
+function formatDelta(delta, decimals, unit, money) {
+  const sign = delta > 0 ? '+' : delta < 0 ? '-' : '';
+  const abs  = Math.abs(delta);
+  return money ? `${sign}$${fmt(abs, decimals)}` : `${sign}${fmt(abs, decimals)}${unit}`;
+}
+function deltaHtml(delta, pct, decimals = 1, unit = '', money = false) {
+  if (delta === null || delta === undefined || pct === null || pct === undefined) return '<span class="delta-flat">—</span>';
+  const cls   = delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-flat';
+  const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '■';
+  const pctStr = `${pct > 0 ? '+' : ''}${fmt(pct, 1)}%`;
+  return `<span class="${cls}">${arrow} ${formatDelta(delta, decimals, unit, money)} (${pctStr})</span>`;
+}
+
 /* ── Print helpers ─────────────────────────────────── */
 const PRINT_CSS = `
   @import url('');
@@ -83,6 +103,9 @@ const PRINT_CSS = `
   .badge-green { background: #16a34a; color: #fff; }
   .badge-amber { background: #d97706; color: #fff; }
   .badge-red   { background: #dc2626; color: #fff; }
+  .delta-up   { color: #dc2626; font-weight: 700; }
+  .delta-down { color: #16a34a; font-weight: 700; }
+  .delta-flat { color: #8a93a6; }
   .rpt-footer { margin-top: 24px; font-size: 9px; color: #8a93a6; border-top: 1px solid #dde2ea; padding-top: 8px; display: flex; justify-content: space-between; }
   .rpt-logo { height: 48px; width: auto; margin-right: 14px; vertical-align: middle; }
   .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-30deg); opacity: 0.04; pointer-events: none; z-index: 0; }
@@ -258,6 +281,45 @@ function printMonthlySummary(data, from, to, minDate, maxDate) {
   openPrintWindow(html);
 }
 
+function printMonthlyComparison(data, from, to, minDate, maxDate) {
+  const totLit  = data.reduce((a, r) => a + +r.total_litros, 0);
+  const totCost = data.reduce((a, r) => a + +(r.total_costo || 0), 0);
+  const totKm   = data.reduce((a, r) => a + +(r.total_km || 0), 0);
+  const monthLabel = r => { const [m, y] = r.mes_label.split(' '); return (MONTHS_ES[m] || m) + ' ' + y; };
+  const rows = data.map(r => `
+    <tr>
+      <td><strong>${monthLabel(r)}</strong></td>
+      <td class="num">${fmt(r.total_litros, 1)} L</td>
+      <td class="num">${fmtPeso(r.total_costo)}</td>
+      <td class="num">${r.prom_precio ? '$' + fmt(r.prom_precio, 0) + '/L' : '—'}</td>
+      <td class="num">${r.total_km ? fmt(r.total_km, 0) + ' km' : '—'}</td>
+    </tr>`).join('');
+  const detailRows = data.map(r => `
+    <tr>
+      <td><strong>${monthLabel(r)}</strong></td>
+      <td class="num">${deltaHtml(r.total_litros_delta, r.total_litros_pct, 1, ' L')}</td>
+      <td class="num">${deltaHtml(r.total_costo_delta, r.total_costo_pct, 0, '', true)}</td>
+      <td class="num">${deltaHtml(r.prom_precio_delta, r.prom_precio_pct, 0, '', true)}</td>
+      <td class="num">${deltaHtml(r.total_km_delta, r.total_km_pct, 0, ' km')}</td>
+    </tr>`).join('');
+  const html = buildHeader('Comparativa Mensual de Combustible', from, to, [
+    { label: 'Meses', value: data.length },
+    { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
+    { label: 'Total km', value: fmt(totKm, 0) + ' km' },
+    { label: 'Costo total', value: fmtPeso(totCost) },
+  ], minDate, maxDate) + `
+    <table>
+      <thead><tr><th>Mes</th><th class="num">Total Litros</th><th class="num">Costo Total</th><th class="num">Precio Prom/L</th><th class="num">Total Km</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <h2 style="margin-top:20px;font-size:12px;font-weight:700;color:#1a4fa0;text-transform:uppercase;letter-spacing:.05em;">Variación respecto al mes anterior</h2>
+    <table>
+      <thead><tr><th>Mes</th><th class="num">Litros</th><th class="num">Costo</th><th class="num">Precio Prom/L</th><th class="num">Km</th></tr></thead>
+      <tbody>${detailRows}</tbody>
+    </table>` + buildFooter();
+  openPrintWindow(html);
+}
+
 function printByFuelType(data, from, to, minDate, maxDate) {
   const totLit = data.reduce((a, r) => a + +r.total_litros, 0);
   const rows = data.map(r => `
@@ -310,6 +372,7 @@ const PRINT_FNS = {
   km_ranking:      printKmRanking,
   efficiency:      printEfficiency,
   monthly_summary: printMonthlySummary,
+  monthly_comparison: printMonthlyComparison,
   by_fuel_type:    printByFuelType,
   by_supplier:     printBySupplier,
 };
@@ -475,6 +538,81 @@ function PreviewMonthlySummary({ data }) {
   );
 }
 
+function DeltaBadge({ delta, pct, unit = '', decimals = 1, money = false }) {
+  if (delta === null || delta === undefined || pct === null || pct === undefined) {
+    return <span style={{color:'var(--gray-400)'}}>—</span>;
+  }
+  const color = delta > 0 ? '#dc2626' : delta < 0 ? '#16a34a' : 'var(--gray-400)';
+  const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '■';
+  const pctStr = `${pct > 0 ? '+' : ''}${fmt(pct, 1)}%`;
+  return (
+    <span style={{color, fontWeight:700}}>
+      {arrow} {formatDelta(delta, decimals, unit, money)}{' '}
+      <span style={{fontWeight:400, fontSize:'.85em'}}>({pctStr})</span>
+    </span>
+  );
+}
+
+function PreviewMonthlyComparison({ data }) {
+  const monthLabel = r => { const [m, y] = r.mes_label.split(' '); return (MONTHS_ES[m] || m) + ' ' + y; };
+  return (
+    <div>
+      <div className="table-wrapper">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Mes</th>
+              <th style={{textAlign:'right'}}>Total Litros</th>
+              <th style={{textAlign:'right'}}>Costo Total</th>
+              <th style={{textAlign:'right'}}>Precio Prom/L</th>
+              <th style={{textAlign:'right'}}>Total Km</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map(r => (
+              <tr key={r.mes}>
+                <td><strong>{monthLabel(r)}</strong></td>
+                <td style={{textAlign:'right'}}>{fmt(r.total_litros,1)} L</td>
+                <td style={{textAlign:'right'}}>{fmtPeso(r.total_costo)}</td>
+                <td style={{textAlign:'right'}}>{r.prom_precio ? '$'+fmt(r.prom_precio,0)+'/L' : '—'}</td>
+                <td style={{textAlign:'right'}}>{r.total_km ? fmt(r.total_km,0)+' km' : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style={{fontSize:'.85rem', fontWeight:700, margin:'20px 0 8px', color:'var(--gray-600,#4b5563)'}}>
+        Variación respecto al mes anterior
+      </h3>
+      <div className="table-wrapper">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Mes</th>
+              <th style={{textAlign:'right'}}>Litros</th>
+              <th style={{textAlign:'right'}}>Costo</th>
+              <th style={{textAlign:'right'}}>Precio Prom/L</th>
+              <th style={{textAlign:'right'}}>Km</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map(r => (
+              <tr key={r.mes + '-delta'}>
+                <td><strong>{monthLabel(r)}</strong></td>
+                <td style={{textAlign:'right'}}><DeltaBadge delta={r.total_litros_delta} pct={r.total_litros_pct} unit=" L" decimals={1} /></td>
+                <td style={{textAlign:'right'}}><DeltaBadge delta={r.total_costo_delta} pct={r.total_costo_pct} decimals={0} money /></td>
+                <td style={{textAlign:'right'}}><DeltaBadge delta={r.prom_precio_delta} pct={r.prom_precio_pct} decimals={0} money /></td>
+                <td style={{textAlign:'right'}}><DeltaBadge delta={r.total_km_delta} pct={r.total_km_pct} unit=" km" decimals={0} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* ── Main component ─────────────────────────────────── */
 export default function Reports() {
   const [selected, setSelected] = useState(null);
@@ -540,6 +678,7 @@ export default function Reports() {
       ]} />
     );
     if (selected === 'monthly_summary') return <PreviewMonthlySummary data={rows} />;
+    if (selected === 'monthly_comparison') return <PreviewMonthlyComparison data={rows} />;
     if (selected === 'by_fuel_type') {
       const totLit = rows.reduce((a,r)=>a+ +r.total_litros,0);
       return (
