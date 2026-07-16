@@ -230,7 +230,35 @@ if ($type === 'monthly_comparison') {
             'plate'        => $v['plate'],
             'total_litros' => (float)$v['total_litros'],
             'total_costo'  => (float)$v['total_costo'],
+            'total_km'     => 0.0,
         ];
+    }
+
+    // Km por vehículo y mes (según GPS), para completar el desglose
+    $sqlVehKm = "
+        SELECT DATE_FORMAT(g.import_date,'%Y-%m') AS mes,
+               v.id AS vehicle_id, v.name, v.plate,
+               SUM(g.km_recorridos) AS total_km
+        FROM gps_daily_stats g
+        JOIN vehicles v ON v.id = g.vehicle_id
+        WHERE g.import_date BETWEEN :from3 AND :to3" . ($areaId ? " AND v.area_id = :area_id2" : "") . "
+        GROUP BY mes, v.id, v.name, v.plate
+        ORDER BY mes, v.name";
+    $stmtVK = $db->prepare($sqlVehKm);
+    $paramsVK = [':from3' => $fromG, ':to3' => $toG];
+    if ($areaId) $paramsVK[':area_id2'] = $areaId;
+    $stmtVK->execute($paramsVK);
+    foreach ($stmtVK->fetchAll(PDO::FETCH_ASSOC) as $v) {
+        if (!isset($porMesVehiculo[$v['mes']][$v['vehicle_id']])) {
+            $porMesVehiculo[$v['mes']][$v['vehicle_id']] = [
+                'name'         => $v['name'],
+                'plate'        => $v['plate'],
+                'total_litros' => 0.0,
+                'total_costo'  => 0.0,
+                'total_km'     => 0.0,
+            ];
+        }
+        $porMesVehiculo[$v['mes']][$v['vehicle_id']]['total_km'] = (float)$v['total_km'];
     }
 
     $prevVeh = null;
@@ -242,11 +270,14 @@ if ($type === 'monthly_comparison') {
             foreach ($ids as $vhId) {
                 $curL  = $curVeh[$vhId]['total_litros']  ?? 0.0;
                 $curC  = $curVeh[$vhId]['total_costo']   ?? 0.0;
+                $curK  = $curVeh[$vhId]['total_km']      ?? 0.0;
                 $antL  = $prevVeh[$vhId]['total_litros'] ?? 0.0;
                 $antC  = $prevVeh[$vhId]['total_costo']  ?? 0.0;
+                $antK  = $prevVeh[$vhId]['total_km']     ?? 0.0;
                 $dLitros = $curL - $antL;
                 $dCosto  = $curC - $antC;
-                if (abs($dLitros) < 0.01 && abs($dCosto) < 0.01) continue;
+                $dKm     = $curK - $antK;
+                if (abs($dLitros) < 0.01 && abs($dCosto) < 0.01 && abs($dKm) < 0.01) continue;
                 $info = $curVeh[$vhId] ?? $prevVeh[$vhId];
                 $detalleVeh[] = [
                     'vehicle_id'    => $vhId,
@@ -254,8 +285,10 @@ if ($type === 'monthly_comparison') {
                     'plate'         => $info['plate'],
                     'total_litros'  => $curL,
                     'total_costo'   => $curC,
+                    'total_km'      => $curK,
                     'litros_delta'  => $dLitros,
                     'costo_delta'   => $dCosto,
+                    'km_delta'      => $dKm,
                 ];
             }
             usort($detalleVeh, fn($a, $b) => abs($b['costo_delta']) <=> abs($a['costo_delta']));

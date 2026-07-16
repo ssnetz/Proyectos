@@ -297,7 +297,7 @@ function printMonthlyComparison(data, from, to, minDate, maxDate) {
   const detailRows = data.map(r => {
     const vehDetalle = (r.detalle_vehiculos || []).map(d => {
       const cls = d.costo_delta > 0 ? 'delta-up' : d.costo_delta < 0 ? 'delta-down' : 'delta-flat';
-      return `<span class="${cls}"><strong>${d.name}</strong> (${d.plate}): ${formatDelta(d.litros_delta, 1, ' L', false)} — ${formatDelta(d.costo_delta, 0, '', true)}</span>`;
+      return `<span class="${cls}"><strong>${d.name}</strong> (${d.plate}): ${formatDelta(d.litros_delta, 1, ' L', false)} — ${formatDelta(d.costo_delta, 0, '', true)} — ${formatDelta(d.km_delta, 0, ' km', false)}</span>`;
     }).join('&nbsp;&nbsp;|&nbsp;&nbsp;');
     return `<tr>
       <td><strong>${monthLabel(r)}</strong></td>
@@ -648,6 +648,7 @@ function PreviewMonthlyComparison({ data }) {
                               <th>Patente</th>
                               <th style={{textAlign:'right'}}>Litros</th>
                               <th style={{textAlign:'right'}}>Costo</th>
+                              <th style={{textAlign:'right'}}>Km</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -663,6 +664,11 @@ function PreviewMonthlyComparison({ data }) {
                                 <td style={{textAlign:'right'}}>
                                   <span style={{color: d.costo_delta > 0 ? '#dc2626' : d.costo_delta < 0 ? '#16a34a' : 'var(--gray-400)'}}>
                                     {formatDelta(d.costo_delta, 0, '', true)}
+                                  </span>
+                                </td>
+                                <td style={{textAlign:'right'}}>
+                                  <span style={{color: d.km_delta > 0 ? '#dc2626' : d.km_delta < 0 ? '#16a34a' : 'var(--gray-400)'}}>
+                                    {formatDelta(d.km_delta, 0, ' km', false)}
                                   </span>
                                 </td>
                               </tr>
