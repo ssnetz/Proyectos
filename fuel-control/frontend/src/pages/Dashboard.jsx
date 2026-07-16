@@ -22,10 +22,10 @@ function fmtPesoDelta(n) {
 function MonthlyAlertCard({ alert }) {
   const { direccion, mes_actual, mes_anterior, narrativa, top_vehiculos, litros_delta, litros_pct, costo_delta, costo_pct, km_delta, km_pct } = alert;
   const theme = {
-    up:   { icon: '⚠️', color: '#dc2626', bg: 'rgba(220,38,38,.08)', border: 'rgba(220,38,38,.3)' },
-    down: { icon: '📉', color: '#16a34a', bg: 'rgba(22,163,74,.08)', border: 'rgba(22,163,74,.3)' },
-    flat: { icon: 'ℹ️', color: 'var(--gray-400)', bg: 'var(--card-bg)', border: 'var(--border)' },
-    neutral: { icon: 'ℹ️', color: 'var(--gray-400)', bg: 'var(--card-bg)', border: 'var(--border)' },
+    up:   { icon: '⚠️', bg: 'rgba(220,38,38,.06)', border: 'rgba(220,38,38,.25)' },
+    down: { icon: '📉', bg: 'rgba(22,163,74,.06)', border: 'rgba(22,163,74,.25)' },
+    flat: { icon: 'ℹ️', bg: '#fff', border: 'var(--gray-200)' },
+    neutral: { icon: 'ℹ️', bg: '#fff', border: 'var(--gray-200)' },
   }[direccion] || {};
 
   return (
@@ -36,7 +36,7 @@ function MonthlyAlertCard({ alert }) {
           <div style={{ fontWeight: 700, fontSize: '.9rem', marginBottom: 4 }}>
             Comparativa automática: {mes_actual} vs {mes_anterior}
           </div>
-          <p style={{ fontSize: '.85rem', color: 'var(--gray-300, #d1d5db)', margin: 0 }}>{narrativa}</p>
+          <p style={{ fontSize: '.85rem', color: 'var(--gray-700)', margin: 0 }}>{narrativa}</p>
 
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 10, fontSize: '.8rem' }}>
             <span style={{ color: litros_delta > 0 ? '#dc2626' : litros_delta < 0 ? '#16a34a' : 'var(--gray-400)' }}>
