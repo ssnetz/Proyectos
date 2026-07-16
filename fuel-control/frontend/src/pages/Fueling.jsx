@@ -212,33 +212,35 @@ export default function Fueling() {
 
   return (
     <div>
-      <div className="page-actions">
-        <div className="filters">
-          {areas.length > 0 && (
-            <select className="form-input form-input-sm" value={areaFilter}
-              onChange={e => {
-                setAreaFilter(e.target.value);
-                setFilters(f => ({ ...f, vehicle_id: '' }));
-              }}>
-              <option value="">Todas las áreas</option>
-              {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div className="card" style={{ margin: 0, padding: '10px 14px' }}>
+          <div className="filters" style={{ marginBottom: 0 }}>
+            {areas.length > 0 && (
+              <select className="form-input form-input-sm" value={areaFilter} style={{ width: 170 }}
+                onChange={e => {
+                  setAreaFilter(e.target.value);
+                  setFilters(f => ({ ...f, vehicle_id: '' }));
+                }}>
+                <option value="">Todas las áreas</option>
+                {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            )}
+            <input type="text" className="form-input form-input-sm" placeholder="Patente" value={filters.plate}
+              style={{ width: 110, textTransform: 'uppercase' }}
+              onChange={e => setFilters(f => ({ ...f, plate: e.target.value.toUpperCase(), vehicle_id: '' }))}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()} />
+            <select className="form-input form-input-sm" value={filters.vehicle_id} style={{ width: 200 }}
+              onChange={e => setFilters(f => ({ ...f, vehicle_id: e.target.value, plate: '' }))}>
+              <option value="">{areaFilter ? 'Todos los vehículos del área' : 'Todos los vehículos'}</option>
+              {vehiclesByArea.map(v => <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>)}
             </select>
-          )}
-          <input type="text" className="form-input form-input-sm" placeholder="Patente" value={filters.plate}
-            style={{ width: 120, textTransform: 'uppercase' }}
-            onChange={e => setFilters(f => ({ ...f, plate: e.target.value.toUpperCase(), vehicle_id: '' }))}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()} />
-          <select className="form-input form-input-sm" value={filters.vehicle_id}
-            onChange={e => setFilters(f => ({ ...f, vehicle_id: e.target.value, plate: '' }))}>
-            <option value="">{areaFilter ? 'Todos los vehículos del área' : 'Todos los vehículos'}</option>
-            {vehiclesByArea.map(v => <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>)}
-          </select>
-          <input type="date" className="form-input form-input-sm" value={filters.from}
-            onChange={e => setFilters(f => ({ ...f, from: e.target.value }))} />
-          <input type="date" className="form-input form-input-sm" value={filters.to}
-            onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} />
-          <button className="btn btn-primary btn-sm" onClick={handleSearch}>Buscar</button>
-          <button className="btn btn-ghost btn-sm" onClick={handleClearFilters}>Limpiar</button>
+            <input type="date" className="form-input form-input-sm" style={{ width: 145 }} value={filters.from}
+              onChange={e => setFilters(f => ({ ...f, from: e.target.value }))} />
+            <input type="date" className="form-input form-input-sm" style={{ width: 145 }} value={filters.to}
+              onChange={e => setFilters(f => ({ ...f, to: e.target.value }))} />
+            <button className="btn btn-primary btn-sm" onClick={handleSearch}>Buscar</button>
+            <button className="btn btn-ghost btn-sm" onClick={handleClearFilters}>Limpiar</button>
+          </div>
         </div>
         <button className="btn btn-primary" onClick={openNew}>+ Nueva carga</button>
       </div>
