@@ -1,9 +1,84 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, Legend
 } from 'recharts';
+
+function fmtNum(n, d = 0) {
+  if (n == null) return '—';
+  return Number(n).toLocaleString('es-AR', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function fmtDelta(n, d = 0, unit = '') {
+  const sign = n > 0 ? '+' : n < 0 ? '-' : '';
+  return `${sign}${fmtNum(Math.abs(n), d)}${unit}`;
+}
+function fmtPesoDelta(n) {
+  const sign = n > 0 ? '+' : n < 0 ? '-' : '';
+  return `${sign}$${fmtNum(Math.abs(n), 0)}`;
+}
+
+function MonthlyAlertCard({ alert }) {
+  const { direccion, mes_actual, mes_anterior, narrativa, top_vehiculos, litros_delta, litros_pct, costo_delta, costo_pct, km_delta, km_pct } = alert;
+  const theme = {
+    up:   { icon: '⚠️', color: '#dc2626', bg: 'rgba(220,38,38,.08)', border: 'rgba(220,38,38,.3)' },
+    down: { icon: '📉', color: '#16a34a', bg: 'rgba(22,163,74,.08)', border: 'rgba(22,163,74,.3)' },
+    flat: { icon: 'ℹ️', color: 'var(--gray-400)', bg: 'var(--card-bg)', border: 'var(--border)' },
+    neutral: { icon: 'ℹ️', color: 'var(--gray-400)', bg: 'var(--card-bg)', border: 'var(--border)' },
+  }[direccion] || {};
+
+  return (
+    <div className="card" style={{ marginBottom: 20, background: theme.bg, border: `1px solid ${theme.border}` }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <span style={{ fontSize: 22 }}>{theme.icon}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: '.9rem', marginBottom: 4 }}>
+            Comparativa automática: {mes_actual} vs {mes_anterior}
+          </div>
+          <p style={{ fontSize: '.85rem', color: 'var(--gray-300, #d1d5db)', margin: 0 }}>{narrativa}</p>
+
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 10, fontSize: '.8rem' }}>
+            <span style={{ color: litros_delta > 0 ? '#dc2626' : litros_delta < 0 ? '#16a34a' : 'var(--gray-400)' }}>
+              Litros: {fmtDelta(litros_delta, 1, ' L')} {litros_pct != null && `(${fmtDelta(litros_pct, 1, '%')})`}
+            </span>
+            <span style={{ color: costo_delta > 0 ? '#dc2626' : costo_delta < 0 ? '#16a34a' : 'var(--gray-400)' }}>
+              Costo: {fmtPesoDelta(costo_delta)} {costo_pct != null && `(${fmtDelta(costo_pct, 1, '%')})`}
+            </span>
+            {km_delta != null && (
+              <span style={{ color: km_delta > 0 ? '#dc2626' : km_delta < 0 ? '#16a34a' : 'var(--gray-400)' }}>
+                Km: {fmtDelta(km_delta, 0, ' km')} {km_pct != null && `(${fmtDelta(km_pct, 1, '%')})`}
+              </span>
+            )}
+          </div>
+
+          {top_vehiculos.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: '.7rem', textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--gray-500)', marginBottom: 4 }}>
+                Vehículos que más explican la variación
+              </div>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {top_vehiculos.map(v => (
+                  <li key={v.vehicle_id} style={{ fontSize: '.8rem' }}>
+                    <strong>{v.name}</strong> ({v.plate}):{' '}
+                    <span style={{ color: v.costo_delta > 0 ? '#dc2626' : v.costo_delta < 0 ? '#16a34a' : 'var(--gray-400)' }}>
+                      {fmtDelta(v.litros_delta, 1, ' L')}, {fmtPesoDelta(v.costo_delta)}
+                      {Math.abs(v.km_delta) >= 1 && `, ${fmtDelta(v.km_delta, 0, ' km')}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <Link to="/reports" style={{ display: 'inline-block', marginTop: 10, fontSize: '.8rem', color: 'var(--primary, #3b82f6)' }}>
+            Ver comparativa completa →
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [data, setData]     = useState(null);
@@ -18,10 +93,12 @@ export default function Dashboard() {
 
   if (loading) return <div className="spinner" />;
 
-  const { summary, last_30_days, by_vehicle, by_fuel_type } = data;
+  const { summary, last_30_days, by_vehicle, by_fuel_type, monthly_alert } = data;
 
   return (
     <div className="dashboard">
+      {monthly_alert && <MonthlyAlertCard alert={monthly_alert} />}
+
       <div className="stats-grid">
         <StatCard icon="⛽" label="Litros totales"   value={`${Number(summary.total_liters).toLocaleString('es')} L`} color="blue" />
         <StatCard icon="💰" label="Costo total"      value={`$${Number(summary.total_cost).toLocaleString('es', { minimumFractionDigits: 2 })}`} color="green" />
