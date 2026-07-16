@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import axios from 'axios';
 
 const REPORT_TYPES = [
@@ -230,6 +230,9 @@ function printMonthlySummary(data, from, to, minDate, maxDate) {
   const rows = data.map(r => {
     const [mName, yr] = r.mes_label.split(' ');
     const label = (MONTHS_ES[mName] || mName) + ' ' + yr;
+    const detalle = (r.desglose_combustible || []).map(d =>
+      `<strong>${d.fuel_type}</strong>: ${fmt(d.total_litros, 1)} L${d.prom_precio ? ' ($' + fmt(d.prom_precio, 0) + '/L)' : ''} — ${fmtPeso(d.total_costo)}`
+    ).join('&nbsp;&nbsp;|&nbsp;&nbsp;');
     return `<tr>
       <td><strong>${label}</strong></td>
       <td class="num">${fmt(r.num_cargas)}</td>
@@ -238,7 +241,7 @@ function printMonthlySummary(data, from, to, minDate, maxDate) {
       <td class="num">${r.total_km ? fmt(r.total_km, 0) + ' km' : '—'}</td>
       <td class="num">${fmtPeso(r.total_costo)}</td>
       <td class="num">${r.prom_precio ? '$' + fmt(r.prom_precio, 0) + '/L' : '—'}</td>
-    </tr>`;
+    </tr>` + (detalle ? `<tr><td colspan="7" style="padding:2px 8px 8px 20px;font-size:9px;color:#5a6478;">${detalle}</td></tr>` : '');
   }).join('');
   const html = buildHeader('Resumen Mensual de Combustible', from, to, [
     { label: 'Meses', value: data.length },
@@ -387,6 +390,89 @@ function PreviewGeneric({ data, columns }) {
   );
 }
 
+function PreviewMonthlySummary({ data }) {
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggle = (mes) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      next.has(mes) ? next.delete(mes) : next.add(mes);
+      return next;
+    });
+  };
+  return (
+    <div className="table-wrapper">
+      <table className="table">
+        <thead>
+          <tr>
+            <th style={{width:24}}></th>
+            <th>Mes</th>
+            <th style={{textAlign:'right'}}>Cargas</th>
+            <th style={{textAlign:'right'}}>Vehículos</th>
+            <th style={{textAlign:'right'}}>Total Litros</th>
+            <th style={{textAlign:'right'}}>Total Km</th>
+            <th style={{textAlign:'right'}}>Costo Total</th>
+            <th style={{textAlign:'right'}}>Precio Prom/L</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map(r => {
+            const [m, y] = r.mes_label.split(' ');
+            const label = (MONTHS_ES[m] || m) + ' ' + y;
+            const detalle = r.desglose_combustible || [];
+            const isOpen = expanded.has(r.mes);
+            return (
+              <Fragment key={r.mes}>
+                <tr
+                  onClick={() => detalle.length && toggle(r.mes)}
+                  style={{cursor: detalle.length ? 'pointer' : 'default'}}
+                >
+                  <td style={{textAlign:'center', color:'var(--gray-400)'}}>{detalle.length ? (isOpen ? '▾' : '▸') : ''}</td>
+                  <td><strong>{label}</strong></td>
+                  <td style={{textAlign:'right'}}>{fmt(r.num_cargas)}</td>
+                  <td style={{textAlign:'right'}}>{fmt(r.vehiculos)}</td>
+                  <td style={{textAlign:'right'}}>{fmt(r.total_litros,1)} L</td>
+                  <td style={{textAlign:'right'}}>{r.total_km ? fmt(r.total_km,0)+' km' : '—'}</td>
+                  <td style={{textAlign:'right'}}>{fmtPeso(r.total_costo)}</td>
+                  <td style={{textAlign:'right'}}>{r.prom_precio ? '$'+fmt(r.prom_precio,0)+'/L' : '—'}</td>
+                </tr>
+                {isOpen && (
+                  <tr>
+                    <td></td>
+                    <td colSpan={7} style={{padding:'0 0 8px'}}>
+                      <table className="table" style={{margin:0, background:'var(--gray-50,#f9fafb)'}}>
+                        <thead>
+                          <tr>
+                            <th>Tipo</th>
+                            <th style={{textAlign:'right'}}>Litros</th>
+                            <th style={{textAlign:'right'}}>% del mes</th>
+                            <th style={{textAlign:'right'}}>Precio Prom/L</th>
+                            <th style={{textAlign:'right'}}>Costo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detalle.map(d => (
+                            <tr key={d.fuel_type}>
+                              <td>{d.fuel_type}</td>
+                              <td style={{textAlign:'right'}}>{fmt(d.total_litros,1)} L</td>
+                              <td style={{textAlign:'right'}}>{fmt((d.total_litros / r.total_litros) * 100, 1)}%</td>
+                              <td style={{textAlign:'right'}}>{d.prom_precio ? '$'+fmt(d.prom_precio,0)+'/L' : '—'}</td>
+                              <td style={{textAlign:'right'}}>{fmtPeso(d.total_costo)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* ── Main component ─────────────────────────────────── */
 export default function Reports() {
   const [selected, setSelected] = useState(null);
@@ -447,17 +533,7 @@ export default function Reports() {
         { key:'costo_x_km', label:'$/Km', right:true, render:r=>r.costo_x_km?fmtPeso(r.costo_x_km):'—' },
       ]} />
     );
-    if (selected === 'monthly_summary') return (
-      <PreviewGeneric data={rows} columns={[
-        { key:'mes_label', label:'Mes', render:r=>{ const [m,y]=r.mes_label.split(' '); return <strong>{(MONTHS_ES[m]||m)+' '+y}</strong>; } },
-        { key:'num_cargas', label:'Cargas', right:true, render:r=>fmt(r.num_cargas) },
-        { key:'vehiculos', label:'Vehículos', right:true, render:r=>fmt(r.vehiculos) },
-        { key:'total_litros', label:'Total Litros', right:true, render:r=>fmt(r.total_litros,1)+' L' },
-        { key:'total_km', label:'Total Km', right:true, render:r=>r.total_km?fmt(r.total_km,0)+' km':'—' },
-        { key:'total_costo', label:'Costo Total', right:true, render:r=>fmtPeso(r.total_costo) },
-        { key:'prom_precio', label:'Precio Prom/L', right:true, render:r=>r.prom_precio?'$'+fmt(r.prom_precio,0)+'/L':'—' },
-      ]} />
-    );
+    if (selected === 'monthly_summary') return <PreviewMonthlySummary data={rows} />;
     if (selected === 'by_fuel_type') {
       const totLit = rows.reduce((a,r)=>a+ +r.total_litros,0);
       return (
