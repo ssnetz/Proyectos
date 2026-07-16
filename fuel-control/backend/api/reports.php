@@ -127,11 +127,11 @@ if ($type === 'monthly_summary') {
                MAX(km.total_km)                  AS total_km
         FROM fueling f" . ($areaId ? " JOIN vehicles v ON v.id = f.vehicle_id" : "") . "
         LEFT JOIN (
-            SELECT DATE_FORMAT(g.import_date,'%Y-%m') AS mes, SUM(g.km_recorridos) AS total_km
+            SELECT DATE_FORMAT(g.import_date,'%Y-%m') AS mes_key, SUM(g.km_recorridos) AS total_km
             FROM gps_daily_stats g" . ($areaId ? " JOIN vehicles v2 ON v2.id = g.vehicle_id AND v2.area_id = :area_id2" : "") . "
             WHERE g.import_date BETWEEN :from3 AND :to3
-            GROUP BY mes
-        ) km ON km.mes = DATE_FORMAT(f.fueled_at,'%Y-%m')
+            GROUP BY mes_key
+        ) km ON km.mes_key = DATE_FORMAT(f.fueled_at,'%Y-%m')
         WHERE f.fueled_at BETWEEN :from AND :to" . ($areaId ? " AND v.area_id = :area_id" : "") . "
         GROUP BY mes, mes_label
         ORDER BY mes";
