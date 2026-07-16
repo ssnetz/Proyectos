@@ -139,7 +139,38 @@ if ($type === 'monthly_summary') {
     $params = [':from' => $fromDt, ':to' => $toDt, ':from3' => $fromG, ':to3' => $toG];
     if ($areaId) { $params[':area_id'] = $areaId; $params[':area_id2'] = $areaId; }
     $stmt->execute($params);
-    jsonResponse(withMeta($db, $stmt->fetchAll(PDO::FETCH_ASSOC), 'fueling', 'fueled_at', $fromDt, $toDt, $areaId));
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Desglose por tipo de combustible dentro de cada mes
+    $sqlDetail = "
+        SELECT DATE_FORMAT(f.fueled_at,'%Y-%m') AS mes,
+               f.fuel_type                       AS fuel_type,
+               SUM(f.liters)                     AS total_litros,
+               SUM(f.total_cost)                 AS total_costo,
+               AVG(f.price_per_liter)            AS prom_precio
+        FROM fueling f" . ($areaId ? " JOIN vehicles v ON v.id = f.vehicle_id" : "") . "
+        WHERE f.fueled_at BETWEEN :from AND :to" . ($areaId ? " AND v.area_id = :area_id" : "") . "
+        GROUP BY mes, f.fuel_type
+        ORDER BY mes, f.fuel_type";
+    $stmtD = $db->prepare($sqlDetail);
+    $paramsD = [':from' => $fromDt, ':to' => $toDt];
+    if ($areaId) $paramsD[':area_id'] = $areaId;
+    $stmtD->execute($paramsD);
+    $detalles = [];
+    foreach ($stmtD->fetchAll(PDO::FETCH_ASSOC) as $d) {
+        $detalles[$d['mes']][] = [
+            'fuel_type'    => $d['fuel_type'],
+            'total_litros' => $d['total_litros'],
+            'total_costo'  => $d['total_costo'],
+            'prom_precio'  => $d['prom_precio'],
+        ];
+    }
+    foreach ($rows as &$row) {
+        $row['desglose_combustible'] = $detalles[$row['mes']] ?? [];
+    }
+    unset($row);
+
+    jsonResponse(withMeta($db, $rows, 'fueling', 'fueled_at', $fromDt, $toDt, $areaId));
 }
 
 /* ── 5. Consumo por tipo de combustible ─────────────────────── */
