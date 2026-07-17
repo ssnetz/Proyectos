@@ -20,7 +20,7 @@ function fmtPesoDelta(n) {
 }
 
 function MonthlyAlertCard({ alert }) {
-  const { direccion, mes_actual, mes_anterior, narrativa, top_vehiculos, litros_delta, litros_pct, costo_delta, costo_pct, km_delta, km_pct } = alert;
+  const { direccion, mes_actual, mes_anterior, narrativa, top_vehiculos, litros_delta, litros_pct, costo_delta, costo_pct, km_delta, km_pct, precio_delta, precio_pct } = alert;
   const theme = {
     up:   { icon: '⚠️', bg: 'rgba(220,38,38,.06)', border: 'rgba(220,38,38,.25)' },
     down: { icon: '📉', bg: 'rgba(22,163,74,.06)', border: 'rgba(22,163,74,.25)' },
@@ -48,6 +48,11 @@ function MonthlyAlertCard({ alert }) {
             {km_delta != null && (
               <span style={{ color: km_delta > 0 ? '#dc2626' : km_delta < 0 ? '#16a34a' : 'var(--gray-400)' }}>
                 Km: {fmtDelta(km_delta, 0, ' km')} {km_pct != null && `(${fmtDelta(km_pct, 1, '%')})`}
+              </span>
+            )}
+            {precio_delta != null && (
+              <span style={{ color: precio_delta > 0 ? '#dc2626' : precio_delta < 0 ? '#16a34a' : 'var(--gray-400)' }}>
+                Precio/L: {fmtPesoDelta(precio_delta)} {precio_pct != null && `(${fmtDelta(precio_pct, 1, '%')})`}
               </span>
             )}
           </div>

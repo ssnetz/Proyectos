@@ -52,6 +52,10 @@ function buildMonthlyAlert(PDO $db): ?array {
     $kmPrev  = $prev['total_km'] !== null ? (float)$prev['total_km'] : null;
     $kmDelta = ($kmCur !== null && $kmPrev !== null) ? $kmCur - $kmPrev : null;
     $kmPct   = ($kmDelta !== null && $kmPrev != 0) ? ($kmDelta / $kmPrev) * 100 : null;
+    $precioCur   = $cur['prom_precio']  !== null ? (float)$cur['prom_precio']  : null;
+    $precioPrev  = $prev['prom_precio'] !== null ? (float)$prev['prom_precio'] : null;
+    $precioDelta = ($precioCur !== null && $precioPrev !== null) ? $precioCur - $precioPrev : null;
+    $precioPct   = ($precioDelta !== null && $precioPrev != 0) ? ($precioDelta / $precioPrev) * 100 : null;
 
     // Litros/costo por vehículo, solo para estos dos meses
     $stmt = $db->prepare("
@@ -147,6 +151,8 @@ function buildMonthlyAlert(PDO $db): ?array {
         'costo_pct'     => $costoPct,
         'km_delta'      => $kmDelta,
         'km_pct'        => $kmPct,
+        'precio_delta'  => $precioDelta,
+        'precio_pct'    => $precioPct,
         'direccion'     => $direccion,
         'narrativa'     => $narrativa,
         'top_vehiculos' => $topVehiculos,
