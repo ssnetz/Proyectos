@@ -1,5 +1,6 @@
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { MODULES, canAccess } from './config/modules';
 import Dashboard  from './pages/Dashboard';
 import Fueling    from './pages/Fueling';
 import Vehicles   from './pages/Vehicles';
@@ -21,11 +22,12 @@ import Reports      from './pages/Reports';
 import Areas        from './pages/Areas';
 import Login     from './pages/Login';
 
-function ProtectedRoute({ children, adminOnly = false }) {
+function ProtectedRoute({ children, adminOnly = false, moduleKey = null }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />;
+  if (moduleKey && !canAccess(user, moduleKey)) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -83,24 +85,10 @@ function AppLayout() {
   const isAdmin = user?.role === 'admin';
 
   const navItems = [
-    { to: '/',         icon: '📊', label: 'Dashboard' },
-    { to: '/fueling',  icon: '⛽', label: 'Cargas' },
-    { to: '/vehicles',    icon: '🚛', label: 'Vehículos' },
-    { to: '/fuel-prices', icon: '💲', label: 'Precios' },
-    { to: '/suppliers',        icon: '🏪', label: 'Proveedores' },
-    { to: '/areas',            icon: '🏛️', label: 'Áreas' },
-    { to: '/fuel-orders',      icon: '📋', label: 'Órdenes de Carga' },
-    { to: '/ordenes-pago',     icon: '💳', label: 'Órdenes de Pago' },
-    { to: '/cost-dashboard',   icon: '📈', label: 'Tablero Costos' },
-    { to: '/reports',          icon: '📄', label: 'Reportes' },
-    { to: '/gps-import',       icon: '📡', label: 'Importar GPS' },
-    { to: '/routes',           icon: '🗺️', label: 'Rutas' },
-    { to: '/lubricants',      icon: '🛢️', label: 'Lubricantes' },
-    { to: '/lubricant-types', icon: '🔧', label: 'Tipos Lubricante' },
-    { to: '/fuel-types',      icon: '⚙️', label: 'Tipos Combustible' },
-    { to: '/zones',           icon: '📍', label: 'Zonas' },
-    { to: '/drivers',         icon: '🆔', label: 'Choferes' },
-    { to: '/cost-config',     icon: '💰', label: 'Config. Costos' },
+    { to: '/', icon: '📊', label: 'Dashboard' },
+    ...MODULES
+      .filter(m => canAccess(user, m.key))
+      .map(m => ({ to: `/${m.key}`, icon: m.icon, label: m.label })),
     ...(isAdmin ? [{ to: '/users', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -143,24 +131,24 @@ function AppLayout() {
         <main className="page-content">
           <Routes>
             <Route path="/"         element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/fueling"  element={<ProtectedRoute><Fueling /></ProtectedRoute>} />
-            <Route path="/vehicles"    element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
-            <Route path="/fuel-prices" element={<ProtectedRoute><FuelPrices /></ProtectedRoute>} />
+            <Route path="/fueling"  element={<ProtectedRoute moduleKey="fueling"><Fueling /></ProtectedRoute>} />
+            <Route path="/vehicles"    element={<ProtectedRoute moduleKey="vehicles"><Vehicles /></ProtectedRoute>} />
+            <Route path="/fuel-prices" element={<ProtectedRoute moduleKey="fuel-prices"><FuelPrices /></ProtectedRoute>} />
             <Route path="/users"       element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
-            <Route path="/lubricants"      element={<ProtectedRoute><Lubricants /></ProtectedRoute>} />
-            <Route path="/lubricant-types" element={<ProtectedRoute><LubricantTypes /></ProtectedRoute>} />
-            <Route path="/fuel-types"      element={<ProtectedRoute><FuelTypes /></ProtectedRoute>} />
-            <Route path="/fuel-orders"     element={<ProtectedRoute><FuelOrders /></ProtectedRoute>} />
-            <Route path="/zones"           element={<ProtectedRoute><Zones /></ProtectedRoute>} />
-            <Route path="/drivers"         element={<ProtectedRoute><Drivers /></ProtectedRoute>} />
-            <Route path="/cost-config"     element={<ProtectedRoute><CostConfig /></ProtectedRoute>} />
-            <Route path="/routes"          element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
-            <Route path="/cost-dashboard"  element={<ProtectedRoute><CostDashboard /></ProtectedRoute>} />
-            <Route path="/gps-import"      element={<ProtectedRoute><GpsImport /></ProtectedRoute>} />
-            <Route path="/suppliers"       element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-            <Route path="/ordenes-pago"    element={<ProtectedRoute><OrdenesPago /></ProtectedRoute>} />
-            <Route path="/reports"         element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-            <Route path="/areas"           element={<ProtectedRoute><Areas /></ProtectedRoute>} />
+            <Route path="/lubricants"      element={<ProtectedRoute moduleKey="lubricants"><Lubricants /></ProtectedRoute>} />
+            <Route path="/lubricant-types" element={<ProtectedRoute moduleKey="lubricant-types"><LubricantTypes /></ProtectedRoute>} />
+            <Route path="/fuel-types"      element={<ProtectedRoute moduleKey="fuel-types"><FuelTypes /></ProtectedRoute>} />
+            <Route path="/fuel-orders"     element={<ProtectedRoute moduleKey="fuel-orders"><FuelOrders /></ProtectedRoute>} />
+            <Route path="/zones"           element={<ProtectedRoute moduleKey="zones"><Zones /></ProtectedRoute>} />
+            <Route path="/drivers"         element={<ProtectedRoute moduleKey="drivers"><Drivers /></ProtectedRoute>} />
+            <Route path="/cost-config"     element={<ProtectedRoute moduleKey="cost-config"><CostConfig /></ProtectedRoute>} />
+            <Route path="/routes"          element={<ProtectedRoute moduleKey="routes"><RoutesPage /></ProtectedRoute>} />
+            <Route path="/cost-dashboard"  element={<ProtectedRoute moduleKey="cost-dashboard"><CostDashboard /></ProtectedRoute>} />
+            <Route path="/gps-import"      element={<ProtectedRoute moduleKey="gps-import"><GpsImport /></ProtectedRoute>} />
+            <Route path="/suppliers"       element={<ProtectedRoute moduleKey="suppliers"><Suppliers /></ProtectedRoute>} />
+            <Route path="/ordenes-pago"    element={<ProtectedRoute moduleKey="ordenes-pago"><OrdenesPago /></ProtectedRoute>} />
+            <Route path="/reports"         element={<ProtectedRoute moduleKey="reports"><Reports /></ProtectedRoute>} />
+            <Route path="/areas"           element={<ProtectedRoute moduleKey="areas"><Areas /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
