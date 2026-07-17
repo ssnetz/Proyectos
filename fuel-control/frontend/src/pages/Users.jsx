@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { MODULES } from '../config/modules';
 
-const emptyForm = { username: '', password: '', role: 'operator', active: true };
+const emptyForm = { username: '', password: '', role: 'operator', active: true, permissions: null };
 
 export default function Users() {
   const [users, setUsers]     = useState([]);
@@ -20,9 +21,21 @@ export default function Users() {
   const openNew = () => { setEditing(null); setForm(emptyForm); setError(''); setShowForm(true); };
   const openEdit = (u) => {
     setEditing(u.id);
-    setForm({ username: u.username, password: '', role: u.role, active: Boolean(u.active) });
+    setForm({ username: u.username, password: '', role: u.role, active: Boolean(u.active), permissions: u.permissions ?? null });
     setError('');
     setShowForm(true);
+  };
+
+  const toggleFullAccess = (full) => {
+    setForm(f => ({ ...f, permissions: full ? null : MODULES.map(m => m.key) }));
+  };
+
+  const toggleModule = (key) => {
+    setForm(f => {
+      const current = f.permissions ?? [];
+      const next = current.includes(key) ? current.filter(k => k !== key) : [...current, key];
+      return { ...f, permissions: next };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -30,10 +43,11 @@ export default function Users() {
     setSaving(true);
     setError('');
     try {
+      const payload = { ...form, permissions: form.role === 'admin' ? null : form.permissions };
       if (editing) {
-        await axios.put(`/fuel-control/backend/api/users.php?id=${editing}`, form);
+        await axios.put(`/fuel-control/backend/api/users.php?id=${editing}`, payload);
       } else {
-        await axios.post('/fuel-control/backend/api/users.php', form);
+        await axios.post('/fuel-control/backend/api/users.php', payload);
       }
       setShowForm(false);
       load();
@@ -93,6 +107,36 @@ export default function Users() {
                   </div>
                 )}
               </div>
+
+              {form.role === 'admin' ? (
+                <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--gray-50)', color: 'var(--gray-600)', borderRadius: 8, fontSize: '.85rem' }}>
+                  Los administradores tienen acceso a todo el sistema.
+                </div>
+              ) : (
+                <div className="form-group" style={{ marginTop: 8 }}>
+                  <label className="form-label">Acceso a módulos</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.85rem', marginBottom: 10 }}>
+                    <input type="checkbox" checked={form.permissions === null}
+                      onChange={e => toggleFullAccess(e.target.checked)} />
+                    Acceso completo a todos los módulos
+                  </label>
+                  {form.permissions !== null && (
+                    <div style={{
+                      display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 6,
+                      padding: 12, background: 'var(--gray-50)', borderRadius: 8,
+                    }}>
+                      {MODULES.map(m => (
+                        <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '.82rem' }}>
+                          <input type="checkbox" checked={form.permissions.includes(m.key)}
+                            onChange={() => toggleModule(m.key)} />
+                          {m.icon} {m.label}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="modal-actions">
                 <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -108,13 +152,18 @@ export default function Users() {
         <div className="table-wrapper">
           <table className="table">
             <thead>
-              <tr><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr>
+              <tr><th>Usuario</th><th>Rol</th><th>Acceso</th><th>Estado</th><th></th></tr>
             </thead>
             <tbody>
               {users.map(u => (
                 <tr key={u.id}>
                   <td><strong>{u.username}</strong></td>
                   <td><span className={`badge ${u.role === 'admin' ? 'badge-purple' : 'badge-gray'}`}>{u.role}</span></td>
+                  <td>
+                    {u.role === 'admin' || u.permissions === null
+                      ? <span style={{ color: 'var(--gray-500)', fontSize: '.85rem' }}>Completo</span>
+                      : <span style={{ color: 'var(--gray-500)', fontSize: '.85rem' }}>{u.permissions.length} módulo{u.permissions.length === 1 ? '' : 's'}</span>}
+                  </td>
                   <td><span className={`badge ${u.active ? 'badge-green' : 'badge-red'}`}>{u.active ? 'Activo' : 'Inactivo'}</span></td>
                   <td><button className="btn btn-ghost btn-sm" onClick={() => openEdit(u)}>Editar</button></td>
                 </tr>
