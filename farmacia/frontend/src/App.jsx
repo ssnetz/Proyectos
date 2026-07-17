@@ -1,5 +1,6 @@
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { MODULES, canAccess } from './config/modules';
 import Logo from './components/Logo';
 import Dashboard from './pages/Dashboard';
 import Medicamentos from './pages/Medicamentos';
@@ -16,11 +17,12 @@ import Usuarios from './pages/Usuarios';
 import Login from './pages/Login';
 
 // ─── Protected route ────────────────────────────────────────────────────────
-function ProtectedRoute({ children, adminOnly = false }) {
+function ProtectedRoute({ children, adminOnly = false, moduleKey = null }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />;
+  if (moduleKey && !canAccess(user, moduleKey)) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -76,15 +78,9 @@ function AppLayout() {
 
   const navItems = [
     { to: '/', icon: '📊', label: 'Dashboard' },
-    { to: '/medicamentos', icon: '💊', label: 'Medicamentos' },
-    { to: '/lotes', icon: '📦', label: 'Lotes y Vencimientos' },
-    { to: '/movimientos', icon: '↕️', label: 'Movimientos' },
-    { to: '/personas', icon: '👥', label: 'Personas' },
-    { to: '/dispensas', icon: '🩺', label: 'Dispensas' },
-    { to: '/reportes', icon: '📈', label: 'Reportes' },
-    { to: '/facturas', icon: '🧾', label: 'Facturas de Compra' },
-    { to: '/proveedores', icon: '🏭', label: 'Proveedores' },
-    { to: '/categorias', icon: '🏷️', label: 'Categorías' },
+    ...MODULES
+      .filter(m => canAccess(user, m.key))
+      .map(m => ({ to: `/${m.key}`, icon: m.icon, label: m.label })),
     ...(isAdmin ? [{ to: '/ubicaciones', icon: '📍', label: 'Ubicaciones' }, { to: '/usuarios', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -123,15 +119,15 @@ function AppLayout() {
         <main className="page-content">
           <Routes>
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/medicamentos" element={<ProtectedRoute><Medicamentos /></ProtectedRoute>} />
-            <Route path="/lotes" element={<ProtectedRoute><Lotes /></ProtectedRoute>} />
-            <Route path="/movimientos" element={<ProtectedRoute><Movimientos /></ProtectedRoute>} />
-            <Route path="/personas" element={<ProtectedRoute><Personas /></ProtectedRoute>} />
-            <Route path="/dispensas" element={<ProtectedRoute><Dispensas /></ProtectedRoute>} />
-            <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
-            <Route path="/facturas" element={<ProtectedRoute><Facturas /></ProtectedRoute>} />
-            <Route path="/proveedores" element={<ProtectedRoute><Proveedores /></ProtectedRoute>} />
-            <Route path="/categorias" element={<ProtectedRoute><Categorias /></ProtectedRoute>} />
+            <Route path="/medicamentos" element={<ProtectedRoute moduleKey="medicamentos"><Medicamentos /></ProtectedRoute>} />
+            <Route path="/lotes" element={<ProtectedRoute moduleKey="lotes"><Lotes /></ProtectedRoute>} />
+            <Route path="/movimientos" element={<ProtectedRoute moduleKey="movimientos"><Movimientos /></ProtectedRoute>} />
+            <Route path="/personas" element={<ProtectedRoute moduleKey="personas"><Personas /></ProtectedRoute>} />
+            <Route path="/dispensas" element={<ProtectedRoute moduleKey="dispensas"><Dispensas /></ProtectedRoute>} />
+            <Route path="/reportes" element={<ProtectedRoute moduleKey="reportes"><Reportes /></ProtectedRoute>} />
+            <Route path="/facturas" element={<ProtectedRoute moduleKey="facturas"><Facturas /></ProtectedRoute>} />
+            <Route path="/proveedores" element={<ProtectedRoute moduleKey="proveedores"><Proveedores /></ProtectedRoute>} />
+            <Route path="/categorias" element={<ProtectedRoute moduleKey="categorias"><Categorias /></ProtectedRoute>} />
             <Route path="/ubicaciones" element={<ProtectedRoute adminOnly><Ubicaciones /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute adminOnly><Usuarios /></ProtectedRoute>} />
           </Routes>
