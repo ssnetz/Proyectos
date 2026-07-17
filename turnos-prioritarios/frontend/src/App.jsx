@@ -1,5 +1,6 @@
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { MODULES, canAccess } from './config/modules';
 import Dashboard      from './pages/Dashboard';
 import Turnos         from './pages/Turnos';
 import Personas       from './pages/Personas';
@@ -10,11 +11,12 @@ import Usuarios       from './pages/Usuarios';
 import Login          from './pages/Login';
 
 // ─── Protected route ────────────────────────────────────────────────────────
-function ProtectedRoute({ children, adminOnly = false }) {
+function ProtectedRoute({ children, adminOnly = false, moduleKey = null }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />;
+  if (moduleKey && !canAccess(user, moduleKey)) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -64,12 +66,10 @@ function AppLayout() {
   const isAdmin = user?.role === 'admin';
 
   const navItems = [
-    { to: '/',              icon: '📊', label: 'Dashboard' },
-    { to: '/turnos',        icon: '📅', label: 'Turnos' },
-    { to: '/personas',      icon: '🧑', label: 'Personas' },
-    { to: '/profesionales', icon: '🩺', label: 'Profesionales' },
-    { to: '/instituciones', icon: '🏥', label: 'Instituciones' },
-    { to: '/reportes',      icon: '📄', label: 'Reportes' },
+    { to: '/', icon: '📊', label: 'Dashboard' },
+    ...MODULES
+      .filter(m => canAccess(user, m.key))
+      .map(m => ({ to: `/${m.key}`, icon: m.icon, label: m.label })),
     ...(isAdmin ? [{ to: '/usuarios', icon: '👤', label: 'Usuarios' }] : []),
   ];
 
@@ -103,11 +103,11 @@ function AppLayout() {
         <main className="page-content">
           <Routes>
             <Route path="/"              element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/turnos"        element={<ProtectedRoute><Turnos /></ProtectedRoute>} />
-            <Route path="/personas"      element={<ProtectedRoute><Personas /></ProtectedRoute>} />
-            <Route path="/profesionales" element={<ProtectedRoute><Profesionales /></ProtectedRoute>} />
-            <Route path="/instituciones" element={<ProtectedRoute><Instituciones /></ProtectedRoute>} />
-            <Route path="/reportes"      element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+            <Route path="/turnos"        element={<ProtectedRoute moduleKey="turnos"><Turnos /></ProtectedRoute>} />
+            <Route path="/personas"      element={<ProtectedRoute moduleKey="personas"><Personas /></ProtectedRoute>} />
+            <Route path="/profesionales" element={<ProtectedRoute moduleKey="profesionales"><Profesionales /></ProtectedRoute>} />
+            <Route path="/instituciones" element={<ProtectedRoute moduleKey="instituciones"><Instituciones /></ProtectedRoute>} />
+            <Route path="/reportes"      element={<ProtectedRoute moduleKey="reportes"><Reportes /></ProtectedRoute>} />
             <Route path="/usuarios"      element={<ProtectedRoute adminOnly><Usuarios /></ProtectedRoute>} />
           </Routes>
         </main>

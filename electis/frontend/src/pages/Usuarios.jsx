@@ -1,9 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useUsuarios } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
+import { MODULES } from '../config/modules';
 import Modal from '../components/Modal';
 
-const emptyForm = { username: '', email: '', password: '', role: 'operador' };
+const emptyForm = { username: '', email: '', password: '', role: 'operador', permissions: null };
+
+// Agrupa MODULES por su sección (Escrutinio, Catálogos, ...) preservando el orden
+const MODULE_SECTIONS = MODULES.reduce((acc, m) => {
+  let sec = acc.find(s => s.name === m.section);
+  if (!sec) { sec = { name: m.section, items: [] }; acc.push(sec); }
+  sec.items.push(m);
+  return acc;
+}, []);
 
 export default function Usuarios() {
   const { list, create, update } = useUsuarios();
@@ -28,17 +37,30 @@ export default function Usuarios() {
   const openCreate = () => { setForm(emptyForm); setModal('create'); setError(''); };
 
   const openEdit = (u) => {
-    setForm({ username: u.usuario, email: u.email || '', password: '', role: u.rol });
+    setForm({ username: u.usuario, email: u.email || '', password: '', role: u.rol, permissions: u.permissions ?? null });
     setModal(u.id);
     setError('');
+  };
+
+  const toggleFullAccess = (full) => {
+    setForm(f => ({ ...f, permissions: full ? null : MODULES.map(m => m.key) }));
+  };
+
+  const toggleModule = (key) => {
+    setForm(f => {
+      const current = f.permissions ?? [];
+      const next = current.includes(key) ? current.filter(k => k !== key) : [...current, key];
+      return { ...f, permissions: next };
+    });
   };
 
   const handleSave = async () => {
     setSaving(true);
     setError('');
     try {
-      if (modal === 'create') { await create(form); notify('Usuario creado'); }
-      else { await update(modal, form); notify('Usuario actualizado'); }
+      const payload = { ...form, permissions: form.role === 'admin' ? null : form.permissions };
+      if (modal === 'create') { await create(payload); notify('Usuario creado'); }
+      else { await update(modal, payload); notify('Usuario actualizado'); }
       setModal(null);
       await load();
     } catch (e) {
@@ -53,7 +75,7 @@ export default function Usuarios() {
     const action = u.activo ? 'Desactivar' : 'Activar';
     if (!confirm(`¿${action} al usuario "${u.usuario}"?`)) return;
     try {
-      await update(u.id, { username: u.usuario, email: u.email, role: u.rol, active: u.activo ? 0 : 1 });
+      await update(u.id, { username: u.usuario, email: u.email, role: u.rol, permissions: u.permissions, active: u.activo ? 0 : 1 });
       notify(`Usuario ${u.activo ? 'desactivado' : 'activado'}`);
       await load();
     } catch (e) {
@@ -83,7 +105,7 @@ export default function Usuarios() {
             <table>
               <thead>
                 <tr>
-                  <th>Usuario</th><th>Email</th><th>Rol</th><th>Estado</th><th>Creado</th><th>Acciones</th>
+                  <th>Usuario</th><th>Email</th><th>Rol</th><th>Acceso</th><th>Estado</th><th>Creado</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -96,6 +118,11 @@ export default function Usuarios() {
                     <td style={{ color: 'var(--gray-500)' }}>{u.email || '—'}</td>
                     <td>
                       {u.rol === 'admin' ? <span className="badge badge-purple">admin</span> : <span className="badge badge-gray">operador</span>}
+                    </td>
+                    <td style={{ color: 'var(--gray-500)', fontSize: '.85rem' }}>
+                      {u.rol === 'admin' || u.permissions === null
+                        ? 'Completo'
+                        : `${u.permissions.length} módulo${u.permissions.length === 1 ? '' : 's'}`}
                     </td>
                     <td>
                       {Number(u.activo) ? <span className="badge badge-green">Activo</span> : <span className="badge badge-red">Inactivo</span>}
@@ -166,6 +193,41 @@ export default function Usuarios() {
               <option value="admin">Administrador</option>
             </select>
           </div>
+
+          {form.role === 'admin' ? (
+            <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--gray-50)', color: 'var(--gray-600)', borderRadius: 8, fontSize: '.85rem' }}>
+              Los administradores tienen acceso a todo el sistema.
+            </div>
+          ) : (
+            <div className="form-group" style={{ marginTop: 8 }}>
+              <label className="form-label">Acceso a módulos</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.85rem', marginBottom: 10 }}>
+                <input type="checkbox" checked={form.permissions === null}
+                  onChange={(e) => toggleFullAccess(e.target.checked)} />
+                Acceso completo a todos los módulos
+              </label>
+              {form.permissions !== null && (
+                <div style={{ padding: 12, background: 'var(--gray-50)', borderRadius: 8 }}>
+                  {MODULE_SECTIONS.map(sec => (
+                    <div key={sec.name} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: '.7rem', textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--gray-500)', marginBottom: 4 }}>
+                        {sec.name}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 6 }}>
+                        {sec.items.map(m => (
+                          <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '.82rem' }}>
+                            <input type="checkbox" checked={form.permissions.includes(m.key)}
+                              onChange={() => toggleModule(m.key)} />
+                            {m.icon} {m.label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </Modal>
       )}
     </div>
