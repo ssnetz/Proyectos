@@ -18,11 +18,23 @@ match ($method) {
     default  => jsonError('Método no permitido', 405),
 };
 
+// Normaliza lo que llega en 'permissions': null = acceso total, array = lista de módulos
+function normalizePermissions(mixed $value): ?string {
+    if ($value === null) return null;
+    if (!is_array($value)) return null;
+    return json_encode(array_values($value));
+}
+
 function listUsuarios(PDO $db): void {
     $stmt = $db->query(
-        "SELECT id, username, email, role, active, created_at, updated_at FROM users ORDER BY username"
+        "SELECT id, username, email, role, permissions, active, created_at, updated_at FROM users ORDER BY username"
     );
-    jsonResponse($stmt->fetchAll());
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as &$row) {
+        $row['permissions'] = $row['permissions'] !== null ? json_decode($row['permissions'], true) : null;
+    }
+    unset($row);
+    jsonResponse($rows);
 }
 
 function createUsuario(PDO $db): void {
@@ -33,13 +45,14 @@ function createUsuario(PDO $db): void {
     $role = $data['role'] ?? 'operador';
     if (!in_array($role, ['admin', 'operador'])) jsonError('Rol inválido');
 
+    $permissions = normalizePermissions($data['permissions'] ?? null);
     $hash = password_hash($data['password'], PASSWORD_BCRYPT);
 
     try {
         $stmt = $db->prepare(
-            "INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)"
+            "INSERT INTO users (username, email, password, role, permissions) VALUES (?, ?, ?, ?, ?)"
         );
-        $stmt->execute([$data['username'], $data['email'] ?? null, $hash, $role]);
+        $stmt->execute([$data['username'], $data['email'] ?? null, $hash, $role, $permissions]);
         jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Usuario creado'], 201);
     } catch (PDOException $e) {
         if ($e->getCode() === '23000') jsonError('El username ya existe', 409);
@@ -52,18 +65,19 @@ function updateUsuario(PDO $db, int $id, array $payload): void {
     $role   = $data['role'] ?? 'operador';
     if (!in_array($role, ['admin', 'operador'])) jsonError('Rol inválido');
     $active = isset($data['active']) ? (int)(bool)$data['active'] : 1;
+    $permissions = normalizePermissions($data['permissions'] ?? null);
 
     if (!empty($data['password'])) {
         $hash = password_hash($data['password'], PASSWORD_BCRYPT);
         $stmt = $db->prepare(
-            "UPDATE users SET username=?, email=?, password=?, role=?, active=?, updated_at=NOW() WHERE id=?"
+            "UPDATE users SET username=?, email=?, password=?, role=?, permissions=?, active=?, updated_at=NOW() WHERE id=?"
         );
-        $stmt->execute([$data['username'] ?? '', $data['email'] ?? null, $hash, $role, $active, $id]);
+        $stmt->execute([$data['username'] ?? '', $data['email'] ?? null, $hash, $role, $permissions, $active, $id]);
     } else {
         $stmt = $db->prepare(
-            "UPDATE users SET username=?, email=?, role=?, active=?, updated_at=NOW() WHERE id=?"
+            "UPDATE users SET username=?, email=?, role=?, permissions=?, active=?, updated_at=NOW() WHERE id=?"
         );
-        $stmt->execute([$data['username'] ?? '', $data['email'] ?? null, $role, $active, $id]);
+        $stmt->execute([$data['username'] ?? '', $data['email'] ?? null, $role, $permissions, $active, $id]);
     }
 
     jsonResponse(['message' => 'Usuario actualizado']);

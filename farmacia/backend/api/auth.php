@@ -27,7 +27,7 @@ function login(PDO $db): void {
     }
 
     $stmt = $db->prepare(
-        "SELECT id, username, email, password, role, active FROM users WHERE username = ?"
+        "SELECT id, username, email, password, role, permissions, active FROM users WHERE username = ?"
     );
     $stmt->execute([$username]);
     $user = $stmt->fetch();
@@ -37,11 +37,12 @@ function login(PDO $db): void {
     }
 
     $sessionUser = [
-        'sub'      => $user['id'],
-        'id'       => $user['id'],
-        'username' => $user['username'],
-        'email'    => $user['email'],
-        'role'     => $user['role'],
+        'sub'         => $user['id'],
+        'id'          => $user['id'],
+        'username'    => $user['username'],
+        'email'       => $user['email'],
+        'role'        => $user['role'],
+        'permissions' => $user['permissions'] !== null ? json_decode($user['permissions'], true) : null,
     ];
 
     $_SESSION['user'] = $sessionUser;
