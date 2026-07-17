@@ -1,5 +1,7 @@
+import { Fragment } from 'react';
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { MODULES, canAccess } from './config/modules';
 import Dashboard         from './pages/Dashboard';
 import Actas             from './pages/Actas';
 import Electores          from './pages/Electores';
@@ -14,11 +16,12 @@ import Usuarios           from './pages/Usuarios';
 import Login              from './pages/Login';
 
 // ─── Protected route ────────────────────────────────────────────────────────
-function ProtectedRoute({ children, adminOnly = false }) {
+function ProtectedRoute({ children, adminOnly = false, moduleKey = null }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />;
+  if (moduleKey && !canAccess(user, moduleKey)) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -71,6 +74,13 @@ function AppLayout() {
   const title = pageTitles[pathname] ?? 'Electis';
   const isAdmin = user?.role === 'admin';
 
+  const sections = [];
+  MODULES.filter(m => canAccess(user, m.key)).forEach(m => {
+    let sec = sections.find(s => s.name === m.section);
+    if (!sec) { sec = { name: m.section, items: [] }; sections.push(sec); }
+    sec.items.push(m);
+  });
+
   return (
     <div className="layout">
       <aside className="sidebar">
@@ -82,36 +92,16 @@ function AppLayout() {
             <span className="nav-icon">📊</span> Dashboard
           </NavLink>
 
-          <div className="nav-section">Escrutinio</div>
-          <NavLink to="/actas" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <span className="nav-icon">🗳️</span> Actas
-          </NavLink>
-          <NavLink to="/electores" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <span className="nav-icon">👥</span> Electores
-          </NavLink>
-
-          <div className="nav-section">Catálogos</div>
-          <NavLink to="/establecimientos" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <span className="nav-icon">🏫</span> Establecimientos
-          </NavLink>
-          <NavLink to="/mesas" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <span className="nav-icon">🪑</span> Mesas
-          </NavLink>
-          <NavLink to="/partidos" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <span className="nav-icon">🚩</span> Partidos
-          </NavLink>
-          <NavLink to="/cargos" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <span className="nav-icon">🏛️</span> Cargos
-          </NavLink>
-          <NavLink to="/listas" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <span className="nav-icon">📋</span> Listas
-          </NavLink>
-          <NavLink to="/candidatos" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <span className="nav-icon">🎖️</span> Candidatos
-          </NavLink>
-          <NavLink to="/fiscales" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <span className="nav-icon">🕵️</span> Fiscales
-          </NavLink>
+          {sections.map(sec => (
+            <Fragment key={sec.name}>
+              <div className="nav-section">{sec.name}</div>
+              {sec.items.map(m => (
+                <NavLink key={m.key} to={`/${m.key}`} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+                  <span className="nav-icon">{m.icon}</span> {m.label}
+                </NavLink>
+              ))}
+            </Fragment>
+          ))}
 
           {isAdmin && (
             <>
@@ -133,15 +123,15 @@ function AppLayout() {
         <main className="page-content">
           <Routes>
             <Route path="/"                 element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/actas"            element={<ProtectedRoute><Actas /></ProtectedRoute>} />
-            <Route path="/electores"        element={<ProtectedRoute><Electores /></ProtectedRoute>} />
-            <Route path="/establecimientos" element={<ProtectedRoute><Establecimientos /></ProtectedRoute>} />
-            <Route path="/mesas"            element={<ProtectedRoute><Mesas /></ProtectedRoute>} />
-            <Route path="/partidos"         element={<ProtectedRoute><Partidos /></ProtectedRoute>} />
-            <Route path="/cargos"           element={<ProtectedRoute><Cargos /></ProtectedRoute>} />
-            <Route path="/listas"           element={<ProtectedRoute><Listas /></ProtectedRoute>} />
-            <Route path="/candidatos"       element={<ProtectedRoute><Candidatos /></ProtectedRoute>} />
-            <Route path="/fiscales"         element={<ProtectedRoute><Fiscales /></ProtectedRoute>} />
+            <Route path="/actas"            element={<ProtectedRoute moduleKey="actas"><Actas /></ProtectedRoute>} />
+            <Route path="/electores"        element={<ProtectedRoute moduleKey="electores"><Electores /></ProtectedRoute>} />
+            <Route path="/establecimientos" element={<ProtectedRoute moduleKey="establecimientos"><Establecimientos /></ProtectedRoute>} />
+            <Route path="/mesas"            element={<ProtectedRoute moduleKey="mesas"><Mesas /></ProtectedRoute>} />
+            <Route path="/partidos"         element={<ProtectedRoute moduleKey="partidos"><Partidos /></ProtectedRoute>} />
+            <Route path="/cargos"           element={<ProtectedRoute moduleKey="cargos"><Cargos /></ProtectedRoute>} />
+            <Route path="/listas"           element={<ProtectedRoute moduleKey="listas"><Listas /></ProtectedRoute>} />
+            <Route path="/candidatos"       element={<ProtectedRoute moduleKey="candidatos"><Candidatos /></ProtectedRoute>} />
+            <Route path="/fiscales"         element={<ProtectedRoute moduleKey="fiscales"><Fiscales /></ProtectedRoute>} />
             <Route path="/usuarios"         element={<ProtectedRoute adminOnly><Usuarios /></ProtectedRoute>} />
           </Routes>
         </main>

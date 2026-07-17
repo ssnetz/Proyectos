@@ -25,7 +25,7 @@ function login(PDO $db): void {
         jsonError('Usuario y contraseña requeridos');
     }
 
-    $stmt = $db->prepare("SELECT id, usuario, email, contrasena, rol, activo FROM usuarios WHERE usuario = ?");
+    $stmt = $db->prepare("SELECT id, usuario, email, contrasena, rol, permissions, activo FROM usuarios WHERE usuario = ?");
     $stmt->execute([$usuario]);
     $user = $stmt->fetch();
 
@@ -33,13 +33,16 @@ function login(PDO $db): void {
         jsonError('Credenciales incorrectas', 401);
     }
 
+    $permissions = $user['permissions'] !== null ? json_decode($user['permissions'], true) : null;
+
     $now     = time();
     $payload = [
-        'sub'      => $user['id'],
-        'username' => $user['usuario'],
-        'role'     => $user['rol'],
-        'iat'      => $now,
-        'exp'      => $now + JWT_EXPIRY,
+        'sub'         => $user['id'],
+        'username'    => $user['usuario'],
+        'role'        => $user['rol'],
+        'permissions' => $permissions,
+        'iat'         => $now,
+        'exp'         => $now + JWT_EXPIRY,
     ];
 
     $token = jwtEncode($payload, JWT_SECRET);
@@ -47,26 +50,28 @@ function login(PDO $db): void {
     jsonResponse([
         'token' => $token,
         'user'  => [
-            'id'       => $user['id'],
-            'username' => $user['usuario'],
-            'email'    => $user['email'],
-            'role'     => $user['rol'],
+            'id'          => $user['id'],
+            'username'    => $user['usuario'],
+            'email'       => $user['email'],
+            'role'        => $user['rol'],
+            'permissions' => $permissions,
         ],
     ]);
 }
 
 function me(PDO $db): void {
     $payload = requireAuth();
-    $stmt    = $db->prepare("SELECT id, usuario, email, rol, activo FROM usuarios WHERE id = ? AND activo = 1");
+    $stmt    = $db->prepare("SELECT id, usuario, email, rol, permissions, activo FROM usuarios WHERE id = ? AND activo = 1");
     $stmt->execute([$payload['sub']]);
     $user = $stmt->fetch();
     if (!$user) jsonError('Usuario no encontrado', 404);
     jsonResponse([
-        'id'       => $user['id'],
-        'username' => $user['usuario'],
-        'email'    => $user['email'],
-        'role'     => $user['rol'],
-        'active'   => $user['activo'],
+        'id'          => $user['id'],
+        'username'    => $user['usuario'],
+        'email'       => $user['email'],
+        'role'        => $user['rol'],
+        'permissions' => $user['permissions'] !== null ? json_decode($user['permissions'], true) : null,
+        'active'      => $user['activo'],
     ]);
 }
 
