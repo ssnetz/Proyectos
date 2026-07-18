@@ -145,13 +145,21 @@ export default function Electores() {
         </div>
 
         {meta?.mesa && (
-          <div className="alert alert-info" style={{ marginBottom: 16, flexWrap: 'wrap' }}>
-            <span>
-              <strong>Mesa {meta.mesa.numero}</strong> — {meta.mesa.establecimiento_nombre}
-            </span>
-            <span style={{ marginLeft: 'auto' }}>
-              <span className="badge badge-blue">{meta.total} elector{meta.total === 1 ? '' : 'es'} en el padrón</span>
-            </span>
+          <div className="alert alert-info" style={{ marginBottom: 16, flexWrap: 'wrap', flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <span>
+                <strong>Mesa {meta.mesa.numero}</strong> — {meta.mesa.establecimiento_nombre}
+              </span>
+              <span style={{ marginLeft: 'auto' }}>
+                <span className="badge badge-blue">{meta.total} elector{meta.total === 1 ? '' : 'es'} en el padrón</span>
+              </span>
+            </div>
+            {meta.mesa.primer_elector && meta.mesa.ultimo_elector && (
+              <div style={{ fontSize: '.8rem' }}>
+                Desde <strong>{meta.mesa.primer_elector.apellido}, {meta.mesa.primer_elector.nombre}</strong>{' '}
+                hasta <strong>{meta.mesa.ultimo_elector.apellido}, {meta.mesa.ultimo_elector.nombre}</strong>
+              </div>
+            )}
           </div>
         )}
 
