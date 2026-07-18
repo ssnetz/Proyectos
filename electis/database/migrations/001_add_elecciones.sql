@@ -13,10 +13,14 @@
 -- fácil si algo sale mal a mitad de camino.
 --
 -- Cómo correrlo en phpMyAdmin: pestaña "SQL" de la base `electis`, pegar
--- todo este archivo y ejecutar. Corre dentro de una transacción, así que si
--- algo falla no debería dejar la base a medio migrar (salvo DDL que en
--- MySQL/MariaDB hace commit implícito en cada ALTER TABLE — por eso el
--- backup previo no es opcional).
+-- todo este archivo y ejecutar. OJO: cada ALTER TABLE en MySQL/MariaDB hace
+-- commit implícito por su cuenta (no hay rollback real de todo el bloque si
+-- algo falla a mitad de camino) — por eso el backup previo no es opcional.
+--
+-- Antes de que un índice único se pueda borrar, tiene que dejar de ser el
+-- que sostiene la clave foránea de esa columna; por eso cada tabla agrega
+-- primero un índice "de respaldo" sobre la columna vieja antes de tocar el
+-- índice único.
 
 -- 1) Tabla nueva de elecciones
 CREATE TABLE IF NOT EXISTS elecciones (
@@ -41,6 +45,7 @@ UPDATE cargos c
   JOIN elecciones e ON e.municipio_id = c.municipio_id
   SET c.eleccion_id = e.id;
 ALTER TABLE cargos MODIFY eleccion_id INT NOT NULL;
+ALTER TABLE cargos ADD INDEX idx_cargos_municipio (municipio_id);
 ALTER TABLE cargos DROP INDEX uk_cargo_municipio_nombre;
 ALTER TABLE cargos ADD UNIQUE KEY uk_cargo_eleccion_nombre (eleccion_id, nombre);
 ALTER TABLE cargos ADD FOREIGN KEY (eleccion_id) REFERENCES elecciones(id);
@@ -59,6 +64,7 @@ UPDATE mesas m
   JOIN elecciones e ON e.municipio_id = m.municipio_id
   SET m.eleccion_id = e.id;
 ALTER TABLE mesas MODIFY eleccion_id INT NOT NULL;
+ALTER TABLE mesas ADD INDEX idx_mesas_establecimiento (establecimiento_id);
 ALTER TABLE mesas DROP INDEX uk_mesa_establecimiento_numero;
 ALTER TABLE mesas ADD UNIQUE KEY uk_mesa_eleccion_establecimiento_numero (eleccion_id, establecimiento_id, numero);
 ALTER TABLE mesas ADD FOREIGN KEY (eleccion_id) REFERENCES elecciones(id);
