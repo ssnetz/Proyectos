@@ -38,7 +38,9 @@
 .padron-domicilio { padding: 1px 4px; border-bottom: 1px solid #000; }
 .padron-orden-doc { display: flex; border-bottom: 1px solid #000; }
 .padron-orden-doc > div { padding: 1px 4px; border-right: 1px solid #000; flex: 1; }
-.padron-orden-doc > div:last-child { border-right: none; flex: 0 0 70px; }
+.padron-orden-doc > div:last-child { border-right: none; }
+.padron-orden-doc .col-tipo { flex: 0 0 42px; }
+.padron-orden-doc .col-clase { flex: 0 0 34px; }
 .padron-detalle { display: flex; flex: 1; }
 .padron-foto { flex: 0 0 60px; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center; }
 .padron-foto svg { width: 28px; height: 28px; opacity: .35; }
@@ -72,6 +74,9 @@
   .padron-toolbar { display: none; }
   .padron-imprimible, .padron-imprimible * { visibility: visible; }
   .padron-imprimible { position: absolute; left: 0; top: 0; }
+  /* Sin margin acá: la hoja ya es 8.5in x 14in (el tamaño físico completo) y
+     trae su propio padding interno. Un @page margin sumado a eso duplicaba
+     el margen y hacía que la hoja ya no entrara en el papel. */
   .padron-hoja { box-shadow: none; margin: 0; page-break-after: always; }
-  @page { size: legal; margin: 0.2in; }
+  @page { size: legal portrait; margin: 0; }
 }
