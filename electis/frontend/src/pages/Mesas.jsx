@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMesas, useEstablecimientos } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
@@ -15,6 +16,7 @@ export default function Mesas() {
   const { list, create, update, remove } = useMesas();
   const { list: listEstablecimientos } = useEstablecimientos();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin  = user?.role === 'admin';
   const [mesas, setMesas] = useState([]);
   const [establecimientos, setEstablecimientos] = useState([]);
@@ -117,12 +119,21 @@ export default function Mesas() {
                       </span>
                     </td>
                     <td>
-                      {isAdmin && (
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn btn-ghost btn-sm" onClick={() => openEdit(m)}>✏️</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(m.id)}>🗑️</button>
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => navigate(`/mesas/${m.id}/padron`)}
+                          title="Imprimir padrón de esta mesa"
+                        >
+                          🖨️
+                        </button>
+                        {isAdmin && (
+                          <>
+                            <button className="btn btn-ghost btn-sm" onClick={() => openEdit(m)}>✏️</button>
+                            <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(m.id)}>🗑️</button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

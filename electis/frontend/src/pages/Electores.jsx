@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 const emptyForm = {
-  orden: '', documento: '', apellido: '', nombre: '', sexo: '',
+  orden: '', documento: '', tipo: '', apellido: '', nombre: '', sexo: '',
   fecha_nacimiento: '', domicilio: '', mesa_id: '', votado: false,
 };
 
@@ -58,7 +58,7 @@ export default function Electores() {
   const openCreate = () => { setForm(emptyForm); setModal('create'); setError(''); };
   const openEdit   = (e) => {
     setForm({
-      orden: e.orden ?? '', documento: e.documento, apellido: e.apellido, nombre: e.nombre,
+      orden: e.orden ?? '', documento: e.documento, tipo: e.tipo || '', apellido: e.apellido, nombre: e.nombre,
       sexo: e.sexo || '', fecha_nacimiento: e.fecha_nacimiento || '', domicilio: e.domicilio || '',
       mesa_id: e.mesa_id || '', votado: !!Number(e.votado),
     });
@@ -228,10 +228,14 @@ export default function Electores() {
           }
         >
           {error && <div className="alert alert-danger">{error}</div>}
-          <div className="form-row">
+          <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Documento *</label>
               <input className="form-control" value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tipo</label>
+              <input className="form-control" placeholder="Ej: DNI-EB" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} />
             </div>
             <div className="form-group">
               <label className="form-label">N° de orden</label>
@@ -298,9 +302,9 @@ export default function Electores() {
             <>
               <p style={{ fontSize: '.85rem', color: 'var(--gray-500)', marginBottom: 12 }}>
                 El CSV necesita las columnas <code>documento</code>, <code>apellido</code>, <code>nombre</code> y <code>mesa_numero</code>
-                (opcionales: <code>domicilio</code>, <code>orden</code>). Las mesas que no existan se crean automáticamente bajo un
+                (opcionales: <code>domicilio</code>, <code>orden</code>, <code>tipo</code>). Las mesas que no existan se crean automáticamente bajo un
                 establecimiento genérico "Sin asignar", para repartirlas en las escuelas reales después desde Mesas.
-                Los documentos que ya estén cargados en este municipio se omiten, así que el archivo se puede volver a subir sin duplicar.
+                Los documentos que ya estén cargados en esta elección se omiten, así que el archivo se puede volver a subir sin duplicar.
               </p>
               <div className="form-group">
                 <label className="form-label">Archivo CSV</label>

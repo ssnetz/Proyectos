@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useMunicipios } from '../hooks/useApi';
 import Modal from '../components/Modal';
 
-const emptyForm = { nombre: '', provincia: '' };
+const emptyForm = { nombre: '', provincia: '', seccion_electoral: '' };
 
 export default function Municipios() {
   const { list, create, update } = useMunicipios();
@@ -23,7 +23,11 @@ export default function Municipios() {
   const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); };
 
   const openCreate = () => { setForm(emptyForm); setModal('create'); setError(''); };
-  const openEdit   = (m) => { setForm({ nombre: m.nombre, provincia: m.provincia || '' }); setModal(m.id); setError(''); };
+  const openEdit   = (m) => {
+    setForm({ nombre: m.nombre, provincia: m.provincia || '', seccion_electoral: m.seccion_electoral || '' });
+    setModal(m.id);
+    setError('');
+  };
 
   const handleSave = async () => {
     if (!form.nombre) { setError('El nombre es requerido'); return; }
@@ -45,7 +49,7 @@ export default function Municipios() {
     const action = Number(m.activo) ? 'Desactivar' : 'Activar';
     if (!confirm(`¿${action} el municipio "${m.nombre}"?`)) return;
     try {
-      await update(m.id, { nombre: m.nombre, provincia: m.provincia, activo: Number(m.activo) ? 0 : 1 });
+      await update(m.id, { nombre: m.nombre, provincia: m.provincia, seccion_electoral: m.seccion_electoral, activo: Number(m.activo) ? 0 : 1 });
       notify(`Municipio ${Number(m.activo) ? 'desactivado' : 'activado'}`);
       await load();
     } catch (e) {
@@ -70,13 +74,14 @@ export default function Municipios() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Nombre</th><th>Provincia</th><th>Estado</th><th>Acciones</th></tr>
+                <tr><th>Nombre</th><th>Provincia</th><th>Sección electoral</th><th>Estado</th><th>Acciones</th></tr>
               </thead>
               <tbody>
                 {municipios.map((m) => (
                   <tr key={m.id}>
                     <td><strong>{m.nombre}</strong></td>
                     <td style={{ color: 'var(--gray-500)' }}>{m.provincia || '—'}</td>
+                    <td style={{ color: 'var(--gray-500)' }}>{m.seccion_electoral || '—'}</td>
                     <td>{Number(m.activo) ? <span className="badge badge-green">Activo</span> : <span className="badge badge-red">Inactivo</span>}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
@@ -116,9 +121,15 @@ export default function Municipios() {
             <label className="form-label">Nombre *</label>
             <input className="form-control" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Cosquín" />
           </div>
-          <div className="form-group">
-            <label className="form-label">Provincia</label>
-            <input className="form-control" value={form.provincia} onChange={(e) => setForm({ ...form, provincia: e.target.value })} placeholder="Ej: Córdoba" />
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Provincia</label>
+              <input className="form-control" value={form.provincia} onChange={(e) => setForm({ ...form, provincia: e.target.value })} placeholder="Ej: Córdoba" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Sección electoral</label>
+              <input className="form-control" value={form.seccion_electoral} onChange={(e) => setForm({ ...form, seccion_electoral: e.target.value })} placeholder="Ej: 12-Punilla" />
+            </div>
           </div>
         </Modal>
       )}
