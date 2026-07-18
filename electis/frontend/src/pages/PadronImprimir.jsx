@@ -45,11 +45,14 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
         <div className="padron-detalle">
           <div className="padron-foto"><FotoPlaceholder /></div>
           <div className="padron-obs">
-            <div className="padron-obs-label">OBSERVACIONES</div>
+            <div className="padron-col-label">OBSERVACIONES</div>
             <div className="padron-obs-box" />
           </div>
+          <div className="padron-firma-col">
+            <div className="padron-col-label">FIRMA DEL VOTANTE</div>
+            <div className="padron-firma-box" />
+          </div>
         </div>
-        <div className="padron-firma">FIRMA DEL VOTANTE</div>
       </div>
 
       <div className="padron-mitad-der">
@@ -66,11 +69,13 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
         <div className="padron-datos-der"><div>DOCUMENTO</div><div>{elector.documento}</div></div>
         <div className="padron-datos-der"><div>DISTRITO</div><div>{municipio?.provincia || ''}</div></div>
         <div className="padron-datos-der"><div>SECCION</div><div>{municipio?.seccion_electoral || ''}</div></div>
-        <div className="padron-datos-der"><div>CIRC.</div><div>{mesa?.circuito || ''}</div></div>
+        <div className="padron-circ-mesa">
+          <div>CIRC.</div><div>{mesa?.circuito || ''}</div>
+          <div>MESA</div><div>{mesa?.numero}</div>
+        </div>
         <div className="padron-mesa-autoridad">
-          <div className="mesa-label">MESA</div>
-          <div className="mesa-valor">{mesa?.numero}</div>
-          <div className="autoridad">AUTORIDAD DE MESA</div>
+          <div className="padron-col-label">FIRMA AUTORIDAD DE MESA</div>
+          <div className="autoridad-box" />
         </div>
       </div>
     </div>
