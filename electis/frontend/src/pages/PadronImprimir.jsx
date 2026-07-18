@@ -39,7 +39,8 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
         <div className="padron-orden-doc">
           <div>ORDEN <strong>{elector.orden ?? '—'}</strong></div>
           <div>DOC <strong>{elector.documento}</strong></div>
-          <div><strong>{elector.tipo || ''}</strong></div>
+          <div className="col-tipo"><strong>{elector.tipo || ''}</strong></div>
+          <div className="col-clase"><strong>{elector.fecha_nacimiento ? elector.fecha_nacimiento.slice(0, 4) : ''}</strong></div>
         </div>
         <div className="padron-detalle">
           <div className="padron-foto"><FotoPlaceholder /></div>
