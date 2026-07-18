@@ -46,7 +46,17 @@ export function useCandidatos()      { return crud('candidatos'); }
 export function useEstablecimientos() { return crud('establecimientos'); }
 export function useMesas()           { return crud('mesas'); }
 export function useFiscales()        { return crud('fiscales'); }
-export function useElectores()       { return crud('electores', { softDelete: true }); }
+export function useElectores() {
+  const base = crud('electores', { softDelete: true });
+  const importPadron = (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/electores_import.php', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  };
+  return { ...base, importPadron };
+}
 export function useUsuarios()        { return crud('usuarios'); }
 export function useMunicipios()      { return crud('municipios'); }
 
