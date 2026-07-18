@@ -69,14 +69,22 @@ function listElectores(PDO $db, int $municipioId): void {
         $mesa = $mesaStmt->fetch() ?: null;
 
         if ($mesa) {
+            // El padrón oficial trae su propio número de orden por mesa (columna
+            // `orden`), que respeta el criterio real de la Justicia Electoral.
+            // Reordenar por apellido/nombre en SQL no siempre reproduce ese mismo
+            // criterio (acentos, apellidos compuestos, apóstrofes), así que se usa
+            // `orden` como fuente de verdad y sólo se cae a apellido/nombre cuando
+            // no hay orden cargado (p. ej. electores agregados a mano).
             $primeroStmt = $db->prepare(
-                "SELECT apellido, nombre FROM electores WHERE mesa_id = ? AND municipio_id = ? ORDER BY apellido, nombre LIMIT 1"
+                "SELECT apellido, nombre FROM electores WHERE mesa_id = ? AND municipio_id = ?
+                 ORDER BY (orden IS NULL), orden, apellido, nombre LIMIT 1"
             );
             $primeroStmt->execute([$mesaId, $municipioId]);
             $mesa['primer_elector'] = $primeroStmt->fetch() ?: null;
 
             $ultimoStmt = $db->prepare(
-                "SELECT apellido, nombre FROM electores WHERE mesa_id = ? AND municipio_id = ? ORDER BY apellido DESC, nombre DESC LIMIT 1"
+                "SELECT apellido, nombre FROM electores WHERE mesa_id = ? AND municipio_id = ?
+                 ORDER BY (orden IS NULL), orden DESC, apellido DESC, nombre DESC LIMIT 1"
             );
             $ultimoStmt->execute([$mesaId, $municipioId]);
             $mesa['ultimo_elector'] = $ultimoStmt->fetch() ?: null;
