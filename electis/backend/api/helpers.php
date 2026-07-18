@@ -133,3 +133,14 @@ function requireMunicipioScope(?array $payload = null): array {
     }
     return ['payload' => $payload, 'municipio_id' => $municipioId];
 }
+
+// Determina la elección efectiva de esta request, igual que el municipio: el
+// frontend siempre manda ?eleccion_id=... con la elección seleccionada en el
+// sidebar (2023, 2027...). No hace falta validar contra la base acá: todas
+// las consultas ya filtran también por municipio_id, así que una elección
+// que no sea de ese municipio simplemente no matchea ninguna fila.
+function requireEleccionScope(): int {
+    $eleccionId = $_GET['eleccion_id'] ?? null;
+    if ($eleccionId === null || $eleccionId === '') jsonError('Debe indicar eleccion_id', 400);
+    return (int)$eleccionId;
+}

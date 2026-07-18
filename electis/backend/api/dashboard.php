@@ -7,29 +7,32 @@ handleOptions();
 
 $db = getDB();
 $municipioId = requireMunicipioScope()['municipio_id'];
+$eleccionId = requireEleccionScope();
 
-$stmt = $db->prepare("SELECT COUNT(*) FROM mesas WHERE activo = 1 AND municipio_id = ?");
-$stmt->execute([$municipioId]);
+$stmt = $db->prepare("SELECT COUNT(*) FROM mesas WHERE activo = 1 AND municipio_id = ? AND eleccion_id = ?");
+$stmt->execute([$municipioId, $eleccionId]);
 $totalMesas = $stmt->fetchColumn();
 
+// Los establecimientos son compartidos entre elecciones de un mismo
+// municipio, así que este total no se filtra por eleccion_id.
 $stmt = $db->prepare("SELECT COUNT(*) FROM establecimientos WHERE activo = 1 AND municipio_id = ?");
 $stmt->execute([$municipioId]);
 $totalEstablecimientos = $stmt->fetchColumn();
 
-$stmt = $db->prepare("SELECT COUNT(*) FROM electores WHERE municipio_id = ?");
-$stmt->execute([$municipioId]);
+$stmt = $db->prepare("SELECT COUNT(*) FROM electores WHERE municipio_id = ? AND eleccion_id = ?");
+$stmt->execute([$municipioId, $eleccionId]);
 $totalElectores = $stmt->fetchColumn();
 
-$stmt = $db->prepare("SELECT COUNT(*) FROM fiscales WHERE activo = 1 AND municipio_id = ?");
-$stmt->execute([$municipioId]);
+$stmt = $db->prepare("SELECT COUNT(*) FROM fiscales WHERE activo = 1 AND municipio_id = ? AND eleccion_id = ?");
+$stmt->execute([$municipioId, $eleccionId]);
 $totalFiscales = $stmt->fetchColumn();
 
-$stmt = $db->prepare("SELECT COUNT(*) FROM listas WHERE activo = 1 AND municipio_id = ?");
-$stmt->execute([$municipioId]);
+$stmt = $db->prepare("SELECT COUNT(*) FROM listas WHERE activo = 1 AND municipio_id = ? AND eleccion_id = ?");
+$stmt->execute([$municipioId, $eleccionId]);
 $totalListas = $stmt->fetchColumn();
 
-$stmt = $db->prepare("SELECT COUNT(*) FROM actas WHERE estado IN ('cargada','validada') AND municipio_id = ?");
-$stmt->execute([$municipioId]);
+$stmt = $db->prepare("SELECT COUNT(*) FROM actas WHERE estado IN ('cargada','validada') AND municipio_id = ? AND eleccion_id = ?");
+$stmt->execute([$municipioId, $eleccionId]);
 $actasCargadas = $stmt->fetchColumn();
 
 $stmt = $db->prepare(
@@ -40,11 +43,11 @@ $stmt = $db->prepare(
      JOIN listas l ON l.cargo_id = c.id AND l.activo = 1
      JOIN partidos p ON l.partido_id = p.id
      LEFT JOIN acta_votos av ON av.lista_id = l.id
-     WHERE c.municipio_id = ?
+     WHERE c.municipio_id = ? AND c.eleccion_id = ?
      GROUP BY c.id, c.nombre, l.id, l.numero, l.nombre, p.nombre, p.color
      ORDER BY c.orden, votos DESC"
 );
-$stmt->execute([$municipioId]);
+$stmt->execute([$municipioId, $eleccionId]);
 $escrutinioPorCargo = $stmt->fetchAll();
 
 $stmt = $db->prepare(
@@ -52,11 +55,11 @@ $stmt = $db->prepare(
      FROM mesas m
      JOIN establecimientos e ON m.establecimiento_id = e.id
      LEFT JOIN actas a ON a.mesa_id = m.id
-     WHERE m.activo = 1 AND m.municipio_id = ? AND (a.id IS NULL OR a.estado = 'pendiente')
+     WHERE m.activo = 1 AND m.municipio_id = ? AND m.eleccion_id = ? AND (a.id IS NULL OR a.estado = 'pendiente')
      ORDER BY m.numero
      LIMIT 20"
 );
-$stmt->execute([$municipioId]);
+$stmt->execute([$municipioId, $eleccionId]);
 $mesasSinActa = $stmt->fetchAll();
 
 jsonResponse([

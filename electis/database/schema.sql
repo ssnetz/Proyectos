@@ -45,12 +45,29 @@ CREATE TABLE IF NOT EXISTS partidos (
     FOREIGN KEY (municipio_id) REFERENCES municipios(id)
 );
 
+-- Un municipio maneja varias elecciones a lo largo del tiempo (2023, 2027...),
+-- cada una con su propio padrón/mesas/listas/actas. Establecimientos y
+-- partidos quedan por municipio (se reusan de una elección a otra); todo lo
+-- demás (cargos, listas, candidatos, mesas, electores, actas, fiscales) es
+-- exclusivo de cada elección.
+CREATE TABLE IF NOT EXISTS elecciones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    municipio_id INT NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
+    fecha DATE,
+    activo TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (municipio_id) REFERENCES municipios(id)
+);
+
 -- Cargos electivos en juego (Intendente, Concejales, Consejo Escolar...).
 -- `bancas` es la cantidad de puestos que reparte ese cargo (1 para cargos
 -- ejecutivos unipersonales, N para cuerpos colegiados).
 CREATE TABLE IF NOT EXISTS cargos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     municipio_id INT NOT NULL,
+    eleccion_id INT NOT NULL,
     nombre VARCHAR(100) NOT NULL,
     bancas INT DEFAULT 1,
     orden INT DEFAULT 0,
@@ -58,16 +75,19 @@ CREATE TABLE IF NOT EXISTS cargos (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (municipio_id) REFERENCES municipios(id),
-    UNIQUE KEY uk_cargo_municipio_nombre (municipio_id, nombre)
+    FOREIGN KEY (eleccion_id) REFERENCES elecciones(id),
+    UNIQUE KEY uk_cargo_eleccion_nombre (eleccion_id, nombre)
 );
 
 -- Una lista es la candidatura de un partido para un cargo puntual (el mismo
 -- partido tiene una lista distinta por cada cargo que compite). `municipio_id`
 -- va denormalizado desde partido/cargo (ambos del mismo municipio) para
--- filtrar sin necesidad de JOIN en cada consulta.
+-- filtrar sin necesidad de JOIN en cada consulta; `eleccion_id` idem desde
+-- `cargo_id` (un cargo ya es de una sola elección).
 CREATE TABLE IF NOT EXISTS listas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     municipio_id INT NOT NULL,
+    eleccion_id INT NOT NULL,
     partido_id INT NOT NULL,
     cargo_id INT NOT NULL,
     numero VARCHAR(20) NOT NULL,
@@ -76,6 +96,7 @@ CREATE TABLE IF NOT EXISTS listas (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (municipio_id) REFERENCES municipios(id),
+    FOREIGN KEY (eleccion_id) REFERENCES elecciones(id),
     FOREIGN KEY (partido_id) REFERENCES partidos(id),
     FOREIGN KEY (cargo_id) REFERENCES cargos(id),
     UNIQUE KEY uk_lista_cargo_numero (cargo_id, numero)
@@ -106,11 +127,13 @@ CREATE TABLE IF NOT EXISTS establecimientos (
     FOREIGN KEY (municipio_id) REFERENCES municipios(id)
 );
 
--- `numero` es único dentro de cada establecimiento, no global: la mesa "1"
--- existe en el primer establecimiento de cada municipio.
+-- `numero` es único dentro de cada establecimiento Y elección, no global: la
+-- mesa "1" existe en el primer establecimiento de cada municipio, y esa misma
+-- mesa "1" se vuelve a usar en cada elección nueva.
 CREATE TABLE IF NOT EXISTS mesas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     municipio_id INT NOT NULL,
+    eleccion_id INT NOT NULL,
     establecimiento_id INT NOT NULL,
     numero VARCHAR(20) NOT NULL,
     electores_habilitados INT DEFAULT 0,
@@ -118,14 +141,16 @@ CREATE TABLE IF NOT EXISTS mesas (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (municipio_id) REFERENCES municipios(id),
+    FOREIGN KEY (eleccion_id) REFERENCES elecciones(id),
     FOREIGN KEY (establecimiento_id) REFERENCES establecimientos(id),
-    UNIQUE KEY uk_mesa_establecimiento_numero (establecimiento_id, numero)
+    UNIQUE KEY uk_mesa_eleccion_establecimiento_numero (eleccion_id, establecimiento_id, numero)
 );
 
 -- `mesa_id` nulo = fiscal general (de partido, no atado a una mesa fija).
 CREATE TABLE IF NOT EXISTS fiscales (
     id INT AUTO_INCREMENT PRIMARY KEY,
     municipio_id INT NOT NULL,
+    eleccion_id INT NOT NULL,
     apellidos VARCHAR(100) NOT NULL,
     nombres VARCHAR(100) NOT NULL,
     documento VARCHAR(20) NOT NULL,
@@ -137,6 +162,7 @@ CREATE TABLE IF NOT EXISTS fiscales (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (municipio_id) REFERENCES municipios(id),
+    FOREIGN KEY (eleccion_id) REFERENCES elecciones(id),
     FOREIGN KEY (partido_id) REFERENCES partidos(id),
     FOREIGN KEY (mesa_id) REFERENCES mesas(id)
 );
@@ -144,11 +170,13 @@ CREATE TABLE IF NOT EXISTS fiscales (
 -- Padrón de electores. Es un dataset propio de Electis (no se comparte con
 -- el padrón de pacientes de farmacia/turnos-prioritarios: son datasets con
 -- origen y alcance legal distintos). Pensado para importarse en bloque
--- desde el padrón oficial de cada municipio; `votado` se usa el día de la
--- elección.
+-- desde el padrón oficial de cada municipio, uno por elección (el mismo
+-- vecino puede aparecer en el padrón de 2023 y en el de 2027 con datos
+-- distintos); `votado` se usa el día de la elección.
 CREATE TABLE IF NOT EXISTS electores (
     id INT AUTO_INCREMENT PRIMARY KEY,
     municipio_id INT NOT NULL,
+    eleccion_id INT NOT NULL,
     orden INT,
     documento VARCHAR(20) NOT NULL,
     apellido VARCHAR(100) NOT NULL,
@@ -161,6 +189,7 @@ CREATE TABLE IF NOT EXISTS electores (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (municipio_id) REFERENCES municipios(id),
+    FOREIGN KEY (eleccion_id) REFERENCES elecciones(id),
     FOREIGN KEY (mesa_id) REFERENCES mesas(id),
     INDEX idx_documento (documento),
     INDEX idx_mesa (mesa_id),
@@ -172,6 +201,7 @@ CREATE TABLE IF NOT EXISTS electores (
 CREATE TABLE IF NOT EXISTS actas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     municipio_id INT NOT NULL,
+    eleccion_id INT NOT NULL,
     mesa_id INT NOT NULL UNIQUE,
     electores_votantes INT DEFAULT 0,
     votos_blanco INT DEFAULT 0,
@@ -184,6 +214,7 @@ CREATE TABLE IF NOT EXISTS actas (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (municipio_id) REFERENCES municipios(id),
+    FOREIGN KEY (eleccion_id) REFERENCES elecciones(id),
     FOREIGN KEY (mesa_id) REFERENCES mesas(id),
     FOREIGN KEY (cargado_por) REFERENCES usuarios(id)
 );
@@ -203,9 +234,12 @@ CREATE TABLE IF NOT EXISTS acta_votos (
 INSERT INTO municipios (nombre, provincia) VALUES
   ('Cosquín', 'Córdoba');
 
-INSERT INTO cargos (municipio_id, nombre, bancas, orden) VALUES
-  (1, 'Intendente', 1, 1),
-  (1, 'Concejales', 8, 2);
+INSERT INTO elecciones (municipio_id, nombre, fecha) VALUES
+  (1, 'Elección 2023', '2023-06-11');
+
+INSERT INTO cargos (municipio_id, eleccion_id, nombre, bancas, orden) VALUES
+  (1, 1, 'Intendente', 1, 1),
+  (1, 1, 'Concejales', 8, 2);
 
 INSERT INTO partidos (municipio_id, nombre, sigla, color) VALUES
   (1, 'Frente Vecinal', 'FV', '#2563eb'),
@@ -216,10 +250,10 @@ INSERT INTO establecimientos (municipio_id, nombre, direccion, circuito) VALUES
   (1, 'Escuela N°1 Domingo F. Sarmiento', 'San Martín 450, Cosquín', '01'),
   (1, 'Escuela N°5 Manuel Belgrano', 'Rivadavia 220, Cosquín', '01');
 
-INSERT INTO mesas (municipio_id, establecimiento_id, numero, electores_habilitados) VALUES
-  (1, 1, '0001', 350),
-  (1, 1, '0002', 340),
-  (1, 2, '0003', 320);
+INSERT INTO mesas (municipio_id, eleccion_id, establecimiento_id, numero, electores_habilitados) VALUES
+  (1, 1, 1, '0001', 350),
+  (1, 1, 1, '0002', 340),
+  (1, 1, 2, '0003', 320);
 
 -- contraseña: password
 INSERT INTO usuarios (usuario, email, contrasena, rol, municipio_id) VALUES

@@ -14,12 +14,13 @@ if ($method === 'GET') {
 } else {
     $municipioId = requireMunicipioScope(requireAdmin())['municipio_id'];
 }
+$eleccionId = requireEleccionScope();
 
 match($method) {
-    'GET'    => ($id ? getCandidato($db, $id, $municipioId) : listCandidatos($db, $municipioId)),
-    'POST'   => createCandidato($db, $municipioId),
-    'PUT'    => ($id ? updateCandidato($db, $id, $municipioId) : jsonError('ID requerido', 400)),
-    'DELETE' => ($id ? deleteCandidato($db, $id, $municipioId) : jsonError('ID requerido', 400)),
+    'GET'    => ($id ? getCandidato($db, $id, $municipioId, $eleccionId) : listCandidatos($db, $municipioId, $eleccionId)),
+    'POST'   => createCandidato($db, $municipioId, $eleccionId),
+    'PUT'    => ($id ? updateCandidato($db, $id, $municipioId, $eleccionId) : jsonError('ID requerido', 400)),
+    'DELETE' => ($id ? deleteCandidato($db, $id, $municipioId, $eleccionId) : jsonError('ID requerido', 400)),
     default  => jsonError('Método no permitido', 405),
 };
 
@@ -32,9 +33,9 @@ function baseSelect(): string {
             JOIN cargos c ON l.cargo_id = c.id";
 }
 
-function listCandidatos(PDO $db, int $municipioId): void {
-    $where = ['l.municipio_id = ?'];
-    $params = [$municipioId];
+function listCandidatos(PDO $db, int $municipioId, int $eleccionId): void {
+    $where = ['l.municipio_id = ?', 'l.eleccion_id = ?'];
+    $params = [$municipioId, $eleccionId];
     if (!empty($_GET['lista_id'])) {
         $where[] = 'ca.lista_id = ?';
         $params[] = (int)$_GET['lista_id'];
@@ -46,28 +47,31 @@ function listCandidatos(PDO $db, int $municipioId): void {
     jsonResponse($stmt->fetchAll());
 }
 
-function getCandidato(PDO $db, int $id, int $municipioId): void {
-    $stmt = $db->prepare(baseSelect() . ' WHERE ca.id = ? AND l.municipio_id = ?');
-    $stmt->execute([$id, $municipioId]);
+function getCandidato(PDO $db, int $id, int $municipioId, int $eleccionId): void {
+    $stmt = $db->prepare(baseSelect() . ' WHERE ca.id = ? AND l.municipio_id = ? AND l.eleccion_id = ?');
+    $stmt->execute([$id, $municipioId, $eleccionId]);
     $c = $stmt->fetch();
     if (!$c) jsonError('Candidato no encontrado', 404);
     jsonResponse($c);
 }
 
-// La lista indicada debe ser del municipio en curso, para no colgar
-// candidatos de una lista de otro municipio.
-function validateListaMunicipio(PDO $db, int $listaId, int $municipioId): void {
-    $stmt = $db->prepare("SELECT municipio_id FROM listas WHERE id = ?");
+// La lista indicada debe ser del municipio y la elección en curso, para no
+// colgar candidatos de una lista de otro municipio o de otra elección.
+function validateListaMunicipio(PDO $db, int $listaId, int $municipioId, int $eleccionId): void {
+    $stmt = $db->prepare("SELECT municipio_id, eleccion_id FROM listas WHERE id = ?");
     $stmt->execute([$listaId]);
-    if ((int)$stmt->fetchColumn() !== $municipioId) jsonError('La lista no pertenece a este municipio', 400);
+    $lista = $stmt->fetch();
+    if (!$lista || (int)$lista['municipio_id'] !== $municipioId || (int)$lista['eleccion_id'] !== $eleccionId) {
+        jsonError('La lista no pertenece a esta elección', 400);
+    }
 }
 
-function createCandidato(PDO $db, int $municipioId): void {
+function createCandidato(PDO $db, int $municipioId, int $eleccionId): void {
     $data = getBody();
     foreach (['lista_id', 'orden', 'apellidos', 'nombres'] as $field) {
         if (empty($data[$field]) && $data[$field] !== '0') jsonError("El campo $field es requerido");
     }
-    validateListaMunicipio($db, (int)$data['lista_id'], $municipioId);
+    validateListaMunicipio($db, (int)$data['lista_id'], $municipioId, $eleccionId);
 
     $stmt = $db->prepare(
         "INSERT INTO candidatos (lista_id, orden, apellidos, nombres, documento, titular) VALUES (?, ?, ?, ?, ?, ?)"
@@ -83,18 +87,18 @@ function createCandidato(PDO $db, int $municipioId): void {
     jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Candidato creado'], 201);
 }
 
-function updateCandidato(PDO $db, int $id, int $municipioId): void {
+function updateCandidato(PDO $db, int $id, int $municipioId, int $eleccionId): void {
     $data = getBody();
     foreach (['lista_id', 'orden', 'apellidos', 'nombres'] as $field) {
         if (empty($data[$field]) && $data[$field] !== '0') jsonError("El campo $field es requerido");
     }
-    validateListaMunicipio($db, (int)$data['lista_id'], $municipioId);
+    validateListaMunicipio($db, (int)$data['lista_id'], $municipioId, $eleccionId);
 
     $stmt = $db->prepare(
         "UPDATE candidatos ca
          JOIN listas l ON ca.lista_id = l.id
          SET ca.lista_id=?, ca.orden=?, ca.apellidos=?, ca.nombres=?, ca.documento=?, ca.titular=?, ca.updated_at=NOW()
-         WHERE ca.id=? AND l.municipio_id=?"
+         WHERE ca.id=? AND l.municipio_id=? AND l.eleccion_id=?"
     );
     $stmt->execute([
         (int)$data['lista_id'],
@@ -105,14 +109,16 @@ function updateCandidato(PDO $db, int $id, int $municipioId): void {
         isset($data['titular']) ? (int)(bool)$data['titular'] : 1,
         $id,
         $municipioId,
+        $eleccionId,
     ]);
     jsonResponse(['message' => 'Candidato actualizado']);
 }
 
-function deleteCandidato(PDO $db, int $id, int $municipioId): void {
+function deleteCandidato(PDO $db, int $id, int $municipioId, int $eleccionId): void {
     $stmt = $db->prepare(
-        "DELETE ca FROM candidatos ca JOIN listas l ON ca.lista_id = l.id WHERE ca.id = ? AND l.municipio_id = ?"
+        "DELETE ca FROM candidatos ca JOIN listas l ON ca.lista_id = l.id
+         WHERE ca.id = ? AND l.municipio_id = ? AND l.eleccion_id = ?"
     );
-    $stmt->execute([$id, $municipioId]);
+    $stmt->execute([$id, $municipioId, $eleccionId]);
     jsonResponse(['message' => 'Candidato eliminado']);
 }
