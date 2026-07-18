@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useElectores, useMesas } from '../hooks/useApi';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 const emptyForm = {
@@ -8,8 +9,10 @@ const emptyForm = {
 };
 
 export default function Electores() {
-  const { list, create, update } = useElectores();
+  const { list, create, update, importPadron } = useElectores();
   const { list: listMesas } = useMesas();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const [electores, setElectores] = useState([]);
   const [mesas, setMesas] = useState([]);
@@ -21,6 +24,12 @@ export default function Electores() {
   const [saving, setSaving]     = useState(false);
   const [q, setQ]               = useState('');
   const [filterMesa, setFilterMesa] = useState('');
+
+  const [importOpen, setImportOpen]       = useState(false);
+  const [importFile, setImportFile]       = useState(null);
+  const [importing, setImporting]         = useState(false);
+  const [importResult, setImportResult]   = useState(null);
+  const [importError, setImportError]     = useState('');
 
   const load = (params) => list(params).then((r) => setElectores(r.data));
 
@@ -85,6 +94,29 @@ export default function Electores() {
     }
   };
 
+  const openImport = () => {
+    setImportFile(null);
+    setImportResult(null);
+    setImportError('');
+    setImportOpen(true);
+  };
+
+  const handleImport = async () => {
+    if (!importFile) { setImportError('Elegí un archivo CSV'); return; }
+    setImporting(true);
+    setImportError('');
+    try {
+      const r = await importPadron(importFile);
+      setImportResult(r.data);
+      await reload();
+      await listMesas().then((res) => setMesas(res.data));
+    } catch (e) {
+      setImportError(e.response?.data?.error || 'Error al importar el padrón');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div>
       {error   && <div className="alert alert-danger">{error}</div>}
@@ -101,11 +133,14 @@ export default function Electores() {
               {mesas.map((m) => <option key={m.id} value={m.id}>Mesa {m.numero}</option>)}
             </select>
           </div>
-          <button className="btn btn-primary" onClick={openCreate}>+ Nuevo elector</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {isAdmin && <button className="btn btn-ghost" onClick={openImport}>📥 Importar padrón</button>}
+            <button className="btn btn-primary" onClick={openCreate}>+ Nuevo elector</button>
+          </div>
         </div>
 
         <div className="alert alert-warning" style={{ marginBottom: 16 }}>
-          Vista de hasta 100 resultados por búsqueda. Para cargar el padrón completo desde un archivo (en vez de uno por uno) vamos a sumar la importación masiva más adelante.
+          Vista de hasta 100 resultados por búsqueda.
         </div>
 
         {loading ? <div className="spinner" /> : electores.length === 0 ? (
@@ -203,6 +238,62 @@ export default function Electores() {
               {mesas.map((m) => <option key={m.id} value={m.id}>Mesa {m.numero}</option>)}
             </select>
           </div>
+        </Modal>
+      )}
+
+      {importOpen && (
+        <Modal
+          title="Importar padrón desde CSV"
+          onClose={() => setImportOpen(false)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setImportOpen(false)}>Cerrar</button>
+              {!importResult && (
+                <button className="btn btn-primary" onClick={handleImport} disabled={importing || !importFile}>
+                  {importing ? 'Importando...' : 'Importar'}
+                </button>
+              )}
+            </>
+          }
+        >
+          {importError && <div className="alert alert-danger">{importError}</div>}
+
+          {!importResult ? (
+            <>
+              <p style={{ fontSize: '.85rem', color: 'var(--gray-500)', marginBottom: 12 }}>
+                El CSV necesita las columnas <code>documento</code>, <code>apellido</code>, <code>nombre</code> y <code>mesa_numero</code>
+                (opcionales: <code>domicilio</code>, <code>orden</code>). Las mesas que no existan se crean automáticamente bajo un
+                establecimiento genérico "Sin asignar", para repartirlas en las escuelas reales después desde Mesas.
+                Los documentos que ya estén cargados en este municipio se omiten, así que el archivo se puede volver a subir sin duplicar.
+              </p>
+              <div className="form-group">
+                <label className="form-label">Archivo CSV</label>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="form-control"
+                  onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+            </>
+          ) : (
+            <div>
+              <div className="alert alert-success">{importResult.message}</div>
+              <ul style={{ fontSize: '.9rem', lineHeight: 1.8, paddingLeft: 18 }}>
+                <li>Electores creados: <strong>{importResult.electores_creados}</strong></li>
+                <li>Omitidos por duplicado: <strong>{importResult.electores_omitidos_duplicados}</strong></li>
+                <li>Mesas nuevas creadas: <strong>{importResult.mesas_creadas}</strong></li>
+                {importResult.total_errores > 0 && (
+                  <li>Filas con error: <strong>{importResult.total_errores}</strong></li>
+                )}
+              </ul>
+              {importResult.errores?.length > 0 && (
+                <div style={{ maxHeight: 160, overflowY: 'auto', background: 'var(--gray-50)', padding: 10, borderRadius: 8, fontSize: '.8rem' }}>
+                  {importResult.errores.map((e, i) => <div key={i}>{e}</div>)}
+                </div>
+              )}
+            </div>
+          )}
         </Modal>
       )}
     </div>
