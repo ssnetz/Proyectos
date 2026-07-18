@@ -38,16 +38,47 @@ function listElectores(PDO $db, int $municipioId): void {
         $like = "%$q%";
         $params[] = $like; $params[] = $like; $params[] = $like;
     }
-    if (!empty($_GET['mesa_id'])) {
+    $mesaId = !empty($_GET['mesa_id']) ? (int)$_GET['mesa_id'] : null;
+    if ($mesaId) {
         $where[] = 'e.mesa_id = ?';
-        $params[] = (int)$_GET['mesa_id'];
+        $params[] = $mesaId;
     }
+    $whereSql = implode(' AND ', $where);
 
-    $sql = baseSelect() . ' WHERE ' . implode(' AND ', $where) . ' ORDER BY e.apellido, e.nombre LIMIT 100';
+    $limit = 50;
+    $page = max(1, (int)($_GET['page'] ?? 1));
+    $offset = ($page - 1) * $limit;
 
+    $countStmt = $db->prepare("SELECT COUNT(*) FROM electores e WHERE $whereSql");
+    $countStmt->execute($params);
+    $total = (int)$countStmt->fetchColumn();
+    $pages = max(1, (int)ceil($total / $limit));
+
+    $sql = baseSelect() . " WHERE $whereSql ORDER BY e.apellido, e.nombre LIMIT $limit OFFSET $offset";
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
-    jsonResponse($stmt->fetchAll());
+
+    $mesa = null;
+    if ($mesaId) {
+        $mesaStmt = $db->prepare(
+            "SELECT m.numero, m.electores_habilitados, es.nombre AS establecimiento_nombre
+             FROM mesas m JOIN establecimientos es ON m.establecimiento_id = es.id
+             WHERE m.id = ? AND m.municipio_id = ?"
+        );
+        $mesaStmt->execute([$mesaId, $municipioId]);
+        $mesa = $mesaStmt->fetch() ?: null;
+    }
+
+    jsonResponse([
+        'data' => $stmt->fetchAll(),
+        'meta' => [
+            'total' => $total,
+            'page' => $page,
+            'pages' => $pages,
+            'limit' => $limit,
+            'mesa' => $mesa,
+        ],
+    ]);
 }
 
 function getElector(PDO $db, int $id, int $municipioId): void {

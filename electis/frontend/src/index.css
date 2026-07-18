@@ -143,6 +143,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .alert-danger { background: var(--danger-light); color: var(--danger); border: 1px solid #fca5a5; }
 .alert-success { background: var(--success-light); color: var(--success); border: 1px solid #86efac; }
 .alert-warning { background: var(--warning-light); color: var(--warning); border: 1px solid #fcd34d; }
+.alert-info { background: var(--primary-light); color: var(--primary); border: 1px solid #93c5fd; }
 
 /* Search / filters */
 .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
@@ -166,6 +167,10 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 
 /* Pagination / actions row */
 .table-actions { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+
+/* Pagination controls */
+.pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; flex-wrap: wrap; gap: 8px; }
+.pagination-info { font-size: .8rem; color: var(--gray-500); }
 
 /* Login page */
 .login-page {

@@ -42,7 +42,7 @@ function listMesas(PDO $db, int $municipioId): void {
         $where[] = 'm.numero LIKE ?';
         $params[] = '%' . $_GET['q'] . '%';
     }
-    $sql = baseSelect() . ' WHERE ' . implode(' AND ', $where) . ' ORDER BY m.numero';
+    $sql = baseSelect() . ' WHERE ' . implode(' AND ', $where) . ' ORDER BY CAST(m.numero AS UNSIGNED), m.numero';
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);

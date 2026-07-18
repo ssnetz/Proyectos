@@ -15,6 +15,7 @@ export default function Electores() {
   const isAdmin = user?.role === 'admin';
 
   const [electores, setElectores] = useState([]);
+  const [meta, setMeta]         = useState(null);
   const [mesas, setMesas] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
@@ -24,6 +25,7 @@ export default function Electores() {
   const [saving, setSaving]     = useState(false);
   const [q, setQ]               = useState('');
   const [filterMesa, setFilterMesa] = useState('');
+  const [page, setPage]         = useState(1);
 
   const [importOpen, setImportOpen]       = useState(false);
   const [importFile, setImportFile]       = useState(null);
@@ -31,7 +33,7 @@ export default function Electores() {
   const [importResult, setImportResult]   = useState(null);
   const [importError, setImportError]     = useState('');
 
-  const load = (params) => list(params).then((r) => setElectores(r.data));
+  const load = (params) => list(params).then((r) => { setElectores(r.data.data); setMeta(r.data.meta); });
 
   useEffect(() => {
     listMesas().then((r) => setMesas(r.data)).catch(() => setError('Error cargando mesas'));
@@ -40,13 +42,16 @@ export default function Electores() {
   useEffect(() => {
     const t = setTimeout(() => {
       setLoading(true);
-      const params = {};
+      const params = { page };
       if (q.trim()) params.q = q.trim();
       if (filterMesa) params.mesa_id = filterMesa;
       load(params).catch(() => setError('Error buscando electores')).finally(() => setLoading(false));
     }, 300);
     return () => clearTimeout(t);
-  }, [q, filterMesa]);
+  }, [q, filterMesa, page]);
+
+  const handleQChange = (v) => { setQ(v); setPage(1); };
+  const handleFilterMesaChange = (v) => { setFilterMesa(v); setPage(1); };
 
   const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); };
 
@@ -62,7 +67,7 @@ export default function Electores() {
   };
 
   const reload = () => {
-    const params = {};
+    const params = { page };
     if (q.trim()) params.q = q.trim();
     if (filterMesa) params.mesa_id = filterMesa;
     return load(params);
@@ -126,9 +131,9 @@ export default function Electores() {
         <div className="table-actions">
           <div className="filters">
             <div className="search-input">
-              <input className="form-control" style={{ width: 260 }} placeholder="Buscar por documento, apellido o nombre..." value={q} onChange={(e) => setQ(e.target.value)} />
+              <input className="form-control" style={{ width: 260 }} placeholder="Buscar por documento, apellido o nombre..." value={q} onChange={(e) => handleQChange(e.target.value)} />
             </div>
-            <select className="form-control" style={{ width: 180 }} value={filterMesa} onChange={(e) => setFilterMesa(e.target.value)}>
+            <select className="form-control" style={{ width: 180 }} value={filterMesa} onChange={(e) => handleFilterMesaChange(e.target.value)}>
               <option value="">Todas las mesas</option>
               {mesas.map((m) => <option key={m.id} value={m.id}>Mesa {m.numero}</option>)}
             </select>
@@ -139,9 +144,16 @@ export default function Electores() {
           </div>
         </div>
 
-        <div className="alert alert-warning" style={{ marginBottom: 16 }}>
-          Vista de hasta 100 resultados por búsqueda.
-        </div>
+        {meta?.mesa && (
+          <div className="alert alert-info" style={{ marginBottom: 16, flexWrap: 'wrap' }}>
+            <span>
+              <strong>Mesa {meta.mesa.numero}</strong> — {meta.mesa.establecimiento_nombre}
+            </span>
+            <span style={{ marginLeft: 'auto' }}>
+              <span className="badge badge-blue">{meta.total} elector{meta.total === 1 ? '' : 'es'} en el padrón</span>
+            </span>
+          </div>
+        )}
 
         {loading ? <div className="spinner" /> : electores.length === 0 ? (
           <div className="empty"><div className="empty-icon">👥</div><p>No hay electores para los filtros seleccionados</p></div>
@@ -174,6 +186,22 @@ export default function Electores() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {meta && meta.pages > 1 && (
+          <div className="pagination">
+            <span className="pagination-info">
+              Página {meta.page} de {meta.pages} — {meta.total} elector{meta.total === 1 ? '' : 'es'}
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                ← Anterior
+              </button>
+              <button className="btn btn-ghost btn-sm" disabled={page >= meta.pages} onClick={() => setPage((p) => p + 1)}>
+                Siguiente →
+              </button>
+            </div>
           </div>
         )}
       </div>
