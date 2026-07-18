@@ -1,25 +1,48 @@
 CREATE DATABASE IF NOT EXISTS electis CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE electis;
 
+-- Un mismo Electis puede atender a varios Municipios/Comunas a la vez.
+-- Partidos/cargos/listas/candidatos/establecimientos/mesas/fiscales/
+-- electores/actas son propios de cada municipio (una elección local tiene
+-- sus propias listas y mesas por localidad). Un admin ve y cambia entre
+-- cualquier municipio; un operador queda fijo al que se le asigne en
+-- `usuarios.municipio_id`.
+CREATE TABLE IF NOT EXISTS municipios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(150) NOT NULL,
+    provincia VARCHAR(100),
+    activo TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- `municipio_id` NULL = admin, ve y puede cambiar entre todos los
+-- municipios. Un operador siempre tiene un municipio_id asignado y solo
+-- opera dentro de ese.
 CREATE TABLE IF NOT EXISTS usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     usuario VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100),
     contrasena VARCHAR(255) NOT NULL,
     rol ENUM('admin','operador') DEFAULT 'operador',
+    municipio_id INT NULL,
+    permissions JSON NULL,
     activo TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (municipio_id) REFERENCES municipios(id)
 );
 
 CREATE TABLE IF NOT EXISTS partidos (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    municipio_id INT NOT NULL,
     nombre VARCHAR(150) NOT NULL,
     sigla VARCHAR(30),
     color VARCHAR(20),
     activo TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (municipio_id) REFERENCES municipios(id)
 );
 
 -- Cargos electivos en juego (Intendente, Concejales, Consejo Escolar...).
@@ -27,18 +50,24 @@ CREATE TABLE IF NOT EXISTS partidos (
 -- ejecutivos unipersonales, N para cuerpos colegiados).
 CREATE TABLE IF NOT EXISTS cargos (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL UNIQUE,
+    municipio_id INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
     bancas INT DEFAULT 1,
     orden INT DEFAULT 0,
     activo TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (municipio_id) REFERENCES municipios(id),
+    UNIQUE KEY uk_cargo_municipio_nombre (municipio_id, nombre)
 );
 
 -- Una lista es la candidatura de un partido para un cargo puntual (el mismo
--- partido tiene una lista distinta por cada cargo que compite).
+-- partido tiene una lista distinta por cada cargo que compite). `municipio_id`
+-- va denormalizado desde partido/cargo (ambos del mismo municipio) para
+-- filtrar sin necesidad de JOIN en cada consulta.
 CREATE TABLE IF NOT EXISTS listas (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    municipio_id INT NOT NULL,
     partido_id INT NOT NULL,
     cargo_id INT NOT NULL,
     numero VARCHAR(20) NOT NULL,
@@ -46,6 +75,7 @@ CREATE TABLE IF NOT EXISTS listas (
     activo TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (municipio_id) REFERENCES municipios(id),
     FOREIGN KEY (partido_id) REFERENCES partidos(id),
     FOREIGN KEY (cargo_id) REFERENCES cargos(id),
     UNIQUE KEY uk_lista_cargo_numero (cargo_id, numero)
@@ -66,28 +96,36 @@ CREATE TABLE IF NOT EXISTS candidatos (
 
 CREATE TABLE IF NOT EXISTS establecimientos (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    municipio_id INT NOT NULL,
     nombre VARCHAR(150) NOT NULL,
     direccion VARCHAR(200),
     circuito VARCHAR(30),
     activo TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (municipio_id) REFERENCES municipios(id)
 );
 
+-- `numero` es único dentro de cada establecimiento, no global: la mesa "1"
+-- existe en el primer establecimiento de cada municipio.
 CREATE TABLE IF NOT EXISTS mesas (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    municipio_id INT NOT NULL,
     establecimiento_id INT NOT NULL,
-    numero VARCHAR(20) NOT NULL UNIQUE,
+    numero VARCHAR(20) NOT NULL,
     electores_habilitados INT DEFAULT 0,
     activo TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (establecimiento_id) REFERENCES establecimientos(id)
+    FOREIGN KEY (municipio_id) REFERENCES municipios(id),
+    FOREIGN KEY (establecimiento_id) REFERENCES establecimientos(id),
+    UNIQUE KEY uk_mesa_establecimiento_numero (establecimiento_id, numero)
 );
 
 -- `mesa_id` nulo = fiscal general (de partido, no atado a una mesa fija).
 CREATE TABLE IF NOT EXISTS fiscales (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    municipio_id INT NOT NULL,
     apellidos VARCHAR(100) NOT NULL,
     nombres VARCHAR(100) NOT NULL,
     documento VARCHAR(20) NOT NULL,
@@ -98,6 +136,7 @@ CREATE TABLE IF NOT EXISTS fiscales (
     activo TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (municipio_id) REFERENCES municipios(id),
     FOREIGN KEY (partido_id) REFERENCES partidos(id),
     FOREIGN KEY (mesa_id) REFERENCES mesas(id)
 );
@@ -105,9 +144,11 @@ CREATE TABLE IF NOT EXISTS fiscales (
 -- Padrón de electores. Es un dataset propio de Electis (no se comparte con
 -- el padrón de pacientes de farmacia/turnos-prioritarios: son datasets con
 -- origen y alcance legal distintos). Pensado para importarse en bloque
--- desde el padrón oficial; `votado` se usa el día de la elección.
+-- desde el padrón oficial de cada municipio; `votado` se usa el día de la
+-- elección.
 CREATE TABLE IF NOT EXISTS electores (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    municipio_id INT NOT NULL,
     orden INT,
     documento VARCHAR(20) NOT NULL,
     apellido VARCHAR(100) NOT NULL,
@@ -119,6 +160,7 @@ CREATE TABLE IF NOT EXISTS electores (
     votado TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (municipio_id) REFERENCES municipios(id),
     FOREIGN KEY (mesa_id) REFERENCES mesas(id),
     INDEX idx_documento (documento),
     INDEX idx_mesa (mesa_id),
@@ -129,6 +171,7 @@ CREATE TABLE IF NOT EXISTS electores (
 -- `acta_votos`; acá solo los totales que no dependen de una lista puntual.
 CREATE TABLE IF NOT EXISTS actas (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    municipio_id INT NOT NULL,
     mesa_id INT NOT NULL UNIQUE,
     electores_votantes INT DEFAULT 0,
     votos_blanco INT DEFAULT 0,
@@ -140,6 +183,7 @@ CREATE TABLE IF NOT EXISTS actas (
     cargado_por INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (municipio_id) REFERENCES municipios(id),
     FOREIGN KEY (mesa_id) REFERENCES mesas(id),
     FOREIGN KEY (cargado_por) REFERENCES usuarios(id)
 );
@@ -156,25 +200,28 @@ CREATE TABLE IF NOT EXISTS acta_votos (
 
 -- Datos de ejemplo
 
-INSERT INTO cargos (nombre, bancas, orden) VALUES
-  ('Intendente', 1, 1),
-  ('Concejales', 8, 2);
+INSERT INTO municipios (nombre, provincia) VALUES
+  ('Cosquín', 'Córdoba');
 
-INSERT INTO partidos (nombre, sigla, color) VALUES
-  ('Frente Vecinal', 'FV', '#2563eb'),
-  ('Unión Cívica', 'UC', '#dc2626'),
-  ('Nueva Alianza', 'NA', '#16a34a');
+INSERT INTO cargos (municipio_id, nombre, bancas, orden) VALUES
+  (1, 'Intendente', 1, 1),
+  (1, 'Concejales', 8, 2);
 
-INSERT INTO establecimientos (nombre, direccion, circuito) VALUES
-  ('Escuela N°1 Domingo F. Sarmiento', 'San Martín 450, Cosquín', '01'),
-  ('Escuela N°5 Manuel Belgrano', 'Rivadavia 220, Cosquín', '01');
+INSERT INTO partidos (municipio_id, nombre, sigla, color) VALUES
+  (1, 'Frente Vecinal', 'FV', '#2563eb'),
+  (1, 'Unión Cívica', 'UC', '#dc2626'),
+  (1, 'Nueva Alianza', 'NA', '#16a34a');
 
-INSERT INTO mesas (establecimiento_id, numero, electores_habilitados) VALUES
-  (1, '0001', 350),
-  (1, '0002', 340),
-  (2, '0003', 320);
+INSERT INTO establecimientos (municipio_id, nombre, direccion, circuito) VALUES
+  (1, 'Escuela N°1 Domingo F. Sarmiento', 'San Martín 450, Cosquín', '01'),
+  (1, 'Escuela N°5 Manuel Belgrano', 'Rivadavia 220, Cosquín', '01');
+
+INSERT INTO mesas (municipio_id, establecimiento_id, numero, electores_habilitados) VALUES
+  (1, 1, '0001', 350),
+  (1, 1, '0002', 340),
+  (1, 2, '0003', 320);
 
 -- contraseña: password
-INSERT INTO usuarios (usuario, email, contrasena, rol) VALUES
-  ('admin',    'admin@electis.local',    '$2y$12$bzZBJIhbVmT8OFx7IJ6NaOMwhi/H7kqVewtnoZDJJiHk.eWwVg1bC', 'admin'),
-  ('operador', 'operador@electis.local', '$2y$12$GeQrk5QV1WmiCTwYYvDm7OgPS9q1wU5KdT6Q878uCLAeDcBe36z96', 'operador');
+INSERT INTO usuarios (usuario, email, contrasena, rol, municipio_id) VALUES
+  ('admin',    'admin@electis.local',    '$2y$12$bzZBJIhbVmT8OFx7IJ6NaOMwhi/H7kqVewtnoZDJJiHk.eWwVg1bC', 'admin', NULL),
+  ('operador', 'operador@electis.local', '$2y$12$GeQrk5QV1WmiCTwYYvDm7OgPS9q1wU5KdT6Q878uCLAeDcBe36z96', 'operador', 1);

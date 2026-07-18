@@ -15,16 +15,18 @@ handleOptions();
 $db = getDB();
 $method = getMethod();
 $id = getId();
+$scope = requireMunicipioScope();
+$municipioId = $scope['municipio_id'];
 
 match($method) {
-    'GET'    => (requireAuth() && ($id ? getActa($db, $id) : listActas($db))),
-    'POST'   => (requireAuth() && saveActa($db)),
+    'GET'    => ($id ? getActa($db, $id, $municipioId) : listActas($db, $municipioId)),
+    'POST'   => saveActa($db, $municipioId, $scope['payload']),
     default  => jsonError('Método no permitido', 405),
 };
 
-function listActas(PDO $db): void {
-    $where = [];
-    $params = [];
+function listActas(PDO $db, int $municipioId): void {
+    $where = ['a.municipio_id = ?'];
+    $params = [$municipioId];
     if (!empty($_GET['mesa_id'])) {
         $where[] = 'a.mesa_id = ?';
         $params[] = (int)$_GET['mesa_id'];
@@ -38,24 +40,24 @@ function listActas(PDO $db): void {
             FROM actas a
             JOIN mesas m ON a.mesa_id = m.id
             JOIN establecimientos es ON m.establecimiento_id = es.id
-            LEFT JOIN usuarios u ON a.cargado_por = u.id";
-    if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
-    $sql .= ' ORDER BY m.numero';
+            LEFT JOIN usuarios u ON a.cargado_por = u.id
+            WHERE " . implode(' AND ', $where) . '
+            ORDER BY m.numero';
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     jsonResponse($stmt->fetchAll());
 }
 
-function getActa(PDO $db, int $id): void {
+function getActa(PDO $db, int $id, int $municipioId): void {
     $stmt = $db->prepare(
         "SELECT a.*, m.numero AS mesa_numero, es.nombre AS establecimiento_nombre
          FROM actas a
          JOIN mesas m ON a.mesa_id = m.id
          JOIN establecimientos es ON m.establecimiento_id = es.id
-         WHERE a.id = ?"
+         WHERE a.id = ? AND a.municipio_id = ?"
     );
-    $stmt->execute([$id]);
+    $stmt->execute([$id, $municipioId]);
     $acta = $stmt->fetch();
     if (!$acta) jsonError('Acta no encontrada', 404);
 
@@ -75,21 +77,24 @@ function getActa(PDO $db, int $id): void {
     jsonResponse($acta);
 }
 
-function saveActa(PDO $db): void {
-    $payload = requireAuth();
+function saveActa(PDO $db, int $municipioId, array $payload): void {
     $data = getBody();
 
     if (empty($data['mesa_id'])) jsonError('El campo mesa_id es requerido');
     if (empty($data['votos']) || !is_array($data['votos'])) jsonError('El detalle de votos por lista es requerido');
 
     $mesaId = (int)$data['mesa_id'];
+    $stmt = $db->prepare("SELECT municipio_id FROM mesas WHERE id = ?");
+    $stmt->execute([$mesaId]);
+    if ((int)$stmt->fetchColumn() !== $municipioId) jsonError('La mesa no pertenece a este municipio', 400);
+
     $estado = $data['estado'] ?? 'cargada';
     if (!in_array($estado, ['pendiente', 'cargada', 'validada'])) jsonError('Estado inválido');
 
     $db->beginTransaction();
     try {
-        $check = $db->prepare("SELECT id FROM actas WHERE mesa_id = ?");
-        $check->execute([$mesaId]);
+        $check = $db->prepare("SELECT id FROM actas WHERE mesa_id = ? AND municipio_id = ?");
+        $check->execute([$mesaId, $municipioId]);
         $existing = $check->fetch();
 
         $params = [
@@ -114,10 +119,10 @@ function saveActa(PDO $db): void {
             $db->prepare("DELETE FROM acta_votos WHERE acta_id = ?")->execute([$actaId]);
         } else {
             $stmt = $db->prepare(
-                "INSERT INTO actas (mesa_id, electores_votantes, votos_blanco, votos_nulos, votos_recurridos, votos_impugnados, estado, observaciones, cargado_por)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO actas (municipio_id, mesa_id, electores_votantes, votos_blanco, votos_nulos, votos_recurridos, votos_impugnados, estado, observaciones, cargado_por)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
-            $stmt->execute([$mesaId, ...$params]);
+            $stmt->execute([$municipioId, $mesaId, ...$params]);
             $actaId = (int)$db->lastInsertId();
         }
 

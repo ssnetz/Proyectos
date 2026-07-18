@@ -1,13 +1,19 @@
 import axios from 'axios';
+import { getApiMunicipioId } from '../lib/municipioStore';
 
 const api = axios.create({ baseURL: '/electis/api' });
 
-// Attach JWT token from localStorage on every request
+// Attach JWT token and the currently selected municipio (como query param,
+// así funciona para cualquier método incluido GET/DELETE) en cada request.
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('el_token');
   if (token) {
     config.headers = config.headers ?? {};
     config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  const municipioId = getApiMunicipioId();
+  if (municipioId) {
+    config.params = { ...(config.params || {}), municipio_id: municipioId };
   }
   return config;
 });
@@ -42,6 +48,7 @@ export function useMesas()           { return crud('mesas'); }
 export function useFiscales()        { return crud('fiscales'); }
 export function useElectores()       { return crud('electores', { softDelete: true }); }
 export function useUsuarios()        { return crud('usuarios'); }
+export function useMunicipios()      { return crud('municipios'); }
 
 export function useActas() {
   const list   = (params) => api.get('/actas.php', { params });

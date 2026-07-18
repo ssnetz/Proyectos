@@ -25,7 +25,13 @@ function login(PDO $db): void {
         jsonError('Usuario y contraseña requeridos');
     }
 
-    $stmt = $db->prepare("SELECT id, usuario, email, contrasena, rol, permissions, activo FROM usuarios WHERE usuario = ?");
+    $stmt = $db->prepare(
+        "SELECT u.id, u.usuario, u.email, u.contrasena, u.rol, u.municipio_id, u.permissions, u.activo,
+                m.nombre AS municipio_nombre
+         FROM usuarios u
+         LEFT JOIN municipios m ON u.municipio_id = m.id
+         WHERE u.usuario = ?"
+    );
     $stmt->execute([$usuario]);
     $user = $stmt->fetch();
 
@@ -37,12 +43,13 @@ function login(PDO $db): void {
 
     $now     = time();
     $payload = [
-        'sub'         => $user['id'],
-        'username'    => $user['usuario'],
-        'role'        => $user['rol'],
-        'permissions' => $permissions,
-        'iat'         => $now,
-        'exp'         => $now + JWT_EXPIRY,
+        'sub'          => $user['id'],
+        'username'     => $user['usuario'],
+        'role'         => $user['rol'],
+        'municipio_id' => $user['municipio_id'] !== null ? (int)$user['municipio_id'] : null,
+        'permissions'  => $permissions,
+        'iat'          => $now,
+        'exp'          => $now + JWT_EXPIRY,
     ];
 
     $token = jwtEncode($payload, JWT_SECRET);
@@ -50,28 +57,38 @@ function login(PDO $db): void {
     jsonResponse([
         'token' => $token,
         'user'  => [
-            'id'          => $user['id'],
-            'username'    => $user['usuario'],
-            'email'       => $user['email'],
-            'role'        => $user['rol'],
-            'permissions' => $permissions,
+            'id'               => $user['id'],
+            'username'         => $user['usuario'],
+            'email'            => $user['email'],
+            'role'             => $user['rol'],
+            'municipio_id'     => $user['municipio_id'] !== null ? (int)$user['municipio_id'] : null,
+            'municipio_nombre' => $user['municipio_nombre'],
+            'permissions'      => $permissions,
         ],
     ]);
 }
 
 function me(PDO $db): void {
     $payload = requireAuth();
-    $stmt    = $db->prepare("SELECT id, usuario, email, rol, permissions, activo FROM usuarios WHERE id = ? AND activo = 1");
+    $stmt    = $db->prepare(
+        "SELECT u.id, u.usuario, u.email, u.rol, u.municipio_id, u.permissions, u.activo,
+                m.nombre AS municipio_nombre
+         FROM usuarios u
+         LEFT JOIN municipios m ON u.municipio_id = m.id
+         WHERE u.id = ? AND u.activo = 1"
+    );
     $stmt->execute([$payload['sub']]);
     $user = $stmt->fetch();
     if (!$user) jsonError('Usuario no encontrado', 404);
     jsonResponse([
-        'id'          => $user['id'],
-        'username'    => $user['usuario'],
-        'email'       => $user['email'],
-        'role'        => $user['rol'],
-        'permissions' => $user['permissions'] !== null ? json_decode($user['permissions'], true) : null,
-        'active'      => $user['activo'],
+        'id'               => $user['id'],
+        'username'         => $user['usuario'],
+        'email'            => $user['email'],
+        'role'             => $user['rol'],
+        'municipio_id'     => $user['municipio_id'] !== null ? (int)$user['municipio_id'] : null,
+        'municipio_nombre' => $user['municipio_nombre'],
+        'permissions'      => $user['permissions'] !== null ? json_decode($user['permissions'], true) : null,
+        'active'           => $user['activo'],
     ]);
 }
 

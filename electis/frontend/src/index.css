@@ -193,3 +193,13 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .sidebar-user-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; overflow: hidden; }
 .sidebar-user-name { font-size: .8rem; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Sidebar municipio selector */
+.sidebar-municipio {
+  padding: 10px 16px; border-top: 1px solid var(--gray-700);
+  display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--gray-300);
+}
+.sidebar-municipio select.form-control {
+  width: 100%; background: var(--gray-800); color: #fff; border-color: var(--gray-700);
+  font-size: .8rem; padding: 6px 10px;
+}
