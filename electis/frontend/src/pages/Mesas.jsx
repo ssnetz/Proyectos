@@ -7,6 +7,10 @@ const emptyForm = { establecimiento_id: '', numero: '', electores_habilitados: '
 
 const actaEstadoBadge = { pendiente: 'badge-yellow', cargada: 'badge-blue', validada: 'badge-green' };
 
+// Color pastel estable por establecimiento (mismo id = mismo color siempre),
+// con luminosidad fija bien alta para que el texto oscuro se siga leyendo.
+const establecimientoColor = (id) => `hsl(${(id * 137.508) % 360}, 65%, 92%)`;
+
 export default function Mesas() {
   const { list, create, update, remove } = useMesas();
   const { list: listEstablecimientos } = useEstablecimientos();
@@ -102,7 +106,7 @@ export default function Mesas() {
               </thead>
               <tbody>
                 {mesas.map((m) => (
-                  <tr key={m.id}>
+                  <tr key={m.id} className="row-tinted" style={{ backgroundColor: establecimientoColor(m.establecimiento_id) }}>
                     <td><strong>{m.numero}</strong></td>
                     <td>{m.establecimiento_nombre}</td>
                     <td>{m.electores_habilitados}</td>
