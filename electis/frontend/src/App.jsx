@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { MunicipioProvider, useMunicipio } from './context/MunicipioContext';
 import { MODULES, canAccess } from './config/modules';
 import Dashboard         from './pages/Dashboard';
 import Actas             from './pages/Actas';
@@ -13,16 +14,46 @@ import Listas             from './pages/Listas';
 import Candidatos         from './pages/Candidatos';
 import Fiscales           from './pages/Fiscales';
 import Usuarios           from './pages/Usuarios';
+import Municipios         from './pages/Municipios';
 import Login              from './pages/Login';
 
 // ─── Protected route ────────────────────────────────────────────────────────
 function ProtectedRoute({ children, adminOnly = false, moduleKey = null }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
+  const { loading: municipioLoading } = useMunicipio();
+  if (loading || municipioLoading) return <div className="spinner" style={{ marginTop: 80 }} />;
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />;
   if (moduleKey && !canAccess(user, moduleKey)) return <Navigate to="/" replace />;
   return children;
+}
+
+// ─── Municipio selector ─────────────────────────────────────────────────────
+function MunicipioSelector() {
+  const { municipios, selectedId, setSelectedId, isAdmin } = useMunicipio();
+
+  if (!isAdmin) {
+    return (
+      <div className="sidebar-municipio" title="Municipio/Comuna">
+        <span className="nav-icon">🏙️</span> {municipios[0]?.nombre ?? '—'}
+      </div>
+    );
+  }
+
+  return (
+    <div className="sidebar-municipio">
+      <select
+        className="form-control"
+        value={selectedId ?? ''}
+        onChange={(e) => setSelectedId(Number(e.target.value))}
+        title="Municipio/Comuna"
+      >
+        {municipios.map((m) => (
+          <option key={m.id} value={m.id}>{m.nombre}</option>
+        ))}
+      </select>
+    </div>
+  );
 }
 
 // ─── Sidebar user section ───────────────────────────────────────────────────
@@ -66,6 +97,7 @@ const pageTitles = {
   '/candidatos':        'Candidatos',
   '/fiscales':          'Fiscales',
   '/usuarios':          'Usuarios',
+  '/municipios':        'Municipios / Comunas',
 };
 
 function AppLayout() {
@@ -109,9 +141,13 @@ function AppLayout() {
               <NavLink to="/usuarios" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
                 <span className="nav-icon">👤</span> Usuarios
               </NavLink>
+              <NavLink to="/municipios" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+                <span className="nav-icon">🏙️</span> Municipios / Comunas
+              </NavLink>
             </>
           )}
         </nav>
+        <MunicipioSelector />
         <SidebarUser />
         <div className="sidebar-footer">v0.1 · Electis</div>
       </aside>
@@ -133,6 +169,7 @@ function AppLayout() {
             <Route path="/candidatos"       element={<ProtectedRoute moduleKey="candidatos"><Candidatos /></ProtectedRoute>} />
             <Route path="/fiscales"         element={<ProtectedRoute moduleKey="fiscales"><Fiscales /></ProtectedRoute>} />
             <Route path="/usuarios"         element={<ProtectedRoute adminOnly><Usuarios /></ProtectedRoute>} />
+            <Route path="/municipios"       element={<ProtectedRoute adminOnly><Municipios /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
@@ -144,10 +181,12 @@ function AppLayout() {
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginGuard />} />
-        <Route path="/*"     element={<AppLayout />} />
-      </Routes>
+      <MunicipioProvider>
+        <Routes>
+          <Route path="/login" element={<LoginGuard />} />
+          <Route path="/*"     element={<AppLayout />} />
+        </Routes>
+      </MunicipioProvider>
     </AuthProvider>
   );
 }

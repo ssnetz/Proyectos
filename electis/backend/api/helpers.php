@@ -112,3 +112,24 @@ function requireAdmin(): array {
     }
     return $payload;
 }
+
+// Determina el municipio efectivo de esta request. El frontend siempre manda
+// ?municipio_id=... (aun en POST/PUT/DELETE, como query string) con el
+// municipio actualmente seleccionado.
+// - admin: puede pedir cualquier municipio; se usa el que mande.
+// - operador: se ignora lo que mande el cliente y se usa siempre el
+//   municipio_id de su propio usuario (por seguridad, no puede leer/escribir
+//   otro municipio aunque manipule el parámetro).
+function requireMunicipioScope(?array $payload = null): array {
+    $payload = $payload ?? requireAuth();
+    $role = $payload['role'] ?? 'operador';
+    if ($role === 'admin') {
+        $requested = $_GET['municipio_id'] ?? null;
+        $municipioId = ($requested !== null && $requested !== '') ? (int)$requested : 0;
+        if (!$municipioId) jsonError('Debe indicar municipio_id', 400);
+    } else {
+        $municipioId = (int)($payload['municipio_id'] ?? 0);
+        if (!$municipioId) jsonError('Tu usuario no tiene un municipio asignado', 403);
+    }
+    return ['payload' => $payload, 'municipio_id' => $municipioId];
+}

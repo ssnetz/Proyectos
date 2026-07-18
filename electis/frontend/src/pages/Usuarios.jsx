@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useUsuarios } from '../hooks/useApi';
+import { useUsuarios, useMunicipios } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import { MODULES } from '../config/modules';
 import Modal from '../components/Modal';
 
-const emptyForm = { username: '', email: '', password: '', role: 'operador', permissions: null };
+const emptyForm = { username: '', email: '', password: '', role: 'operador', permissions: null, municipio_id: '' };
 
 // Agrupa MODULES por su sección (Escrutinio, Catálogos, ...) preservando el orden
 const MODULE_SECTIONS = MODULES.reduce((acc, m) => {
@@ -16,9 +16,11 @@ const MODULE_SECTIONS = MODULES.reduce((acc, m) => {
 
 export default function Usuarios() {
   const { list, create, update } = useUsuarios();
+  const { list: listMunicipios } = useMunicipios();
   const { user: currentUser } = useAuth();
 
   const [usuarios, setUsuarios] = useState([]);
+  const [municipios, setMunicipios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState('');
   const [success, setSuccess] = useState('');
@@ -30,6 +32,7 @@ export default function Usuarios() {
 
   useEffect(() => {
     load().catch(() => setError('Error cargando usuarios')).finally(() => setLoading(false));
+    listMunicipios().then((r) => setMunicipios(r.data.filter((m) => m.activo))).catch(() => {});
   }, []);
 
   const notify = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000); };
@@ -37,7 +40,14 @@ export default function Usuarios() {
   const openCreate = () => { setForm(emptyForm); setModal('create'); setError(''); };
 
   const openEdit = (u) => {
-    setForm({ username: u.usuario, email: u.email || '', password: '', role: u.rol, permissions: u.permissions ?? null });
+    setForm({
+      username: u.usuario,
+      email: u.email || '',
+      password: '',
+      role: u.rol,
+      permissions: u.permissions ?? null,
+      municipio_id: u.municipio_id ?? '',
+    });
     setModal(u.id);
     setError('');
   };
@@ -55,10 +65,18 @@ export default function Usuarios() {
   };
 
   const handleSave = async () => {
+    if (form.role === 'operador' && !form.municipio_id) {
+      setError('Los operadores necesitan un municipio asignado');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      const payload = { ...form, permissions: form.role === 'admin' ? null : form.permissions };
+      const payload = {
+        ...form,
+        permissions: form.role === 'admin' ? null : form.permissions,
+        municipio_id: form.role === 'admin' ? null : form.municipio_id,
+      };
       if (modal === 'create') { await create(payload); notify('Usuario creado'); }
       else { await update(modal, payload); notify('Usuario actualizado'); }
       setModal(null);
@@ -75,7 +93,7 @@ export default function Usuarios() {
     const action = u.activo ? 'Desactivar' : 'Activar';
     if (!confirm(`¿${action} al usuario "${u.usuario}"?`)) return;
     try {
-      await update(u.id, { username: u.usuario, email: u.email, role: u.rol, permissions: u.permissions, active: u.activo ? 0 : 1 });
+      await update(u.id, { username: u.usuario, email: u.email, role: u.rol, permissions: u.permissions, municipio_id: u.municipio_id ?? null, active: u.activo ? 0 : 1 });
       notify(`Usuario ${u.activo ? 'desactivado' : 'activado'}`);
       await load();
     } catch (e) {
@@ -105,7 +123,7 @@ export default function Usuarios() {
             <table>
               <thead>
                 <tr>
-                  <th>Usuario</th><th>Email</th><th>Rol</th><th>Acceso</th><th>Estado</th><th>Creado</th><th>Acciones</th>
+                  <th>Usuario</th><th>Email</th><th>Rol</th><th>Municipio</th><th>Acceso</th><th>Estado</th><th>Creado</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -118,6 +136,9 @@ export default function Usuarios() {
                     <td style={{ color: 'var(--gray-500)' }}>{u.email || '—'}</td>
                     <td>
                       {u.rol === 'admin' ? <span className="badge badge-purple">admin</span> : <span className="badge badge-gray">operador</span>}
+                    </td>
+                    <td style={{ color: 'var(--gray-500)' }}>
+                      {u.rol === 'admin' ? 'Todos' : (u.municipio_nombre || '—')}
                     </td>
                     <td style={{ color: 'var(--gray-500)', fontSize: '.85rem' }}>
                       {u.rol === 'admin' || u.permissions === null
@@ -193,6 +214,22 @@ export default function Usuarios() {
               <option value="admin">Administrador</option>
             </select>
           </div>
+
+          {form.role === 'operador' && (
+            <div className="form-group">
+              <label className="form-label">Municipio / Comuna *</label>
+              <select
+                className="form-control"
+                value={form.municipio_id}
+                onChange={(e) => setForm({ ...form, municipio_id: e.target.value })}
+              >
+                <option value="">Seleccionar...</option>
+                {municipios.map((m) => (
+                  <option key={m.id} value={m.id}>{m.nombre}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {form.role === 'admin' ? (
             <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--gray-50)', color: 'var(--gray-600)', borderRadius: 8, fontSize: '.85rem' }}>
