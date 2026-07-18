@@ -3,12 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { usePadronImprimir } from '../hooks/useApi';
 import './PadronImprimir.css';
 
-// Objetivo conservador dentro de una hoja legal/oficio de 14in: se deja
-// margen real de sobra porque las impresoras no imprimen hasta el borde
-// físico. En vez de asumir a mano cuántos electores entran por hoja (cada
-// impresora/navegador termina rindiendo un poco distinto), se mide el alto
-// real ya renderizado y se calcula solo.
-const PAGE_HEIGHT_PX = Math.round(13 * 96);
+// El alto disponible se mide en tiempo real (ver más abajo), así que este
+// número ya no es una apuesta a ciegas: como la cuenta se hace con el alto
+// que el propio navegador terminó renderizando, nunca se pasa del papel
+// aunque el objetivo esté cerca del límite físico de 14in. Se deja apenas
+// un colchón chico (no la pulgada entera de antes) para usar mejor la hoja.
+const PAGE_HEIGHT_PX = Math.round(13.8 * 96);
 const FOOTER_HEIGHT_PX = 14;
 
 const MESES = [
