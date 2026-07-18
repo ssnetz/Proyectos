@@ -67,6 +67,20 @@ function listElectores(PDO $db, int $municipioId): void {
         );
         $mesaStmt->execute([$mesaId, $municipioId]);
         $mesa = $mesaStmt->fetch() ?: null;
+
+        if ($mesa) {
+            $primeroStmt = $db->prepare(
+                "SELECT apellido, nombre FROM electores WHERE mesa_id = ? AND municipio_id = ? ORDER BY apellido, nombre LIMIT 1"
+            );
+            $primeroStmt->execute([$mesaId, $municipioId]);
+            $mesa['primer_elector'] = $primeroStmt->fetch() ?: null;
+
+            $ultimoStmt = $db->prepare(
+                "SELECT apellido, nombre FROM electores WHERE mesa_id = ? AND municipio_id = ? ORDER BY apellido DESC, nombre DESC LIMIT 1"
+            );
+            $ultimoStmt->execute([$mesaId, $municipioId]);
+            $mesa['ultimo_elector'] = $ultimoStmt->fetch() ?: null;
+        }
     }
 
     jsonResponse([
