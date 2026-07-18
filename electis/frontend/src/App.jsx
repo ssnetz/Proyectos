@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { MunicipioProvider, useMunicipio } from './context/MunicipioContext';
+import { EleccionProvider, useEleccion } from './context/EleccionContext';
 import { MODULES, canAccess } from './config/modules';
 import Dashboard         from './pages/Dashboard';
 import Actas             from './pages/Actas';
@@ -15,13 +16,15 @@ import Candidatos         from './pages/Candidatos';
 import Fiscales           from './pages/Fiscales';
 import Usuarios           from './pages/Usuarios';
 import Municipios         from './pages/Municipios';
+import Elecciones         from './pages/Elecciones';
 import Login              from './pages/Login';
 
 // ─── Protected route ────────────────────────────────────────────────────────
 function ProtectedRoute({ children, adminOnly = false, moduleKey = null }) {
   const { user, loading } = useAuth();
   const { loading: municipioLoading } = useMunicipio();
-  if (loading || municipioLoading) return <div className="spinner" style={{ marginTop: 80 }} />;
+  const { loading: eleccionLoading } = useEleccion();
+  if (loading || municipioLoading || eleccionLoading) return <div className="spinner" style={{ marginTop: 80 }} />;
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />;
   if (moduleKey && !canAccess(user, moduleKey)) return <Navigate to="/" replace />;
@@ -50,6 +53,28 @@ function MunicipioSelector() {
       >
         {municipios.map((m) => (
           <option key={m.id} value={m.id}>{m.nombre}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// ─── Elección selector ──────────────────────────────────────────────────────
+function EleccionSelector() {
+  const { elecciones, selectedId, setSelectedId } = useEleccion();
+
+  if (elecciones.length === 0) return null;
+
+  return (
+    <div className="sidebar-municipio">
+      <select
+        className="form-control"
+        value={selectedId ?? ''}
+        onChange={(e) => setSelectedId(Number(e.target.value))}
+        title="Elección"
+      >
+        {elecciones.map((e) => (
+          <option key={e.id} value={e.id}>{e.nombre}</option>
         ))}
       </select>
     </div>
@@ -98,11 +123,14 @@ const pageTitles = {
   '/fiscales':          'Fiscales',
   '/usuarios':          'Usuarios',
   '/municipios':        'Municipios / Comunas',
+  '/elecciones':        'Elecciones',
 };
 
 function AppLayout() {
   const { pathname } = useLocation();
   const { user }     = useAuth();
+  const { selectedId: municipioId } = useMunicipio();
+  const { selectedId: eleccionId }  = useEleccion();
   const title = pageTitles[pathname] ?? 'Electis';
   const isAdmin = user?.role === 'admin';
 
@@ -144,10 +172,14 @@ function AppLayout() {
               <NavLink to="/municipios" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
                 <span className="nav-icon">🏙️</span> Municipios / Comunas
               </NavLink>
+              <NavLink to="/elecciones" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+                <span className="nav-icon">🗓️</span> Elecciones
+              </NavLink>
             </>
           )}
         </nav>
         <MunicipioSelector />
+        <EleccionSelector />
         <SidebarUser />
         <div className="sidebar-footer">v0.1 · Electis</div>
       </aside>
@@ -157,7 +189,7 @@ function AppLayout() {
           <h1 className="topbar-title">{title}</h1>
         </header>
         <main className="page-content">
-          <Routes>
+          <Routes key={`${municipioId ?? ''}:${eleccionId ?? ''}`}>
             <Route path="/"                 element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/actas"            element={<ProtectedRoute moduleKey="actas"><Actas /></ProtectedRoute>} />
             <Route path="/electores"        element={<ProtectedRoute moduleKey="electores"><Electores /></ProtectedRoute>} />
@@ -170,6 +202,7 @@ function AppLayout() {
             <Route path="/fiscales"         element={<ProtectedRoute moduleKey="fiscales"><Fiscales /></ProtectedRoute>} />
             <Route path="/usuarios"         element={<ProtectedRoute adminOnly><Usuarios /></ProtectedRoute>} />
             <Route path="/municipios"       element={<ProtectedRoute adminOnly><Municipios /></ProtectedRoute>} />
+            <Route path="/elecciones"       element={<ProtectedRoute adminOnly><Elecciones /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
@@ -182,10 +215,12 @@ export default function App() {
   return (
     <AuthProvider>
       <MunicipioProvider>
-        <Routes>
-          <Route path="/login" element={<LoginGuard />} />
-          <Route path="/*"     element={<AppLayout />} />
-        </Routes>
+        <EleccionProvider>
+          <Routes>
+            <Route path="/login" element={<LoginGuard />} />
+            <Route path="/*"     element={<AppLayout />} />
+          </Routes>
+        </EleccionProvider>
       </MunicipioProvider>
     </AuthProvider>
   );

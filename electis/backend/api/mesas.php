@@ -14,12 +14,13 @@ if ($method === 'GET') {
 } else {
     $municipioId = requireMunicipioScope(requireAdmin())['municipio_id'];
 }
+$eleccionId = requireEleccionScope();
 
 match($method) {
-    'GET'    => ($id ? getMesa($db, $id, $municipioId) : listMesas($db, $municipioId)),
-    'POST'   => createMesa($db, $municipioId),
-    'PUT'    => ($id ? updateMesa($db, $id, $municipioId) : jsonError('ID requerido', 400)),
-    'DELETE' => ($id ? deleteMesa($db, $id, $municipioId) : jsonError('ID requerido', 400)),
+    'GET'    => ($id ? getMesa($db, $id, $municipioId, $eleccionId) : listMesas($db, $municipioId, $eleccionId)),
+    'POST'   => createMesa($db, $municipioId, $eleccionId),
+    'PUT'    => ($id ? updateMesa($db, $id, $municipioId, $eleccionId) : jsonError('ID requerido', 400)),
+    'DELETE' => ($id ? deleteMesa($db, $id, $municipioId, $eleccionId) : jsonError('ID requerido', 400)),
     default  => jsonError('Método no permitido', 405),
 };
 
@@ -31,9 +32,9 @@ function baseSelect(): string {
             JOIN establecimientos e ON m.establecimiento_id = e.id";
 }
 
-function listMesas(PDO $db, int $municipioId): void {
-    $where = ['m.municipio_id = ?'];
-    $params = [$municipioId];
+function listMesas(PDO $db, int $municipioId, int $eleccionId): void {
+    $where = ['m.municipio_id = ?', 'm.eleccion_id = ?'];
+    $params = [$municipioId, $eleccionId];
     if (!empty($_GET['establecimiento_id'])) {
         $where[] = 'm.establecimiento_id = ?';
         $params[] = (int)$_GET['establecimiento_id'];
@@ -49,9 +50,9 @@ function listMesas(PDO $db, int $municipioId): void {
     jsonResponse($stmt->fetchAll());
 }
 
-function getMesa(PDO $db, int $id, int $municipioId): void {
-    $stmt = $db->prepare(baseSelect() . ' WHERE m.id = ? AND m.municipio_id = ?');
-    $stmt->execute([$id, $municipioId]);
+function getMesa(PDO $db, int $id, int $municipioId, int $eleccionId): void {
+    $stmt = $db->prepare(baseSelect() . ' WHERE m.id = ? AND m.municipio_id = ? AND m.eleccion_id = ?');
+    $stmt->execute([$id, $municipioId, $eleccionId]);
     $m = $stmt->fetch();
     if (!$m) jsonError('Mesa no encontrada', 404);
     jsonResponse($m);
@@ -63,7 +64,7 @@ function validateEstablecimientoMunicipio(PDO $db, int $establecimientoId, int $
     if ((int)$stmt->fetchColumn() !== $municipioId) jsonError('El establecimiento no pertenece a este municipio', 400);
 }
 
-function createMesa(PDO $db, int $municipioId): void {
+function createMesa(PDO $db, int $municipioId, int $eleccionId): void {
     $data = getBody();
     foreach (['establecimiento_id', 'numero'] as $field) {
         if (empty($data[$field])) jsonError("El campo $field es requerido");
@@ -72,19 +73,19 @@ function createMesa(PDO $db, int $municipioId): void {
 
     try {
         $stmt = $db->prepare(
-            "INSERT INTO mesas (municipio_id, establecimiento_id, numero, electores_habilitados) VALUES (?, ?, ?, ?)"
+            "INSERT INTO mesas (municipio_id, eleccion_id, establecimiento_id, numero, electores_habilitados) VALUES (?, ?, ?, ?, ?)"
         );
         $stmt->execute([
-            $municipioId, (int)$data['establecimiento_id'], $data['numero'], (int)($data['electores_habilitados'] ?? 0),
+            $municipioId, $eleccionId, (int)$data['establecimiento_id'], $data['numero'], (int)($data['electores_habilitados'] ?? 0),
         ]);
         jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Mesa creada'], 201);
     } catch (\PDOException $e) {
-        if ($e->getCode() === '23000') jsonError('El número de mesa ya existe en ese establecimiento', 409);
+        if ($e->getCode() === '23000') jsonError('El número de mesa ya existe en ese establecimiento para esta elección', 409);
         jsonError('Error al crear mesa: ' . $e->getMessage(), 500);
     }
 }
 
-function updateMesa(PDO $db, int $id, int $municipioId): void {
+function updateMesa(PDO $db, int $id, int $municipioId, int $eleccionId): void {
     $data = getBody();
     foreach (['establecimiento_id', 'numero'] as $field) {
         if (empty($data[$field])) jsonError("El campo $field es requerido");
@@ -95,25 +96,27 @@ function updateMesa(PDO $db, int $id, int $municipioId): void {
 
     try {
         $stmt = $db->prepare(
-            "UPDATE mesas SET establecimiento_id=?, numero=?, electores_habilitados=?, activo=?, updated_at=NOW() WHERE id=? AND municipio_id=?"
+            "UPDATE mesas SET establecimiento_id=?, numero=?, electores_habilitados=?, activo=?, updated_at=NOW()
+             WHERE id=? AND municipio_id=? AND eleccion_id=?"
         );
         $stmt->execute([
-            (int)$data['establecimiento_id'], $data['numero'], (int)($data['electores_habilitados'] ?? 0), $activo, $id, $municipioId,
+            (int)$data['establecimiento_id'], $data['numero'], (int)($data['electores_habilitados'] ?? 0), $activo,
+            $id, $municipioId, $eleccionId,
         ]);
         jsonResponse(['message' => 'Mesa actualizada']);
     } catch (\PDOException $e) {
-        if ($e->getCode() === '23000') jsonError('El número de mesa ya existe en ese establecimiento', 409);
+        if ($e->getCode() === '23000') jsonError('El número de mesa ya existe en ese establecimiento para esta elección', 409);
         jsonError('Error al actualizar mesa: ' . $e->getMessage(), 500);
     }
 }
 
-function deleteMesa(PDO $db, int $id, int $municipioId): void {
+function deleteMesa(PDO $db, int $id, int $municipioId, int $eleccionId): void {
     $check = $db->prepare("SELECT COUNT(*) FROM electores WHERE mesa_id = ?");
     $check->execute([$id]);
     if ($check->fetchColumn() > 0) {
         jsonError('No se puede eliminar: la mesa tiene electores asignados', 409);
     }
-    $stmt = $db->prepare("DELETE FROM mesas WHERE id = ? AND municipio_id = ?");
-    $stmt->execute([$id, $municipioId]);
+    $stmt = $db->prepare("DELETE FROM mesas WHERE id = ? AND municipio_id = ? AND eleccion_id = ?");
+    $stmt->execute([$id, $municipioId, $eleccionId]);
     jsonResponse(['message' => 'Mesa eliminada']);
 }

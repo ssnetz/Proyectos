@@ -17,16 +17,17 @@ $method = getMethod();
 $id = getId();
 $scope = requireMunicipioScope();
 $municipioId = $scope['municipio_id'];
+$eleccionId = requireEleccionScope();
 
 match($method) {
-    'GET'    => ($id ? getActa($db, $id, $municipioId) : listActas($db, $municipioId)),
-    'POST'   => saveActa($db, $municipioId, $scope['payload']),
+    'GET'    => ($id ? getActa($db, $id, $municipioId, $eleccionId) : listActas($db, $municipioId, $eleccionId)),
+    'POST'   => saveActa($db, $municipioId, $eleccionId, $scope['payload']),
     default  => jsonError('Método no permitido', 405),
 };
 
-function listActas(PDO $db, int $municipioId): void {
-    $where = ['a.municipio_id = ?'];
-    $params = [$municipioId];
+function listActas(PDO $db, int $municipioId, int $eleccionId): void {
+    $where = ['a.municipio_id = ?', 'a.eleccion_id = ?'];
+    $params = [$municipioId, $eleccionId];
     if (!empty($_GET['mesa_id'])) {
         $where[] = 'a.mesa_id = ?';
         $params[] = (int)$_GET['mesa_id'];
@@ -49,15 +50,15 @@ function listActas(PDO $db, int $municipioId): void {
     jsonResponse($stmt->fetchAll());
 }
 
-function getActa(PDO $db, int $id, int $municipioId): void {
+function getActa(PDO $db, int $id, int $municipioId, int $eleccionId): void {
     $stmt = $db->prepare(
         "SELECT a.*, m.numero AS mesa_numero, es.nombre AS establecimiento_nombre
          FROM actas a
          JOIN mesas m ON a.mesa_id = m.id
          JOIN establecimientos es ON m.establecimiento_id = es.id
-         WHERE a.id = ? AND a.municipio_id = ?"
+         WHERE a.id = ? AND a.municipio_id = ? AND a.eleccion_id = ?"
     );
-    $stmt->execute([$id, $municipioId]);
+    $stmt->execute([$id, $municipioId, $eleccionId]);
     $acta = $stmt->fetch();
     if (!$acta) jsonError('Acta no encontrada', 404);
 
@@ -77,24 +78,27 @@ function getActa(PDO $db, int $id, int $municipioId): void {
     jsonResponse($acta);
 }
 
-function saveActa(PDO $db, int $municipioId, array $payload): void {
+function saveActa(PDO $db, int $municipioId, int $eleccionId, array $payload): void {
     $data = getBody();
 
     if (empty($data['mesa_id'])) jsonError('El campo mesa_id es requerido');
     if (empty($data['votos']) || !is_array($data['votos'])) jsonError('El detalle de votos por lista es requerido');
 
     $mesaId = (int)$data['mesa_id'];
-    $stmt = $db->prepare("SELECT municipio_id FROM mesas WHERE id = ?");
+    $stmt = $db->prepare("SELECT municipio_id, eleccion_id FROM mesas WHERE id = ?");
     $stmt->execute([$mesaId]);
-    if ((int)$stmt->fetchColumn() !== $municipioId) jsonError('La mesa no pertenece a este municipio', 400);
+    $mesa = $stmt->fetch();
+    if (!$mesa || (int)$mesa['municipio_id'] !== $municipioId || (int)$mesa['eleccion_id'] !== $eleccionId) {
+        jsonError('La mesa no pertenece a esta elección', 400);
+    }
 
     $estado = $data['estado'] ?? 'cargada';
     if (!in_array($estado, ['pendiente', 'cargada', 'validada'])) jsonError('Estado inválido');
 
     $db->beginTransaction();
     try {
-        $check = $db->prepare("SELECT id FROM actas WHERE mesa_id = ? AND municipio_id = ?");
-        $check->execute([$mesaId, $municipioId]);
+        $check = $db->prepare("SELECT id FROM actas WHERE mesa_id = ? AND municipio_id = ? AND eleccion_id = ?");
+        $check->execute([$mesaId, $municipioId, $eleccionId]);
         $existing = $check->fetch();
 
         $params = [
@@ -119,10 +123,10 @@ function saveActa(PDO $db, int $municipioId, array $payload): void {
             $db->prepare("DELETE FROM acta_votos WHERE acta_id = ?")->execute([$actaId]);
         } else {
             $stmt = $db->prepare(
-                "INSERT INTO actas (municipio_id, mesa_id, electores_votantes, votos_blanco, votos_nulos, votos_recurridos, votos_impugnados, estado, observaciones, cargado_por)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO actas (municipio_id, eleccion_id, mesa_id, electores_votantes, votos_blanco, votos_nulos, votos_recurridos, votos_impugnados, estado, observaciones, cargado_por)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
-            $stmt->execute([$municipioId, $mesaId, ...$params]);
+            $stmt->execute([$municipioId, $eleccionId, $mesaId, ...$params]);
             $actaId = (int)$db->lastInsertId();
         }
 

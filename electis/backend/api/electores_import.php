@@ -4,7 +4,8 @@
 // Las mesas que no existan se crean automáticamente bajo un establecimiento
 // genérico "Sin asignar" del municipio, para reasignar a la escuela real
 // después desde la pantalla de Mesas. Es re-ejecutable: los documentos ya
-// cargados en el municipio se omiten en vez de duplicarse.
+// cargados en esta elección se omiten en vez de duplicarse (un mismo
+// documento sí puede existir en el padrón de otra elección del municipio).
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
@@ -25,6 +26,7 @@ function importPadron(PDO $db): void {
 
     $scope = requireMunicipioScope(requireAdmin());
     $municipioId = $scope['municipio_id'];
+    $eleccionId = requireEleccionScope();
 
     if (empty($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
         jsonError('Debe subir un archivo CSV', 400);
@@ -52,16 +54,16 @@ function importPadron(PDO $db): void {
     }
 
     $existing = [];
-    $docStmt = $db->prepare("SELECT documento FROM electores WHERE municipio_id = ?");
-    $docStmt->execute([$municipioId]);
+    $docStmt = $db->prepare("SELECT documento FROM electores WHERE municipio_id = ? AND eleccion_id = ?");
+    $docStmt->execute([$municipioId, $eleccionId]);
     foreach ($docStmt->fetchAll(PDO::FETCH_COLUMN) as $doc) $existing[$doc] = true;
 
     $insertElector = $db->prepare(
-        "INSERT INTO electores (municipio_id, orden, documento, apellido, nombre, domicilio, mesa_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO electores (municipio_id, eleccion_id, orden, documento, apellido, nombre, domicilio, mesa_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     );
-    $findMesa = $db->prepare("SELECT id FROM mesas WHERE municipio_id = ? AND establecimiento_id = ? AND numero = ?");
-    $insertMesa = $db->prepare("INSERT INTO mesas (municipio_id, establecimiento_id, numero) VALUES (?, ?, ?)");
+    $findMesa = $db->prepare("SELECT id FROM mesas WHERE municipio_id = ? AND eleccion_id = ? AND establecimiento_id = ? AND numero = ?");
+    $insertMesa = $db->prepare("INSERT INTO mesas (municipio_id, eleccion_id, establecimiento_id, numero) VALUES (?, ?, ?, ?)");
     $bumpMesa = $db->prepare("UPDATE mesas SET electores_habilitados = electores_habilitados + 1 WHERE id = ?");
 
     $mesaCache = [];
@@ -94,17 +96,19 @@ function importPadron(PDO $db): void {
             }
 
             if (!isset($mesaCache[$mesaNumero])) {
-                $findMesa->execute([$municipioId, $establecimientoId, $mesaNumero]);
+                $findMesa->execute([$municipioId, $eleccionId, $establecimientoId, $mesaNumero]);
                 $mesaId = $findMesa->fetchColumn();
                 if (!$mesaId) {
-                    $insertMesa->execute([$municipioId, $establecimientoId, $mesaNumero]);
+                    $insertMesa->execute([$municipioId, $eleccionId, $establecimientoId, $mesaNumero]);
                     $mesaId = (int)$db->lastInsertId();
                     $mesasCreadas++;
                 }
                 $mesaCache[$mesaNumero] = (int)$mesaId;
             }
 
-            $insertElector->execute([$municipioId, $orden, $documento, $apellido, $nombre, $domicilio ?: null, $mesaCache[$mesaNumero]]);
+            $insertElector->execute([
+                $municipioId, $eleccionId, $orden, $documento, $apellido, $nombre, $domicilio ?: null, $mesaCache[$mesaNumero],
+            ]);
             $bumpMesa->execute([$mesaCache[$mesaNumero]]);
             $existing[$documento] = true;
             $creados++;
