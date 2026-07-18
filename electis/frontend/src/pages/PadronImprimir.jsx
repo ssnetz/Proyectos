@@ -66,20 +66,14 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
           <div className="col-tipo"><strong>{elector.tipo || ''}</strong></div>
           <div className="col-clase"><strong>{elector.fecha_nacimiento ? elector.fecha_nacimiento.slice(0, 4) : ''}</strong></div>
         </div>
-        <div className="padron-cuadrados">
-          <div className="padron-cuadro">
-            <div className="padron-cuadro-box padron-foto"><FotoPlaceholder /></div>
-            <div className="padron-col-label">FOTO</div>
-          </div>
-          <div className="padron-cuadro">
-            <div className="padron-cuadro-box" />
+        <div className="padron-detalle">
+          <div className="padron-foto"><FotoPlaceholder /></div>
+          <div className="padron-obs">
             <div className="padron-col-label">OBSERVACIONES</div>
-          </div>
-          <div className="padron-cuadro">
-            <div className="padron-cuadro-box" />
-            <div className="padron-col-label">FIRMA DEL VOTANTE</div>
+            <div className="padron-obs-box" />
           </div>
         </div>
+        <div className="padron-firma">FIRMA DEL VOTANTE</div>
       </div>
 
       <div className="padron-mitad-der">
