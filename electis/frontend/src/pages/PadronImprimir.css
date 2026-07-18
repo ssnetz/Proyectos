@@ -8,7 +8,7 @@
 
 .padron-hoja {
   width: 8.5in;
-  height: 13.7in;
+  height: 13in;
   margin: 0 auto 24px;
   background: #fff;
   box-shadow: var(--shadow);
@@ -21,26 +21,26 @@
 
 .padron-encabezado { display: flex; border: 1px solid #000; margin-bottom: 1px; }
 .padron-leyenda {
-  flex: 0 0 28%; border-right: 1px solid #000; padding: 1px 4px 0; font-size: 5.5px; line-height: 1.1;
+  flex: 0 0 28%; border-right: 1px solid #000; padding: 0 4px; font-size: 5.5px; line-height: 1.05;
 }
-.padron-titulo { flex: 1; text-align: center; padding: 1px 1px 0; border-right: 1px solid #000; }
-.padron-titulo h1 { font-size: 13px; margin: 0; }
+.padron-titulo { flex: 1; text-align: center; padding: 0 1px; border-right: 1px solid #000; }
+.padron-titulo h1 { font-size: 12px; margin: 0; }
 .padron-mesa-badge {
   display: inline-block; border: 2px solid #000; border-radius: 5px; padding: 0 12px;
-  font-weight: bold; font-size: 10px; margin: 0;
+  font-weight: bold; font-size: 9px; margin: 0;
 }
-.padron-titulo .eleccion-nombre { font-weight: bold; font-size: 9px; margin-top: 0; }
-.padron-seccional { flex: 0 0 22%; text-align: center; padding: 1px 4px 0; font-size: 8px; font-weight: bold; line-height: 1.15; }
+.padron-titulo .eleccion-nombre { font-weight: bold; font-size: 8.5px; margin-top: 0; }
+.padron-seccional { flex: 0 0 22%; text-align: center; padding: 0 4px; font-size: 7.5px; font-weight: bold; line-height: 1.1; }
 
 .padron-fila { display: flex; border: 1px solid #000; border-top: none; font-size: 10px; }
 .padron-fila:first-of-type { border-top: 1px solid #000; }
 
 /* Mitad izquierda: padrón */
 .padron-mitad-izq { flex: 0 0 58%; border-right: 2px dashed #666; display: flex; flex-direction: column; }
-.padron-nombre { font-weight: bold; padding: 1px 4px; border-bottom: 1px solid #000; }
-.padron-domicilio { padding: 1px 4px; border-bottom: 1px solid #000; }
+.padron-nombre { font-weight: bold; padding: 0 4px; border-bottom: 1px solid #000; }
+.padron-domicilio { padding: 0 4px; border-bottom: 1px solid #000; }
 .padron-orden-doc { display: flex; border-bottom: 1px solid #000; }
-.padron-orden-doc > div { padding: 1px 4px; border-right: 1px solid #000; flex: 1; }
+.padron-orden-doc > div { padding: 0 4px; border-right: 1px solid #000; flex: 1; }
 .padron-orden-doc > div:last-child { border-right: none; }
 .padron-orden-doc .col-tipo { flex: 0 0 48px; }
 .padron-orden-doc .col-clase { flex: 0 0 40px; }
@@ -51,7 +51,7 @@
 .padron-foto svg { width: 32px; height: 32px; opacity: .35; }
 .padron-obs, .padron-firma-col { flex: 1; display: flex; flex-direction: column; }
 .padron-obs { border-right: 1px solid #000; }
-.padron-col-label { padding: 1px 4px; font-size: 8px; }
+.padron-col-label { padding: 0 4px; font-size: 8px; }
 .padron-obs-box, .padron-firma-box {
   flex: 1; margin: 0 4px 3px; border: 1px solid #7fa8d9; border-radius: 6px;
 }
@@ -59,20 +59,20 @@
 /* Mitad derecha: constancia de emisión de voto */
 .padron-mitad-der { flex: 1; display: flex; flex-direction: column; }
 .padron-der-header { display: flex; background: #d6e4f5; border-bottom: 1px solid #000; }
-.padron-der-header > div:first-child { flex: 1; padding: 1px 4px; font-weight: bold; border-right: 1px solid #000; }
-.padron-der-header > div:last-child { flex: 0 0 40%; padding: 1px 4px; text-align: right; font-size: 8.5px; font-weight: bold; }
-.padron-constancia-title { text-align: center; font-weight: bold; padding: 1px; border-bottom: 1px solid #000; background: #ececec; }
+.padron-der-header > div:first-child { flex: 1; padding: 0 4px; font-weight: bold; border-right: 1px solid #000; }
+.padron-der-header > div:last-child { flex: 0 0 40%; padding: 0 4px; text-align: right; font-size: 8.5px; font-weight: bold; }
+.padron-constancia-title { text-align: center; font-weight: bold; padding: 0; border-bottom: 1px solid #000; background: #ececec; }
 .padron-nro-orden { display: flex; border-bottom: 1px solid #000; align-items: center; }
-.padron-nro-orden > div:first-child { flex: 0 0 90px; padding: 1px 4px; border-right: 1px solid #000; text-align: center; }
+.padron-nro-orden > div:first-child { flex: 0 0 90px; padding: 0 4px; border-right: 1px solid #000; text-align: center; }
 .padron-barcode { flex: 1; padding: 1px 6px; display: flex; align-items: center; justify-content: center; height: 16px; }
-.padron-nombre-der { font-weight: bold; padding: 1px 4px; border-bottom: 1px solid #000; }
+.padron-nombre-der { font-weight: bold; padding: 0 4px; border-bottom: 1px solid #000; }
 .padron-datos-der { display: flex; border-bottom: 1px solid #000; }
-.padron-datos-der > div:first-child { flex: 0 0 90px; padding: 1px 4px; border-right: 1px solid #000; font-weight: bold; }
-.padron-datos-der > div:last-child { flex: 1; padding: 1px 4px; font-weight: bold; }
+.padron-datos-der > div:first-child { flex: 0 0 90px; padding: 0 4px; border-right: 1px solid #000; font-weight: bold; }
+.padron-datos-der > div:last-child { flex: 1; padding: 0 4px; font-weight: bold; }
 
 /* Circuito + Mesa en una sola fila, para liberar altura para la firma */
 .padron-circ-mesa { display: flex; border-bottom: 1px solid #000; }
-.padron-circ-mesa > div { padding: 1px 4px; border-right: 1px solid #000; font-weight: bold; }
+.padron-circ-mesa > div { padding: 0 4px; border-right: 1px solid #000; font-weight: bold; }
 .padron-circ-mesa > div:last-child { border-right: none; }
 .padron-circ-mesa > div:nth-child(1) { flex: 0 0 90px; }
 .padron-circ-mesa > div:nth-child(2) { flex: 0 0 50px; }
@@ -82,7 +82,7 @@
 /* Firma de la autoridad de mesa, con recuadro grande */
 .padron-mesa-autoridad { flex: 1; display: flex; flex-direction: column; }
 .padron-mesa-autoridad .padron-col-label { text-align: center; }
-.padron-mesa-autoridad .autoridad-box { flex: 1; min-height: 5px; margin: 0 4px 1px; border: 1px solid #7fa8d9; border-radius: 6px; }
+.padron-mesa-autoridad .autoridad-box { flex: 1; min-height: 2px; margin: 0 4px 0; border: 1px solid #7fa8d9; border-radius: 6px; }
 
 .padron-pie { text-align: center; font-size: 8px; color: #444; margin-top: 2px; }
 
