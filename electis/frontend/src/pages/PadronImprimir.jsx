@@ -1,9 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePadronImprimir } from '../hooks/useApi';
 import './PadronImprimir.css';
 
-const POR_HOJA = 8;
+// Objetivo conservador dentro de una hoja legal/oficio de 14in: se deja
+// margen real de sobra porque las impresoras no imprimen hasta el borde
+// físico. En vez de asumir a mano cuántos electores entran por hoja (cada
+// impresora/navegador termina rindiendo un poco distinto), se mide el alto
+// real ya renderizado y se calcula solo.
+const PAGE_HEIGHT_PX = Math.round(13 * 96);
+const FOOTER_HEIGHT_PX = 14;
 
 const MESES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -17,9 +23,7 @@ function formatFecha(fecha) {
 }
 
 const LEYENDA = `(*) NO SABE LEER NI ESCRIBIR / (F,M) FEMENINO, MASCULINO / (LD) LIBRETA DUPLICADA / (LT) LIBRETA TRIPLICADA /
-(LC) LIBRETA CUADRUPLICADA / (LS,L6,...) LIBRETA QUINT.,SEXT.,... / (DNI) DOC.NAC.DE IDENTIDAD /
-(DNID) DOC.NAC.DE IDENTIDAD DUPLICADO / (DNIT) DOC.NAC.DE IDENTIDAD TRIPLICADO / (DNIC) DOC.NAC.DE IDENTIDAD CUADRUPLICADO /
-(DNIS,DNI6,...) DOC.NAC.DE IDENT. QUINT.,SEXT.,... / (DNIA,DNIB,...) DOC.NAC.DE IDENT. EJEMPLAR A,B,.... /
+(LC) LIBRETA CUADRUPLICADA / (DNI) DOC.NAC.DE IDENTIDAD / (DNID,DNIT,DNIC) DOC.NAC.DE IDENTIDAD DUP./TRIP./CUADRUP. /
 (DNI-EA,DNI-EB,...) DOC.NAC.DE IDENT. EJEMPLAR "A","B"...`;
 
 function FotoPlaceholder() {
@@ -27,6 +31,26 @@ function FotoPlaceholder() {
     <svg viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.5c-3.3 0-9.8 1.6-9.8 4.9v2.4h19.6v-2.4c0-3.3-6.5-4.9-9.8-4.9z" />
     </svg>
+  );
+}
+
+function Encabezado({ mesa, municipio, eleccion }) {
+  return (
+    <div className="padron-encabezado">
+      <div className="padron-leyenda">{LEYENDA}</div>
+      <div className="padron-titulo">
+        <div className="padron-titulo-linea1">
+          PADRON ELECTORAL <span className="padron-mesa-badge">MESA {String(mesa.numero).padStart(3, '0')}</span>
+        </div>
+        <div className="padron-titulo-linea2">
+          {(eleccion?.nombre || '').toUpperCase()} — {formatFecha(eleccion?.fecha)}
+        </div>
+      </div>
+      <div className="padron-seccional">
+        SECCIONAL ELECTORAL {municipio?.seccion_electoral} · CIRCUITO {mesa.circuito}<br />
+        {(municipio?.nombre || '').toUpperCase()}
+      </div>
+    </div>
   );
 }
 
@@ -42,15 +66,18 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
           <div className="col-tipo"><strong>{elector.tipo || ''}</strong></div>
           <div className="col-clase"><strong>{elector.fecha_nacimiento ? elector.fecha_nacimiento.slice(0, 4) : ''}</strong></div>
         </div>
-        <div className="padron-detalle">
-          <div className="padron-foto"><FotoPlaceholder /></div>
-          <div className="padron-obs">
-            <div className="padron-col-label">OBSERVACIONES</div>
-            <div className="padron-obs-box" />
+        <div className="padron-cuadrados">
+          <div className="padron-cuadro">
+            <div className="padron-cuadro-box padron-foto"><FotoPlaceholder /></div>
+            <div className="padron-col-label">FOTO</div>
           </div>
-          <div className="padron-firma-col">
+          <div className="padron-cuadro">
+            <div className="padron-cuadro-box" />
+            <div className="padron-col-label">OBSERVACIONES</div>
+          </div>
+          <div className="padron-cuadro">
+            <div className="padron-cuadro-box" />
             <div className="padron-col-label">FIRMA DEL VOTANTE</div>
-            <div className="padron-firma-box" />
           </div>
         </div>
       </div>
@@ -58,11 +85,11 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
       <div className="padron-mitad-der">
         <div className="padron-der-header">
           <div>JUNTA ELECTORAL MUNICIPAL</div>
-          <div>{(eleccion?.nombre || '').toUpperCase()}<br />{formatFecha(eleccion?.fecha)}</div>
+          <div>{(eleccion?.nombre || '').toUpperCase()} — {formatFecha(eleccion?.fecha)}</div>
         </div>
         <div className="padron-constancia-title">CONSTANCIA DE EMISIÓN DE VOTO</div>
         <div className="padron-nro-orden">
-          <div>NRO ORDEN<br /><strong>{elector.orden ?? '—'}</strong></div>
+          <div>NRO ORDEN: <strong>{elector.orden ?? '—'}</strong></div>
           <div className="padron-barcode">{elector.documento}</div>
         </div>
         <div className="padron-nombre-der">{elector.apellido}, {elector.nombre}</div>
@@ -74,8 +101,8 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
           <div>MESA</div><div>{mesa?.numero}</div>
         </div>
         <div className="padron-mesa-autoridad">
-          <div className="padron-col-label">FIRMA AUTORIDAD DE MESA</div>
           <div className="autoridad-box" />
+          <div className="padron-col-label">FIRMA<br />AUTORIDAD<br />DE MESA</div>
         </div>
       </div>
     </div>
@@ -90,8 +117,13 @@ export default function PadronImprimir() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
+  const [porHoja, setPorHoja] = useState(null);
+  const probeRef = useRef(null);
 
   useEffect(() => {
+    setData(null);
+    setPorHoja(null);
+    setLoading(true);
     get(mesaId)
       .then((r) => setData(r.data))
       .catch(() => setError('Error cargando el padrón de esta mesa'))
@@ -99,15 +131,42 @@ export default function PadronImprimir() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mesaId]);
 
+  // Se mide el alto real ya renderizado del encabezado y de una ficha (con
+  // los datos reales, no un valor fijo a ojo) para calcular cuántas fichas
+  // entran por hoja. Así se adapta solo a la fuente/renderizado de cada
+  // navegador en vez de asumir un número que después no coincide.
+  useLayoutEffect(() => {
+    if (!data || porHoja || data.electores.length === 0) return;
+    const encabezado = probeRef.current?.querySelector('.padron-encabezado');
+    const fila = probeRef.current?.querySelector('.padron-fila');
+    if (!encabezado || !fila) return;
+    const encabezadoH = encabezado.getBoundingClientRect().height;
+    const filaH = fila.getBoundingClientRect().height;
+    const disponible = PAGE_HEIGHT_PX - encabezadoH - FOOTER_HEIGHT_PX;
+    setPorHoja(Math.max(1, Math.floor(disponible / filaH)));
+  }, [data, porHoja]);
+
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
   if (error) return <div className="alert alert-danger">{error}</div>;
   if (!data) return null;
 
   const { mesa, municipio, eleccion, electores } = data;
 
+  if (electores.length > 0 && !porHoja) {
+    return (
+      <div ref={probeRef} style={{ position: 'absolute', visibility: 'hidden', left: -9999, top: 0 }}>
+        <div className="padron-hoja">
+          <Encabezado mesa={mesa} municipio={municipio} eleccion={eleccion} />
+          <Ticket elector={electores[0]} mesa={mesa} municipio={municipio} eleccion={eleccion} />
+        </div>
+      </div>
+    );
+  }
+
   const hojas = [];
-  for (let i = 0; i < electores.length; i += POR_HOJA) {
-    hojas.push(electores.slice(i, i + POR_HOJA));
+  const tamanoHoja = porHoja || 1;
+  for (let i = 0; i < electores.length; i += tamanoHoja) {
+    hojas.push(electores.slice(i, i + tamanoHoja));
   }
   if (hojas.length === 0) hojas.push([]);
 
@@ -124,22 +183,7 @@ export default function PadronImprimir() {
       <div className="padron-imprimible">
         {hojas.map((grupo, i) => (
           <div className="padron-hoja" key={i}>
-            <div className="padron-encabezado">
-              <div className="padron-leyenda">{LEYENDA}</div>
-              <div className="padron-titulo">
-                <h1>PADRON ELECTORAL</h1>
-                <div className="padron-mesa-badge">MESA<br />{String(mesa.numero).padStart(3, '0')}</div>
-                <div className="eleccion-nombre">
-                  {(eleccion?.nombre || '').toUpperCase()}<br />{formatFecha(eleccion?.fecha)}
-                </div>
-              </div>
-              <div className="padron-seccional">
-                SECCIONAL ELECTORAL<br />
-                {municipio?.seccion_electoral}<br />
-                CIRCUITO {mesa.circuito}<br />
-                {(municipio?.nombre || '').toUpperCase()}
-              </div>
-            </div>
+            <Encabezado mesa={mesa} municipio={municipio} eleccion={eleccion} />
 
             {grupo.map((elector) => (
               <Ticket key={elector.documento} elector={elector} mesa={mesa} municipio={municipio} eleccion={eleccion} />
