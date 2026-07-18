@@ -134,14 +134,15 @@ function createElector(PDO $db, int $municipioId, int $eleccionId): void {
 
     try {
         $stmt = $db->prepare(
-            "INSERT INTO electores (municipio_id, eleccion_id, orden, documento, apellido, nombre, sexo, fecha_nacimiento, domicilio, mesa_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO electores (municipio_id, eleccion_id, orden, documento, tipo, apellido, nombre, sexo, fecha_nacimiento, domicilio, mesa_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
             $municipioId,
             $eleccionId,
             !empty($data['orden']) ? (int)$data['orden'] : null,
             $data['documento'],
+            $data['tipo'] ?? null,
             $data['apellido'],
             $data['nombre'],
             $data['sexo'] ?? null,
@@ -164,12 +165,13 @@ function updateElector(PDO $db, int $id, int $municipioId, int $eleccionId): voi
     validateMesaMunicipio($db, $mesaId, $municipioId, $eleccionId);
 
     $stmt = $db->prepare(
-        "UPDATE electores SET orden=?, documento=?, apellido=?, nombre=?, sexo=?, fecha_nacimiento=?, domicilio=?, mesa_id=?, votado=?, updated_at=NOW()
+        "UPDATE electores SET orden=?, documento=?, tipo=?, apellido=?, nombre=?, sexo=?, fecha_nacimiento=?, domicilio=?, mesa_id=?, votado=?, updated_at=NOW()
          WHERE id=? AND municipio_id=? AND eleccion_id=?"
     );
     $stmt->execute([
         !empty($data['orden']) ? (int)$data['orden'] : null,
         $data['documento'],
+        $data['tipo'] ?? null,
         $data['apellido'],
         $data['nombre'],
         $data['sexo'] ?? null,

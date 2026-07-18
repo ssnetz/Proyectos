@@ -1,6 +1,7 @@
 <?php
 // Carga masiva de padrón por CSV (solo admin). El CSV requiere columnas
-// documento, apellido, nombre, mesa_numero; domicilio y orden son opcionales.
+// documento, apellido, nombre, mesa_numero; domicilio, orden y tipo (tipo de
+// documento: DNI-EA, DNI-EB...) son opcionales.
 // Las mesas que no existan se crean automáticamente bajo un establecimiento
 // genérico "Sin asignar" del municipio, para reasignar a la escuela real
 // después desde la pantalla de Mesas. Es re-ejecutable: los documentos ya
@@ -59,8 +60,8 @@ function importPadron(PDO $db): void {
     foreach ($docStmt->fetchAll(PDO::FETCH_COLUMN) as $doc) $existing[$doc] = true;
 
     $insertElector = $db->prepare(
-        "INSERT INTO electores (municipio_id, eleccion_id, orden, documento, apellido, nombre, domicilio, mesa_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO electores (municipio_id, eleccion_id, orden, documento, tipo, apellido, nombre, domicilio, mesa_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     $findMesa = $db->prepare("SELECT id FROM mesas WHERE municipio_id = ? AND eleccion_id = ? AND establecimiento_id = ? AND numero = ?");
     $insertMesa = $db->prepare("INSERT INTO mesas (municipio_id, eleccion_id, establecimiento_id, numero) VALUES (?, ?, ?, ?)");
@@ -85,6 +86,7 @@ function importPadron(PDO $db): void {
             $mesaNumero = trim($row[$idx['mesa_numero']] ?? '');
             $domicilio  = isset($idx['domicilio']) ? trim($row[$idx['domicilio']] ?? '') : '';
             $orden      = (isset($idx['orden']) && $row[$idx['orden']] !== '') ? (int)$row[$idx['orden']] : null;
+            $tipo       = isset($idx['tipo']) ? trim($row[$idx['tipo']] ?? '') : '';
 
             if ($documento === '' || $apellido === '' || $mesaNumero === '') {
                 $errores[] = "Fila $fila: faltan datos requeridos";
@@ -107,7 +109,7 @@ function importPadron(PDO $db): void {
             }
 
             $insertElector->execute([
-                $municipioId, $eleccionId, $orden, $documento, $apellido, $nombre, $domicilio ?: null, $mesaCache[$mesaNumero],
+                $municipioId, $eleccionId, $orden, $documento, $tipo ?: null, $apellido, $nombre, $domicilio ?: null, $mesaCache[$mesaNumero],
             ]);
             $bumpMesa->execute([$mesaCache[$mesaNumero]]);
             $existing[$documento] = true;

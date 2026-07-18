@@ -37,8 +37,8 @@ function createMunicipio(PDO $db): void {
     $data = getBody();
     if (empty($data['nombre'])) jsonError('El nombre es requerido');
 
-    $stmt = $db->prepare("INSERT INTO municipios (nombre, provincia) VALUES (?, ?)");
-    $stmt->execute([$data['nombre'], $data['provincia'] ?? null]);
+    $stmt = $db->prepare("INSERT INTO municipios (nombre, provincia, seccion_electoral) VALUES (?, ?, ?)");
+    $stmt->execute([$data['nombre'], $data['provincia'] ?? null, $data['seccion_electoral'] ?? null]);
     jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Municipio creado'], 201);
 }
 
@@ -48,8 +48,8 @@ function updateMunicipio(PDO $db, int $id): void {
 
     $activo = isset($data['activo']) ? (int)(bool)$data['activo'] : 1;
 
-    $stmt = $db->prepare("UPDATE municipios SET nombre=?, provincia=?, activo=?, updated_at=NOW() WHERE id=?");
-    $stmt->execute([$data['nombre'], $data['provincia'] ?? null, $activo, $id]);
+    $stmt = $db->prepare("UPDATE municipios SET nombre=?, provincia=?, seccion_electoral=?, activo=?, updated_at=NOW() WHERE id=?");
+    $stmt->execute([$data['nombre'], $data['provincia'] ?? null, $data['seccion_electoral'] ?? null, $activo, $id]);
     jsonResponse(['message' => 'Municipio actualizado']);
 }
 

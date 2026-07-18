@@ -17,6 +17,7 @@ import Fiscales           from './pages/Fiscales';
 import Usuarios           from './pages/Usuarios';
 import Municipios         from './pages/Municipios';
 import Elecciones         from './pages/Elecciones';
+import PadronImprimir     from './pages/PadronImprimir';
 import Login              from './pages/Login';
 
 // ─── Protected route ────────────────────────────────────────────────────────
@@ -195,6 +196,7 @@ function AppLayout() {
             <Route path="/electores"        element={<ProtectedRoute moduleKey="electores"><Electores /></ProtectedRoute>} />
             <Route path="/establecimientos" element={<ProtectedRoute moduleKey="establecimientos"><Establecimientos /></ProtectedRoute>} />
             <Route path="/mesas"            element={<ProtectedRoute moduleKey="mesas"><Mesas /></ProtectedRoute>} />
+            <Route path="/mesas/:mesaId/padron" element={<ProtectedRoute moduleKey="mesas"><PadronImprimir /></ProtectedRoute>} />
             <Route path="/partidos"         element={<ProtectedRoute moduleKey="partidos"><Partidos /></ProtectedRoute>} />
             <Route path="/cargos"           element={<ProtectedRoute moduleKey="cargos"><Cargos /></ProtectedRoute>} />
             <Route path="/listas"           element={<ProtectedRoute moduleKey="listas"><Listas /></ProtectedRoute>} />

@@ -78,3 +78,8 @@ export function useDashboard() {
   const get = () => api.get('/dashboard.php');
   return { get };
 }
+
+export function usePadronImprimir() {
+  const get = (mesaId) => api.get('/padron_imprimir.php', { params: { mesa_id: mesaId } });
+  return { get };
+}

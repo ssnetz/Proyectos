@@ -7,10 +7,15 @@ USE electis;
 -- sus propias listas y mesas por localidad). Un admin ve y cambia entre
 -- cualquier municipio; un operador queda fijo al que se le asigne en
 -- `usuarios.municipio_id`.
+-- `provincia` hace las veces de "distrito" electoral en el padrón impreso
+-- (en elecciones locales el distrito es la provincia); `seccion_electoral`
+-- es la sección electoral provincial (ej. "12-Punilla"). El circuito ya es
+-- por establecimiento (`establecimientos.circuito`), no por municipio.
 CREATE TABLE IF NOT EXISTS municipios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(150) NOT NULL,
     provincia VARCHAR(100),
+    seccion_electoral VARCHAR(100),
     activo TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -179,6 +184,7 @@ CREATE TABLE IF NOT EXISTS electores (
     eleccion_id INT NOT NULL,
     orden INT,
     documento VARCHAR(20) NOT NULL,
+    tipo VARCHAR(10),
     apellido VARCHAR(100) NOT NULL,
     nombre VARCHAR(100) NOT NULL,
     sexo CHAR(1),
@@ -231,8 +237,8 @@ CREATE TABLE IF NOT EXISTS acta_votos (
 
 -- Datos de ejemplo
 
-INSERT INTO municipios (nombre, provincia) VALUES
-  ('Cosquín', 'Córdoba');
+INSERT INTO municipios (nombre, provincia, seccion_electoral) VALUES
+  ('Cosquín', 'Córdoba', '12-Punilla');
 
 INSERT INTO elecciones (municipio_id, nombre, fecha) VALUES
   (1, 'Elección 2023', '2023-06-11');
