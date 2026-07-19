@@ -66,6 +66,7 @@
 }
 .padron-obs-box-inhabilitado { border-color: #c00; }
 .padron-obs-texto { color: #c00; font-weight: bold; font-size: 8px; text-align: center; line-height: 1.2; }
+.padron-obs-inhabilitado { color: #c00; font-weight: bold; font-size: 13px; line-height: 1.4; text-align: center; }
 
 /* Mitad derecha: constancia de emisión de voto */
 .padron-mitad-der { flex: 1; display: flex; flex-direction: column; }

@@ -41,7 +41,7 @@ $eleccionStmt->execute([$eleccionId]);
 $eleccion = $eleccionStmt->fetch();
 
 $electoresStmt = $db->prepare(
-    "SELECT orden, documento, tipo, apellido, nombre, domicilio, fecha_nacimiento
+    "SELECT orden, documento, tipo, apellido, nombre, domicilio, fecha_nacimiento, habilitado, observaciones
      FROM electores
      WHERE mesa_id = ? AND municipio_id = ? AND eleccion_id = ?
      ORDER BY (orden IS NULL), orden, apellido, nombre"

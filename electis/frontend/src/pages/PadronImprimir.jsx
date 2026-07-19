@@ -76,7 +76,9 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
   const habilitado = elector.habilitado === undefined || elector.habilitado === null
     ? true
     : !!Number(elector.habilitado);
-  const observacion = !habilitado ? (elector.observaciones || 'Elector inhabilitado') : (elector.observaciones || '');
+  const esInhabilitadoAuto = !habilitado
+    && (!elector.observaciones || elector.observaciones.trim().toLowerCase() === 'elector inhabilitado');
+  const observacionCustom = elector.observaciones && !esInhabilitadoAuto ? elector.observaciones : '';
 
   return (
     <div className="padron-fila">
@@ -94,7 +96,10 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
           <div className="padron-obs">
             <div className="padron-col-label">OBSERVACIONES</div>
             <div className={`padron-obs-box${habilitado ? '' : ' padron-obs-box-inhabilitado'}`}>
-              {observacion && <span className="padron-obs-texto">{observacion}</span>}
+              {esInhabilitadoAuto && (
+                <span className="padron-obs-inhabilitado">ELECTOR<br />INHABILITADO</span>
+              )}
+              {observacionCustom && <span className="padron-obs-texto">{observacionCustom}</span>}
             </div>
           </div>
           <div className="padron-firma-col">
