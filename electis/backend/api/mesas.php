@@ -16,13 +16,42 @@ if ($method === 'GET') {
 }
 $eleccionId = requireEleccionScope();
 
+$action = $_GET['action'] ?? '';
+
 match($method) {
     'GET'    => ($id ? getMesa($db, $id, $municipioId, $eleccionId) : listMesas($db, $municipioId, $eleccionId)),
     'POST'   => createMesa($db, $municipioId, $eleccionId),
-    'PUT'    => ($id ? updateMesa($db, $id, $municipioId, $eleccionId) : jsonError('ID requerido', 400)),
+    'PUT'    => ($id
+                    ? ($action === 'regenerar_pin'
+                        ? regenerarPin($db, $id, $municipioId, $eleccionId)
+                        : updateMesa($db, $id, $municipioId, $eleccionId))
+                    : jsonError('ID requerido', 400)),
     'DELETE' => ($id ? deleteMesa($db, $id, $municipioId, $eleccionId) : jsonError('ID requerido', 400)),
     default  => jsonError('Método no permitido', 405),
 };
+
+// Genera un PIN numérico de 6 dígitos único entre mesas, para el acceso del
+// fiscal desde el celular. Reintenta ante una colisión (muy improbable).
+function generarPin(PDO $db): string {
+    $check = $db->prepare('SELECT COUNT(*) FROM mesas WHERE pin = ?');
+    for ($i = 0; $i < 20; $i++) {
+        $pin = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $check->execute([$pin]);
+        if ((int)$check->fetchColumn() === 0) return $pin;
+    }
+    jsonError('No se pudo generar un PIN único, reintentá', 500);
+}
+
+// Las mesas ya cargadas antes de esta funcionalidad no tienen PIN todavía:
+// se completa solo la primera vez que se la lista/consulta.
+function asegurarPin(PDO $db, array $mesa): array {
+    if (empty($mesa['pin'])) {
+        $mesa['pin'] = generarPin($db);
+        $upd = $db->prepare('UPDATE mesas SET pin = ? WHERE id = ?');
+        $upd->execute([$mesa['pin'], $mesa['id']]);
+    }
+    return $mesa;
+}
 
 function baseSelect(): string {
     return "SELECT m.*, e.nombre AS establecimiento_nombre,
@@ -47,7 +76,8 @@ function listMesas(PDO $db, int $municipioId, int $eleccionId): void {
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
-    jsonResponse($stmt->fetchAll());
+    $mesas = array_map(fn($m) => asegurarPin($db, $m), $stmt->fetchAll());
+    jsonResponse($mesas);
 }
 
 function getMesa(PDO $db, int $id, int $municipioId, int $eleccionId): void {
@@ -55,7 +85,7 @@ function getMesa(PDO $db, int $id, int $municipioId, int $eleccionId): void {
     $stmt->execute([$id, $municipioId, $eleccionId]);
     $m = $stmt->fetch();
     if (!$m) jsonError('Mesa no encontrada', 404);
-    jsonResponse($m);
+    jsonResponse(asegurarPin($db, $m));
 }
 
 function validateEstablecimientoMunicipio(PDO $db, int $establecimientoId, int $municipioId): void {
@@ -73,10 +103,10 @@ function createMesa(PDO $db, int $municipioId, int $eleccionId): void {
 
     try {
         $stmt = $db->prepare(
-            "INSERT INTO mesas (municipio_id, eleccion_id, establecimiento_id, numero, electores_habilitados) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO mesas (municipio_id, eleccion_id, establecimiento_id, numero, electores_habilitados, pin) VALUES (?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
-            $municipioId, $eleccionId, (int)$data['establecimiento_id'], $data['numero'], (int)($data['electores_habilitados'] ?? 0),
+            $municipioId, $eleccionId, (int)$data['establecimiento_id'], $data['numero'], (int)($data['electores_habilitados'] ?? 0), generarPin($db),
         ]);
         jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Mesa creada'], 201);
     } catch (\PDOException $e) {
@@ -108,6 +138,17 @@ function updateMesa(PDO $db, int $id, int $municipioId, int $eleccionId): void {
         if ($e->getCode() === '23000') jsonError('El número de mesa ya existe en ese establecimiento para esta elección', 409);
         jsonError('Error al actualizar mesa: ' . $e->getMessage(), 500);
     }
+}
+
+function regenerarPin(PDO $db, int $id, int $municipioId, int $eleccionId): void {
+    $check = $db->prepare('SELECT id FROM mesas WHERE id = ? AND municipio_id = ? AND eleccion_id = ?');
+    $check->execute([$id, $municipioId, $eleccionId]);
+    if (!$check->fetch()) jsonError('Mesa no encontrada', 404);
+
+    $pin = generarPin($db);
+    $upd = $db->prepare('UPDATE mesas SET pin = ? WHERE id = ?');
+    $upd->execute([$pin, $id]);
+    jsonResponse(['pin' => $pin, 'message' => 'PIN regenerado']);
 }
 
 function deleteMesa(PDO $db, int $id, int $municipioId, int $eleccionId): void {

@@ -13,7 +13,7 @@ const actaEstadoBadge = { pendiente: 'badge-yellow', cargada: 'badge-blue', vali
 const establecimientoColor = (id) => `hsl(${(id * 137.508) % 360}, 65%, 92%)`;
 
 export default function Mesas() {
-  const { list, create, update, remove } = useMesas();
+  const { list, create, update, remove, regenerarPin } = useMesas();
   const { list: listEstablecimientos } = useEstablecimientos();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -83,6 +83,17 @@ export default function Mesas() {
     }
   };
 
+  const handleRegenerarPin = async (m) => {
+    if (!confirm(`¿Generar un PIN nuevo para la mesa ${m.numero}? El PIN anterior deja de funcionar.`)) return;
+    try {
+      await regenerarPin(m.id);
+      notify('PIN regenerado');
+      await load({ q });
+    } catch (e) {
+      setError(e.response?.data?.error || 'Error al regenerar el PIN');
+    }
+  };
+
   return (
     <div>
       {error   && <div className="alert alert-danger">{error}</div>}
@@ -104,7 +115,7 @@ export default function Mesas() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Mesa</th><th>Establecimiento</th><th>Electores habilitados</th><th>Padrón</th><th>Acta</th><th>Acciones</th></tr>
+                <tr><th>Mesa</th><th>Establecimiento</th><th>Electores habilitados</th><th>Padrón</th><th>Acta</th><th>PIN fiscal</th><th>Acciones</th></tr>
               </thead>
               <tbody>
                 {mesas.map((m) => (
@@ -117,6 +128,20 @@ export default function Mesas() {
                       <span className={`badge ${actaEstadoBadge[m.acta_estado] || 'badge-gray'}`}>
                         {m.acta_estado || 'sin cargar'}
                       </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <code style={{ fontSize: '.95rem', letterSpacing: '1px' }}>{m.pin || '—'}</code>
+                        {isAdmin && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => handleRegenerarPin(m)}
+                            title="Generar un PIN nuevo para esta mesa"
+                          >
+                            🔄
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
