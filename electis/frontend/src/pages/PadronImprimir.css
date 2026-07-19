@@ -15,6 +15,11 @@
   box-sizing: border-box;
   font-family: Arial, sans-serif;
   color: #000;
+  /* El body global fija line-height:1.5 — heredado, cada línea de texto de
+     la ficha queda ~30% más alta de lo necesario y hace que entren menos
+     fichas por hoja de las que en realidad caben. Se pisa acá con un valor
+     ajustado a texto de formulario denso. */
+  line-height: 1.15;
 }
 
 .padron-encabezado { display: flex; border: 1px solid #000; margin-bottom: 2px; }
