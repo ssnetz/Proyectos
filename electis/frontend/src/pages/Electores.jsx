@@ -5,7 +5,7 @@ import Modal from '../components/Modal';
 
 const emptyForm = {
   orden: '', documento: '', tipo: '', apellido: '', nombre: '', sexo: '',
-  fecha_nacimiento: '', domicilio: '', mesa_id: '', votado: false,
+  fecha_nacimiento: '', domicilio: '', mesa_id: '', votado: false, habilitado: true,
 };
 
 export default function Electores() {
@@ -60,7 +60,7 @@ export default function Electores() {
     setForm({
       orden: e.orden ?? '', documento: e.documento, tipo: e.tipo || '', apellido: e.apellido, nombre: e.nombre,
       sexo: e.sexo || '', fecha_nacimiento: e.fecha_nacimiento || '', domicilio: e.domicilio || '',
-      mesa_id: e.mesa_id || '', votado: !!Number(e.votado),
+      mesa_id: e.mesa_id || '', votado: !!Number(e.votado), habilitado: e.habilitado === undefined ? true : !!Number(e.habilitado),
     });
     setModal(e.id);
     setError('');
@@ -93,6 +93,15 @@ export default function Electores() {
   const toggleVotado = async (e) => {
     try {
       await update(e.id, { ...e, votado: Number(e.votado) ? 0 : 1 });
+      await reload();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al actualizar');
+    }
+  };
+
+  const toggleHabilitado = async (e) => {
+    try {
+      await update(e.id, { ...e, habilitado: Number(e.habilitado ?? 1) ? 0 : 1 });
       await reload();
     } catch (err) {
       setError(err.response?.data?.error || 'Error al actualizar');
@@ -169,29 +178,42 @@ export default function Electores() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Documento</th><th>Apellido</th><th>Nombre</th><th>Mesa</th><th>Votó</th><th>Acciones</th></tr>
+                <tr><th>Documento</th><th>Apellido</th><th>Nombre</th><th>Mesa</th><th>Votó</th><th>Habilitado</th><th>Acciones</th></tr>
               </thead>
               <tbody>
-                {electores.map((e) => (
-                  <tr key={e.id}>
-                    <td>{e.documento}</td>
-                    <td><strong>{e.apellido}</strong></td>
-                    <td>{e.nombre}</td>
-                    <td>{e.mesa_numero ? <span className="badge badge-blue">{e.mesa_numero}</span> : '—'}</td>
-                    <td>
-                      <button
-                        className={`btn btn-sm ${Number(e.votado) ? 'btn-success' : 'btn-ghost'}`}
-                        onClick={() => toggleVotado(e)}
-                        title="Marcar como votó / no votó"
-                      >
-                        {Number(e.votado) ? '✅ Sí' : 'No'}
-                      </button>
-                    </td>
-                    <td>
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(e)}>✏️</button>
-                    </td>
-                  </tr>
-                ))}
+                {electores.map((e) => {
+                  const habilitado = e.habilitado === undefined ? true : !!Number(e.habilitado);
+                  return (
+                    <tr key={e.id}>
+                      <td>{e.documento}</td>
+                      <td><strong>{e.apellido}</strong></td>
+                      <td>{e.nombre}</td>
+                      <td>{e.mesa_numero ? <span className="badge badge-blue">{e.mesa_numero}</span> : '—'}</td>
+                      <td>
+                        <button
+                          className={`btn btn-sm ${Number(e.votado) ? 'btn-success' : 'btn-danger'}`}
+                          onClick={() => toggleVotado(e)}
+                          title="Marcar como votó / no votó"
+                        >
+                          {Number(e.votado) ? '✅ Sí' : 'No'}
+                        </button>
+                      </td>
+                      <td>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={habilitado} onChange={() => toggleHabilitado(e)} />
+                          {!habilitado && (
+                            <span style={{ color: 'var(--danger)', fontSize: '.75rem', fontWeight: 600 }}>
+                              Elector inhabilitado
+                            </span>
+                          )}
+                        </label>
+                      </td>
+                      <td>
+                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(e)}>✏️</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -192,6 +192,7 @@ CREATE TABLE IF NOT EXISTS electores (
     domicilio VARCHAR(200),
     mesa_id INT,
     votado TINYINT(1) DEFAULT 0,
+    habilitado TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (municipio_id) REFERENCES municipios(id),

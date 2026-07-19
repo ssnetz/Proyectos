@@ -134,8 +134,8 @@ function createElector(PDO $db, int $municipioId, int $eleccionId): void {
 
     try {
         $stmt = $db->prepare(
-            "INSERT INTO electores (municipio_id, eleccion_id, orden, documento, tipo, apellido, nombre, sexo, fecha_nacimiento, domicilio, mesa_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO electores (municipio_id, eleccion_id, orden, documento, tipo, apellido, nombre, sexo, fecha_nacimiento, domicilio, mesa_id, habilitado)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
             $municipioId,
@@ -149,6 +149,7 @@ function createElector(PDO $db, int $municipioId, int $eleccionId): void {
             $data['fecha_nacimiento'] ?? null,
             $data['domicilio'] ?? null,
             $mesaId,
+            isset($data['habilitado']) ? (int)(bool)$data['habilitado'] : 1,
         ]);
         jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Elector creado'], 201);
     } catch (\PDOException $e) {
@@ -165,7 +166,7 @@ function updateElector(PDO $db, int $id, int $municipioId, int $eleccionId): voi
     validateMesaMunicipio($db, $mesaId, $municipioId, $eleccionId);
 
     $stmt = $db->prepare(
-        "UPDATE electores SET orden=?, documento=?, tipo=?, apellido=?, nombre=?, sexo=?, fecha_nacimiento=?, domicilio=?, mesa_id=?, votado=?, updated_at=NOW()
+        "UPDATE electores SET orden=?, documento=?, tipo=?, apellido=?, nombre=?, sexo=?, fecha_nacimiento=?, domicilio=?, mesa_id=?, votado=?, habilitado=?, updated_at=NOW()
          WHERE id=? AND municipio_id=? AND eleccion_id=?"
     );
     $stmt->execute([
@@ -179,6 +180,7 @@ function updateElector(PDO $db, int $id, int $municipioId, int $eleccionId): voi
         $data['domicilio'] ?? null,
         $mesaId,
         isset($data['votado']) ? (int)(bool)$data['votado'] : 0,
+        isset($data['habilitado']) ? (int)(bool)$data['habilitado'] : 1,
         $id,
         $municipioId,
         $eleccionId,
