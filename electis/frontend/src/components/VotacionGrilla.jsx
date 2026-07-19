@@ -7,11 +7,13 @@ export default function VotacionGrilla({ electores, onToggle, showResumen = true
 
   const habilitados = electores.filter((e) => e.habilitado === undefined || !!Number(e.habilitado));
   const votaron = habilitados.filter((e) => Number(e.votado)).length;
+  const porcentaje = habilitados.length > 0 ? Math.round((votaron / habilitados.length) * 100) : 0;
 
   return (
     <>
       {showResumen && (
         <div className="votacion-resumen votacion-resumen-standalone">
+          <span className="badge badge-blue">{porcentaje}% votó</span>
           <span className="badge badge-green">{votaron} votaron</span>
           <span className="badge badge-gray">{habilitados.length} habilitados</span>
         </div>
