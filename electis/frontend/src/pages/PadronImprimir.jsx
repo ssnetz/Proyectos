@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import JsBarcode from 'jsbarcode';
 import { usePadronImprimir } from '../hooks/useApi';
 import './PadronImprimir.css';
 
@@ -54,6 +55,23 @@ function Encabezado({ mesa, municipio, eleccion }) {
   );
 }
 
+function Barcode({ value }) {
+  const svgRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!svgRef.current || !value) return;
+    JsBarcode(svgRef.current, value, {
+      format: 'CODE128',
+      displayValue: false,
+      margin: 0,
+      height: 16,
+      width: 1.1,
+    });
+  }, [value]);
+
+  return <svg ref={svgRef} className="padron-barcode-svg" />;
+}
+
 function Ticket({ elector, mesa, municipio, eleccion }) {
   return (
     <div className="padron-fila">
@@ -84,7 +102,7 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
         <div className="padron-constancia-title">CONSTANCIA DE EMISIÓN DE VOTO</div>
         <div className="padron-nro-orden">
           <div>NRO ORDEN: <strong>{elector.orden ?? '—'}</strong></div>
-          <div className="padron-barcode">{elector.documento}</div>
+          <div className="padron-barcode"><Barcode value={elector.documento} /></div>
         </div>
         <div className="padron-nombre-der">{elector.apellido}, {elector.nombre}</div>
         <div className="padron-datos-der"><div>DOCUMENTO</div><div>{elector.documento}</div></div>
