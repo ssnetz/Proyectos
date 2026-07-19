@@ -5,7 +5,7 @@ import Modal from '../components/Modal';
 
 const emptyForm = {
   orden: '', documento: '', tipo: '', apellido: '', nombre: '', sexo: '',
-  fecha_nacimiento: '', domicilio: '', mesa_id: '', votado: false, habilitado: true,
+  fecha_nacimiento: '', domicilio: '', mesa_id: '', votado: false, habilitado: true, observaciones: '',
 };
 
 export default function Electores() {
@@ -61,6 +61,7 @@ export default function Electores() {
       orden: e.orden ?? '', documento: e.documento, tipo: e.tipo || '', apellido: e.apellido, nombre: e.nombre,
       sexo: e.sexo || '', fecha_nacimiento: e.fecha_nacimiento || '', domicilio: e.domicilio || '',
       mesa_id: e.mesa_id || '', votado: !!Number(e.votado), habilitado: e.habilitado === undefined ? true : !!Number(e.habilitado),
+      observaciones: e.observaciones || '',
     });
     setModal(e.id);
     setError('');
@@ -92,7 +93,7 @@ export default function Electores() {
 
   const toggleVotado = async (e) => {
     try {
-      await update(e.id, { ...e, votado: Number(e.votado) ? 0 : 1 });
+      await update(e.id, { votado: Number(e.votado) ? 0 : 1 });
       await reload();
     } catch (err) {
       setError(err.response?.data?.error || 'Error al actualizar');
@@ -100,8 +101,12 @@ export default function Electores() {
   };
 
   const toggleHabilitado = async (e) => {
+    const nuevoHabilitado = Number(e.habilitado ?? 1) ? 0 : 1;
     try {
-      await update(e.id, { ...e, habilitado: Number(e.habilitado ?? 1) ? 0 : 1 });
+      await update(e.id, {
+        habilitado: nuevoHabilitado,
+        observaciones: nuevoHabilitado ? '' : 'Elector inhabilitado',
+      });
       await reload();
     } catch (err) {
       setError(err.response?.data?.error || 'Error al actualizar');
@@ -178,7 +183,7 @@ export default function Electores() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Documento</th><th>Apellido</th><th>Nombre</th><th>Mesa</th><th>Votó</th><th>Habilitado</th><th>Acciones</th></tr>
+                <tr><th>Documento</th><th>Apellido y Nombre</th><th>Mesa</th><th>Votó</th><th>Habilitado</th><th>Acciones</th></tr>
               </thead>
               <tbody>
                 {electores.map((e) => {
@@ -186,8 +191,7 @@ export default function Electores() {
                   return (
                     <tr key={e.id}>
                       <td>{e.documento}</td>
-                      <td><strong>{e.apellido}</strong></td>
-                      <td>{e.nombre}</td>
+                      <td><strong>{e.apellido}</strong>, {e.nombre}</td>
                       <td>{e.mesa_numero ? <span className="badge badge-blue">{e.mesa_numero}</span> : '—'}</td>
                       <td>
                         <button
@@ -299,6 +303,10 @@ export default function Electores() {
               <option value="">Sin asignar</option>
               {mesas.map((m) => <option key={m.id} value={m.id}>Mesa {m.numero}</option>)}
             </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Observaciones</label>
+            <input className="form-control" value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} />
           </div>
         </Modal>
       )}

@@ -60,7 +60,12 @@
 .padron-obs, .padron-firma-col { flex: 1; display: flex; flex-direction: column; }
 .padron-obs { border-right: 1px solid #000; }
 .padron-col-label { font-size: 7.5px; text-align: center; line-height: 1.15; padding: 1px 4px; }
-.padron-obs-box, .padron-firma-box { flex: 1; margin: 0 6px 3px; border: 1px solid #7fa8d9; border-radius: 6px; }
+.padron-obs-box, .padron-firma-box {
+  flex: 1; margin: 0 6px 3px; border: 1px solid #7fa8d9; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; padding: 2px;
+}
+.padron-obs-box-inhabilitado { border-color: #c00; }
+.padron-obs-texto { color: #c00; font-weight: bold; font-size: 8px; text-align: center; line-height: 1.2; }
 
 /* Mitad derecha: constancia de emisión de voto */
 .padron-mitad-der { flex: 1; display: flex; flex-direction: column; }
