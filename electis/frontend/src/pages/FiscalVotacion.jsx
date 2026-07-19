@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import VotacionGrilla from '../components/VotacionGrilla';
 import './FiscalLogin.css';
 
 const API_BASE = '/electis/api';
+// Cada cuánto se refresca sola la grilla, para reflejar los votos que va
+// marcando el admin (u otro fiscal viendo la misma mesa) sin recargar.
+const POLL_MS = 4000;
 
 function fiscalApi() {
   const token = localStorage.getItem('el_fiscal_token');
@@ -19,6 +22,7 @@ export default function FiscalVotacion() {
   const [electores, setElectores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const pendingRef = useRef(new Set());
 
   const salir = useCallback(() => {
     localStorage.removeItem('el_fiscal_token');
@@ -44,6 +48,18 @@ export default function FiscalVotacion() {
         setError('Error cargando la mesa');
       })
       .finally(() => setLoading(false));
+
+    const interval = setInterval(() => {
+      fiscalApi().get('/electores.php')
+        .then((r) => {
+          setElectores((prev) => {
+            const prevById = new Map(prev.map((e) => [e.id, e]));
+            return r.data.data.map((e) => (pendingRef.current.has(e.id) ? prevById.get(e.id) ?? e : e));
+          });
+        })
+        .catch(() => {}); // silencioso: no interrumpir la grilla por un refresh fallido
+    }, POLL_MS);
+    return () => clearInterval(interval);
   }, [navigate, salir]);
 
   const toggleVoto = async (elector) => {
@@ -51,12 +67,15 @@ export default function FiscalVotacion() {
     if (!habilitado) return;
 
     const nuevoVotado = Number(elector.votado) ? 0 : 1;
+    pendingRef.current.add(elector.id);
     setElectores((prev) => prev.map((e) => (e.id === elector.id ? { ...e, votado: nuevoVotado } : e)));
     try {
       await fiscalApi().put(`/electores.php?id=${elector.id}`, { votado: nuevoVotado });
     } catch (err) {
       setElectores((prev) => prev.map((e) => (e.id === elector.id ? { ...e, votado: elector.votado } : e)));
       setError(err.response?.data?.error || 'Error al actualizar el voto');
+    } finally {
+      pendingRef.current.delete(elector.id);
     }
   };
 
