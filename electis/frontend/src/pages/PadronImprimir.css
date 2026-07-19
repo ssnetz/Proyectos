@@ -67,7 +67,8 @@
 .padron-constancia-title { text-align: center; font-weight: bold; padding: 0; border-bottom: 1px solid #000; background: #ececec; }
 .padron-nro-orden { display: flex; border-bottom: 1px solid #000; align-items: center; font-size: 9px; }
 .padron-nro-orden > div:first-child { flex: 0 0 100px; padding: 0 4px; border-right: 1px solid #000; }
-.padron-barcode { flex: 1; padding: 0 6px; display: flex; align-items: center; justify-content: center; height: 16px; }
+.padron-barcode { flex: 1; padding: 0 6px; display: flex; align-items: center; justify-content: center; height: 16px; overflow: hidden; }
+.padron-barcode-svg { height: 16px; max-width: 100%; }
 .padron-nombre-der { font-weight: bold; padding: 0 4px; border-bottom: 1px solid #000; }
 .padron-datos-der { display: flex; border-bottom: 1px solid #000; }
 .padron-datos-der > div:first-child { flex: 0 0 90px; padding: 0 4px; border-right: 1px solid #000; font-weight: bold; }
