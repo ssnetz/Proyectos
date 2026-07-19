@@ -32,11 +32,23 @@ jobs:
           else
             CHANGED=$(git diff --name-only HEAD^ HEAD | cut -d/ -f1 | sort -u)
             PROJECTS=""
-            for d in $CHANGED; do
-              if [ -d "$d/backend" ] && [ -d "$d/frontend" ] && [ ! -f "$d/.no-autodeploy" ]; then
-                PROJECTS="$PROJECTS $d"
-              fi
-            done
+            if echo "$CHANGED" | grep -qxE "deploy|\.github"; then
+              # Cambio en infraestructura de deploy compartida (ej. htaccess.template
+              # o el propio workflow): redesplegar todos los proyectos, no solo los
+              # que cambiaron, para no dejar el fix sin llegar al servidor.
+              for d in */; do
+                d="${d%/}"
+                if [ -d "$d/backend" ] && [ -d "$d/frontend" ] && [ ! -f "$d/.no-autodeploy" ]; then
+                  PROJECTS="$PROJECTS $d"
+                fi
+              done
+            else
+              for d in $CHANGED; do
+                if [ -d "$d/backend" ] && [ -d "$d/frontend" ] && [ ! -f "$d/.no-autodeploy" ]; then
+                  PROJECTS="$PROJECTS $d"
+                fi
+              done
+            fi
           fi
           echo "Proyectos a desplegar:$PROJECTS"
           echo "projects=$PROJECTS" >> "$GITHUB_OUTPUT"
