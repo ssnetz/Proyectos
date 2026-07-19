@@ -90,8 +90,11 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
             <div className="padron-col-label">OBSERVACIONES</div>
             <div className="padron-obs-box" />
           </div>
+          <div className="padron-firma-col">
+            <div className="padron-col-label">FIRMA DEL VOTANTE</div>
+            <div className="padron-firma-box" />
+          </div>
         </div>
-        <div className="padron-firma">FIRMA DEL VOTANTE</div>
       </div>
 
       <div className="padron-mitad-der">
