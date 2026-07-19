@@ -7,6 +7,7 @@ import { MODULES, canAccess } from './config/modules';
 import Dashboard         from './pages/Dashboard';
 import Actas             from './pages/Actas';
 import Electores          from './pages/Electores';
+import Votacion           from './pages/Votacion';
 import Establecimientos  from './pages/Establecimientos';
 import Mesas              from './pages/Mesas';
 import Partidos           from './pages/Partidos';
@@ -114,6 +115,7 @@ function SidebarUser() {
 const pageTitles = {
   '/':                  'Dashboard',
   '/actas':             'Actas de escrutinio',
+  '/votacion':          'Votación',
   '/electores':         'Padrón de electores',
   '/establecimientos':  'Establecimientos',
   '/mesas':             'Mesas',
@@ -193,6 +195,7 @@ function AppLayout() {
           <Routes key={`${municipioId ?? ''}:${eleccionId ?? ''}`}>
             <Route path="/"                 element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/actas"            element={<ProtectedRoute moduleKey="actas"><Actas /></ProtectedRoute>} />
+            <Route path="/votacion"         element={<ProtectedRoute moduleKey="votacion"><Votacion /></ProtectedRoute>} />
             <Route path="/electores"        element={<ProtectedRoute moduleKey="electores"><Electores /></ProtectedRoute>} />
             <Route path="/establecimientos" element={<ProtectedRoute moduleKey="establecimientos"><Establecimientos /></ProtectedRoute>} />
             <Route path="/mesas"            element={<ProtectedRoute moduleKey="mesas"><Mesas /></ProtectedRoute>} />

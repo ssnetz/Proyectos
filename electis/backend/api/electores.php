@@ -48,16 +48,27 @@ function listElectores(PDO $db, int $municipioId, int $eleccionId): void {
     }
     $whereSql = implode(' AND ', $where);
 
-    $limit = 50;
-    $page = max(1, (int)($_GET['page'] ?? 1));
-    $offset = ($page - 1) * $limit;
+    // Para la grilla de votación se necesitan todos los electores de la mesa
+    // de una sola vez (una mesa nunca tiene tantos como para justificar
+    // paginación), en el orden oficial en vez de apellido/nombre.
+    $sinPaginar = $mesaId && !empty($_GET['todos']);
 
     $countStmt = $db->prepare("SELECT COUNT(*) FROM electores e WHERE $whereSql");
     $countStmt->execute($params);
     $total = (int)$countStmt->fetchColumn();
-    $pages = max(1, (int)ceil($total / $limit));
 
-    $sql = baseSelect() . " WHERE $whereSql ORDER BY e.apellido, e.nombre LIMIT $limit OFFSET $offset";
+    if ($sinPaginar) {
+        $limit = $total;
+        $page = 1;
+        $pages = 1;
+        $sql = baseSelect() . " WHERE $whereSql ORDER BY (e.orden IS NULL), e.orden, e.apellido, e.nombre";
+    } else {
+        $limit = 50;
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $offset = ($page - 1) * $limit;
+        $pages = max(1, (int)ceil($total / $limit));
+        $sql = baseSelect() . " WHERE $whereSql ORDER BY e.apellido, e.nombre LIMIT $limit OFFSET $offset";
+    }
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
 

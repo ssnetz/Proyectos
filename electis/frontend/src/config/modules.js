@@ -4,6 +4,7 @@
 // por el rol admin.
 export const MODULES = [
   { key: 'actas',             icon: '🗳️', label: 'Actas',             section: 'Escrutinio' },
+  { key: 'votacion',          icon: '✅', label: 'Votación',          section: 'Escrutinio' },
   { key: 'electores',         icon: '👥', label: 'Electores',         section: 'Escrutinio' },
   { key: 'establecimientos',  icon: '🏫', label: 'Establecimientos',  section: 'Catálogos' },
   { key: 'mesas',              icon: '🪑', label: 'Mesas',              section: 'Catálogos' },
