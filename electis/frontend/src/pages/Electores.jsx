@@ -304,7 +304,8 @@ export default function Electores() {
                 El CSV necesita las columnas <code>documento</code>, <code>apellido</code>, <code>nombre</code> y <code>mesa_numero</code>
                 (opcionales: <code>domicilio</code>, <code>orden</code>, <code>tipo</code>). Las mesas que no existan se crean automáticamente bajo un
                 establecimiento genérico "Sin asignar", para repartirlas en las escuelas reales después desde Mesas.
-                Los documentos que ya estén cargados en esta elección se omiten, así que el archivo se puede volver a subir sin duplicar.
+                Los documentos que ya estén cargados en esta elección no se duplican; si la fila trae <code>tipo</code>, se usa
+                para completar/actualizar el tipo de documento del elector ya existente.
               </p>
               <div className="form-group">
                 <label className="form-label">Archivo CSV</label>
@@ -322,6 +323,9 @@ export default function Electores() {
               <ul style={{ fontSize: '.9rem', lineHeight: 1.8, paddingLeft: 18 }}>
                 <li>Electores creados: <strong>{importResult.electores_creados}</strong></li>
                 <li>Omitidos por duplicado: <strong>{importResult.electores_omitidos_duplicados}</strong></li>
+                {importResult.tipos_actualizados > 0 && (
+                  <li>Tipos de documento actualizados: <strong>{importResult.tipos_actualizados}</strong></li>
+                )}
                 <li>Mesas nuevas creadas: <strong>{importResult.mesas_creadas}</strong></li>
                 {importResult.total_errores > 0 && (
                   <li>Filas con error: <strong>{importResult.total_errores}</strong></li>
