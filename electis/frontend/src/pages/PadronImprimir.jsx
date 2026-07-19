@@ -73,6 +73,11 @@ function Barcode({ value }) {
 }
 
 function Ticket({ elector, mesa, municipio, eleccion }) {
+  const habilitado = elector.habilitado === undefined || elector.habilitado === null
+    ? true
+    : !!Number(elector.habilitado);
+  const observacion = !habilitado ? (elector.observaciones || 'Elector inhabilitado') : (elector.observaciones || '');
+
   return (
     <div className="padron-fila">
       <div className="padron-mitad-izq">
@@ -88,7 +93,9 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
           <div className="padron-foto"><FotoPlaceholder /></div>
           <div className="padron-obs">
             <div className="padron-col-label">OBSERVACIONES</div>
-            <div className="padron-obs-box" />
+            <div className={`padron-obs-box${habilitado ? '' : ' padron-obs-box-inhabilitado'}`}>
+              {observacion && <span className="padron-obs-texto">{observacion}</span>}
+            </div>
           </div>
           <div className="padron-firma-col">
             <div className="padron-col-label">FIRMA DEL VOTANTE</div>

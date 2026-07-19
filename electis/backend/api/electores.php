@@ -134,8 +134,8 @@ function createElector(PDO $db, int $municipioId, int $eleccionId): void {
 
     try {
         $stmt = $db->prepare(
-            "INSERT INTO electores (municipio_id, eleccion_id, orden, documento, tipo, apellido, nombre, sexo, fecha_nacimiento, domicilio, mesa_id, habilitado)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO electores (municipio_id, eleccion_id, orden, documento, tipo, apellido, nombre, sexo, fecha_nacimiento, domicilio, mesa_id, habilitado, observaciones)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->execute([
             $municipioId,
@@ -150,6 +150,7 @@ function createElector(PDO $db, int $municipioId, int $eleccionId): void {
             $data['domicilio'] ?? null,
             $mesaId,
             isset($data['habilitado']) ? (int)(bool)$data['habilitado'] : 1,
+            $data['observaciones'] ?? null,
         ]);
         jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Elector creado'], 201);
     } catch (\PDOException $e) {
@@ -159,31 +160,51 @@ function createElector(PDO $db, int $municipioId, int $eleccionId): void {
 
 function updateElector(PDO $db, int $id, int $municipioId, int $eleccionId): void {
     $data = getBody();
-    foreach (['documento', 'apellido', 'nombre'] as $field) {
-        if (empty($data[$field])) jsonError("El campo $field es requerido");
-    }
-    $mesaId = !empty($data['mesa_id']) ? (int)$data['mesa_id'] : null;
-    validateMesaMunicipio($db, $mesaId, $municipioId, $eleccionId);
 
-    $stmt = $db->prepare(
-        "UPDATE electores SET orden=?, documento=?, tipo=?, apellido=?, nombre=?, sexo=?, fecha_nacimiento=?, domicilio=?, mesa_id=?, votado=?, habilitado=?, updated_at=NOW()
-         WHERE id=? AND municipio_id=? AND eleccion_id=?"
-    );
-    $stmt->execute([
-        !empty($data['orden']) ? (int)$data['orden'] : null,
-        $data['documento'],
-        $data['tipo'] ?? null,
-        $data['apellido'],
-        $data['nombre'],
-        $data['sexo'] ?? null,
-        $data['fecha_nacimiento'] ?? null,
-        $data['domicilio'] ?? null,
-        $mesaId,
-        isset($data['votado']) ? (int)(bool)$data['votado'] : 0,
-        isset($data['habilitado']) ? (int)(bool)$data['habilitado'] : 1,
-        $id,
-        $municipioId,
-        $eleccionId,
-    ]);
+    // Update parcial: solo se tocan y validan los campos que realmente vienen
+    // en el pedido. Así, acciones puntuales como tildar/destildar "votado" o
+    // "habilitado" (que solo mandan ese campo) no dependen de que el resto
+    // del registro pase la validación del formulario completo.
+    foreach (['documento', 'apellido', 'nombre'] as $field) {
+        if (array_key_exists($field, $data) && trim((string)$data[$field]) === '') {
+            jsonError("El campo $field es requerido");
+        }
+    }
+
+    $sets = [];
+    $params = [];
+
+    $simple = ['orden', 'documento', 'tipo', 'apellido', 'nombre', 'sexo', 'fecha_nacimiento', 'domicilio', 'observaciones'];
+    foreach ($simple as $field) {
+        if (array_key_exists($field, $data)) {
+            $sets[] = "$field=?";
+            $value = $data[$field];
+            $params[] = ($value === '' ? null : $value);
+        }
+    }
+    if (array_key_exists('mesa_id', $data)) {
+        $mesaId = !empty($data['mesa_id']) ? (int)$data['mesa_id'] : null;
+        validateMesaMunicipio($db, $mesaId, $municipioId, $eleccionId);
+        $sets[] = 'mesa_id=?';
+        $params[] = $mesaId;
+    }
+    if (array_key_exists('votado', $data)) {
+        $sets[] = 'votado=?';
+        $params[] = (int)(bool)$data['votado'];
+    }
+    if (array_key_exists('habilitado', $data)) {
+        $sets[] = 'habilitado=?';
+        $params[] = (int)(bool)$data['habilitado'];
+    }
+
+    if (empty($sets)) jsonError('Nada para actualizar', 400);
+
+    $sets[] = 'updated_at=NOW()';
+    $params[] = $id;
+    $params[] = $municipioId;
+    $params[] = $eleccionId;
+
+    $stmt = $db->prepare('UPDATE electores SET ' . implode(', ', $sets) . ' WHERE id=? AND municipio_id=? AND eleccion_id=?');
+    $stmt->execute($params);
     jsonResponse(['message' => 'Elector actualizado']);
 }
