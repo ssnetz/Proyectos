@@ -139,8 +139,27 @@ function requireMunicipioScope(?array $payload = null): array {
 // sidebar (2023, 2027...). No hace falta validar contra la base acá: todas
 // las consultas ya filtran también por municipio_id, así que una elección
 // que no sea de ese municipio simplemente no matchea ninguna fila.
+//
+// Un token de fiscal (ver auth.php?action=fiscal_login) trae su propia
+// elección fija — se ignora lo que mande el cliente, igual que con
+// municipio_id, para que no pueda leer/escribir otra elección.
 function requireEleccionScope(): int {
+    $payload = requireAuth();
+    if (($payload['role'] ?? '') === 'fiscal') {
+        $eleccionId = (int)($payload['eleccion_id'] ?? 0);
+        if (!$eleccionId) jsonError('Token de fiscal inválido', 403);
+        return $eleccionId;
+    }
     $eleccionId = $_GET['eleccion_id'] ?? null;
     if ($eleccionId === null || $eleccionId === '') jsonError('Debe indicar eleccion_id', 400);
     return (int)$eleccionId;
+}
+
+// Mesa fija de un token de fiscal (null si el token no es de un fiscal).
+function fiscalMesaId(): ?int {
+    $payload = requireAuth();
+    if (($payload['role'] ?? '') !== 'fiscal') return null;
+    $mesaId = (int)($payload['mesa_id'] ?? 0);
+    if (!$mesaId) jsonError('Token de fiscal inválido', 403);
+    return $mesaId;
 }

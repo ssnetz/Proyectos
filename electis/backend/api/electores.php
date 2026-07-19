@@ -17,11 +17,14 @@ $method = getMethod();
 $id = getId();
 $municipioId = requireMunicipioScope()['municipio_id'];
 $eleccionId = requireEleccionScope();
+// Un token de fiscal (celular, PIN de mesa) solo puede ver/editar los
+// electores de su propia mesa, y nunca crear electores nuevos.
+$fiscalMesaId = fiscalMesaId();
 
 match($method) {
-    'GET'    => ($id ? getElector($db, $id, $municipioId, $eleccionId) : listElectores($db, $municipioId, $eleccionId)),
-    'POST'   => createElector($db, $municipioId, $eleccionId),
-    'PUT'    => ($id ? updateElector($db, $id, $municipioId, $eleccionId) : jsonError('ID requerido', 400)),
+    'GET'    => ($id ? getElector($db, $id, $municipioId, $eleccionId) : listElectores($db, $municipioId, $eleccionId, $fiscalMesaId)),
+    'POST'   => ($fiscalMesaId ? jsonError('Sin permisos', 403) : createElector($db, $municipioId, $eleccionId)),
+    'PUT'    => ($id ? updateElector($db, $id, $municipioId, $eleccionId, $fiscalMesaId) : jsonError('ID requerido', 400)),
     default  => jsonError('Método no permitido', 405),
 };
 
@@ -32,16 +35,18 @@ function baseSelect(): string {
             LEFT JOIN establecimientos es ON m.establecimiento_id = es.id";
 }
 
-function listElectores(PDO $db, int $municipioId, int $eleccionId): void {
+function listElectores(PDO $db, int $municipioId, int $eleccionId, ?int $fiscalMesaId = null): void {
     $where = ['e.municipio_id = ?', 'e.eleccion_id = ?'];
     $params = [$municipioId, $eleccionId];
     $q = trim($_GET['q'] ?? '');
-    if ($q !== '') {
+    if ($q !== '' && !$fiscalMesaId) {
         $where[] = '(e.documento LIKE ? OR e.apellido LIKE ? OR e.nombre LIKE ?)';
         $like = "%$q%";
         $params[] = $like; $params[] = $like; $params[] = $like;
     }
-    $mesaId = !empty($_GET['mesa_id']) ? (int)$_GET['mesa_id'] : null;
+    // Un fiscal siempre trae la mesa fija de su propio token, sin importar
+    // qué mande el cliente.
+    $mesaId = $fiscalMesaId ?: (!empty($_GET['mesa_id']) ? (int)$_GET['mesa_id'] : null);
     if ($mesaId) {
         $where[] = 'e.mesa_id = ?';
         $params[] = $mesaId;
@@ -51,7 +56,7 @@ function listElectores(PDO $db, int $municipioId, int $eleccionId): void {
     // Para la grilla de votación se necesitan todos los electores de la mesa
     // de una sola vez (una mesa nunca tiene tantos como para justificar
     // paginación), en el orden oficial en vez de apellido/nombre.
-    $sinPaginar = $mesaId && !empty($_GET['todos']);
+    $sinPaginar = $mesaId && ($fiscalMesaId || !empty($_GET['todos']));
 
     $countStmt = $db->prepare("SELECT COUNT(*) FROM electores e WHERE $whereSql");
     $countStmt->execute($params);
@@ -169,8 +174,14 @@ function createElector(PDO $db, int $municipioId, int $eleccionId): void {
     }
 }
 
-function updateElector(PDO $db, int $id, int $municipioId, int $eleccionId): void {
+function updateElector(PDO $db, int $id, int $municipioId, int $eleccionId, ?int $fiscalMesaId = null): void {
     $data = getBody();
+
+    // Un fiscal (celular, PIN de mesa) solo puede marcar/desmarcar "votado",
+    // nunca tocar otros datos del elector.
+    if ($fiscalMesaId) {
+        $data = array_key_exists('votado', $data) ? ['votado' => $data['votado']] : [];
+    }
 
     // Update parcial: solo se tocan y validan los campos que realmente vienen
     // en el pedido. Así, acciones puntuales como tildar/destildar "votado" o
@@ -215,7 +226,13 @@ function updateElector(PDO $db, int $id, int $municipioId, int $eleccionId): voi
     $params[] = $municipioId;
     $params[] = $eleccionId;
 
-    $stmt = $db->prepare('UPDATE electores SET ' . implode(', ', $sets) . ' WHERE id=? AND municipio_id=? AND eleccion_id=?');
+    $where = 'id=? AND municipio_id=? AND eleccion_id=?';
+    if ($fiscalMesaId) {
+        $where .= ' AND mesa_id=?';
+        $params[] = $fiscalMesaId;
+    }
+
+    $stmt = $db->prepare('UPDATE electores SET ' . implode(', ', $sets) . " WHERE $where");
     $stmt->execute($params);
     jsonResponse(['message' => 'Elector actualizado']);
 }

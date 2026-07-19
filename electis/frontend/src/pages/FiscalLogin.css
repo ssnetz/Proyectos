@@ -1,0 +1,62 @@
+/* Pantallas del fiscal: standalone, sin sidebar, pensadas para el celular
+   (botones grandes para tocar con el dedo, sin depender del mouse/hover). */
+
+.fiscal-login-page {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gray-900);
+  padding: 20px;
+}
+
+.fiscal-login-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 32px 24px;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+.fiscal-login-logo { width: 56px; height: 56px; margin-bottom: 12px; }
+.fiscal-login-card h1 { font-size: 1.3rem; margin-bottom: 4px; }
+.fiscal-login-card p { color: var(--gray-500); font-size: .9rem; margin-bottom: 20px; }
+
+.fiscal-pin-input {
+  width: 100%;
+  font-size: 2rem;
+  letter-spacing: 10px;
+  text-align: center;
+  padding: 14px 0;
+  border: 2px solid var(--gray-300);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.fiscal-pin-input:focus { outline: none; border-color: var(--gray-900); }
+
+.fiscal-login-btn {
+  width: 100%;
+  padding: 16px;
+  font-size: 1.05rem;
+}
+
+/* ─── Grilla de votación del fiscal ────────────────────────────────────── */
+
+.fiscal-votacion-page { min-height: 100vh; background: var(--gray-50); }
+
+.fiscal-votacion-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--gray-900); color: #fff;
+  padding: 16px 18px;
+  position: sticky; top: 0; z-index: 10;
+}
+.fiscal-votacion-header strong { font-size: 1.1rem; }
+.fiscal-votacion-establecimiento { font-size: .8rem; color: var(--gray-400); }
+.fiscal-votacion-header .btn-ghost { color: #fff; border-color: var(--gray-600); }
+
+.fiscal-votacion-body { padding: 16px; }
+
+.fiscal-votacion-body .votacion-grilla {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 10px;
+}
+.fiscal-votacion-body .votacion-tile { font-size: 1.1rem; min-height: 56px; }

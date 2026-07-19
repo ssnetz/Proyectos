@@ -143,12 +143,17 @@ CREATE TABLE IF NOT EXISTS mesas (
     numero VARCHAR(20) NOT NULL,
     electores_habilitados INT DEFAULT 0,
     activo TINYINT(1) DEFAULT 1,
+    -- PIN de 6 dígitos para que el fiscal entre a la app del celular sin
+    -- usuario ni contraseña, atado a esta mesa (no a una persona: si
+    -- reemplazan al fiscal a la tarde, el PIN sigue siendo el mismo).
+    pin VARCHAR(6),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (municipio_id) REFERENCES municipios(id),
     FOREIGN KEY (eleccion_id) REFERENCES elecciones(id),
     FOREIGN KEY (establecimiento_id) REFERENCES establecimientos(id),
-    UNIQUE KEY uk_mesa_eleccion_establecimiento_numero (eleccion_id, establecimiento_id, numero)
+    UNIQUE KEY uk_mesa_eleccion_establecimiento_numero (eleccion_id, establecimiento_id, numero),
+    UNIQUE KEY uk_mesa_pin (pin)
 );
 
 -- `mesa_id` nulo = fiscal general (de partido, no atado a una mesa fija).

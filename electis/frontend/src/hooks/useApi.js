@@ -50,7 +50,11 @@ export function useCargos()          { return crud('cargos'); }
 export function useListas()          { return crud('listas'); }
 export function useCandidatos()      { return crud('candidatos'); }
 export function useEstablecimientos() { return crud('establecimientos'); }
-export function useMesas()           { return crud('mesas'); }
+export function useMesas() {
+  const base = crud('mesas');
+  const regenerarPin = (id) => api.put(`/mesas.php?id=${id}&action=regenerar_pin`);
+  return { ...base, regenerarPin };
+}
 export function useFiscales()        { return crud('fiscales'); }
 export function useElectores() {
   const base = crud('electores', { softDelete: true });

@@ -3,6 +3,7 @@
 }
 .votacion-filtros .form-group { min-width: 220px; }
 .votacion-resumen { display: flex; gap: 8px; margin-left: auto; }
+.votacion-resumen-standalone { margin-left: 0; margin-bottom: 12px; }
 
 .votacion-leyenda { display: flex; gap: 18px; margin-bottom: 12px; font-size: .8rem; color: var(--gray-600); align-items: center; }
 .votacion-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 5px; vertical-align: middle; }

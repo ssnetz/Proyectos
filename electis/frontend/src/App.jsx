@@ -20,6 +20,8 @@ import Municipios         from './pages/Municipios';
 import Elecciones         from './pages/Elecciones';
 import PadronImprimir     from './pages/PadronImprimir';
 import Login              from './pages/Login';
+import FiscalLogin        from './pages/FiscalLogin';
+import FiscalVotacion     from './pages/FiscalVotacion';
 
 // ─── Protected route ────────────────────────────────────────────────────────
 function ProtectedRoute({ children, adminOnly = false, moduleKey = null }) {
@@ -222,8 +224,10 @@ export default function App() {
       <MunicipioProvider>
         <EleccionProvider>
           <Routes>
-            <Route path="/login" element={<LoginGuard />} />
-            <Route path="/*"     element={<AppLayout />} />
+            <Route path="/login"           element={<LoginGuard />} />
+            <Route path="/fiscal"          element={<FiscalLogin />} />
+            <Route path="/fiscal/votacion" element={<FiscalVotacion />} />
+            <Route path="/*"               element={<AppLayout />} />
           </Routes>
         </EleccionProvider>
       </MunicipioProvider>

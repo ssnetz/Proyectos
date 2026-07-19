@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useEstablecimientos, useMesas, useElectores } from '../hooks/useApi';
+import VotacionGrilla from '../components/VotacionGrilla';
 import './Votacion.css';
 
 export default function Votacion() {
@@ -58,9 +59,6 @@ export default function Votacion() {
     }
   };
 
-  const habilitados = electores.filter((e) => e.habilitado === undefined || !!Number(e.habilitado));
-  const votaron = habilitados.filter((e) => Number(e.votado)).length;
-
   return (
     <div>
       {error && <div className="alert alert-danger">{error}</div>}
@@ -90,46 +88,14 @@ export default function Votacion() {
               ))}
             </select>
           </div>
-          {mesaId && !loadingElectores && (
-            <div className="votacion-resumen">
-              <span className="badge badge-green">{votaron} votaron</span>
-              <span className="badge badge-gray">{habilitados.length} habilitados</span>
-            </div>
-          )}
         </div>
 
         {loadingElectores ? (
           <div className="spinner" style={{ marginTop: 40 }} />
         ) : !mesaId ? (
           <div className="empty"><div className="empty-icon">✅</div><p>Elegí un establecimiento y una mesa para ver la grilla de votación</p></div>
-        ) : electores.length === 0 ? (
-          <div className="empty"><div className="empty-icon">👥</div><p>Esta mesa no tiene electores cargados</p></div>
         ) : (
-          <>
-            <div className="votacion-leyenda">
-              <span><i className="votacion-swatch votacion-swatch-no" /> No votó</span>
-              <span><i className="votacion-swatch votacion-swatch-si" /> Votó</span>
-              <span><i className="votacion-swatch votacion-swatch-inhabilitado" /> Inhabilitado</span>
-            </div>
-            <div className="votacion-grilla">
-              {electores.map((e) => {
-                const habilitado = e.habilitado === undefined ? true : !!Number(e.habilitado);
-                const votado = !!Number(e.votado);
-                const clase = !habilitado ? 'inhabilitado' : votado ? 'votado' : 'no-votado';
-                return (
-                  <button
-                    key={e.id}
-                    className={`votacion-tile votacion-tile-${clase}`}
-                    onClick={() => toggleVoto(e)}
-                    disabled={!habilitado}
-                    title={`${e.apellido}, ${e.nombre}${!habilitado ? ' — Elector inhabilitado' : ''}`}
-                  >
-                    {e.orden ?? '—'}
-                  </button>
-                );
-              })}
-            </div>
-          </>
+          <VotacionGrilla electores={electores} onToggle={toggleVoto} />
         )}
       </div>
     </div>
