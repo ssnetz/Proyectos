@@ -69,10 +69,18 @@ export async function ocrTicketImage(canvas, onProgress) {
 
 function toNumber(str) {
   if (!str) return null;
-  // "12.345,67" (miles con punto, decimales con coma) o "12345,67" o "12345.67"
   let s = str.trim();
-  if (/\d\.\d{3}(,\d+)?$/.test(s) || /\d\.\d{3}\./.test(s)) s = s.replace(/\./g, '');
-  s = s.replace(',', '.');
+  const hasComma = s.includes(',');
+  const dotCount = (s.match(/\./g) || []).length;
+  if (hasComma) {
+    // Formato con coma decimal: "12.345,67" (punto = miles) o "75,87"
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (dotCount > 1) {
+    // Varios puntos sin coma: todos son separadores de miles ("1.234.567")
+    s = s.replace(/\./g, '');
+  }
+  // Un solo punto sin coma ya es un decimal normal ("2439.000" = 2439,
+  // como lo imprimen algunos sistemas de facturación con ceros de más)
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : null;
 }
@@ -80,7 +88,21 @@ function toNumber(str) {
 // ─── Fecha / hora ────────────────────────────────────────────────────────
 
 function parseFechaHora(text) {
-  const dateMatch = text.match(/\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b/);
+  // Los remitos/facturas suelen traer OTRAS fechas antes que la de la
+  // operación (ej. "Inicio de Actividades: 01/06/2004" del encabezado
+  // fiscal del proveedor). Por eso no tomamos la primera fecha que
+  // aparece en el texto: preferimos la que está pegada a la etiqueta
+  // "FECHA", y solo si no hay ninguna así caemos a la primera como plan B.
+  const dateRe = /\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b/g;
+  let match;
+  let first = null;
+  let labeled = null;
+  while ((match = dateRe.exec(text)) !== null) {
+    if (!first) first = match;
+    const before = text.slice(Math.max(0, match.index - 25), match.index).toUpperCase();
+    if (/FECHA\s*[:\-]?\s*$/.test(before)) { labeled = match; break; }
+  }
+  const dateMatch = labeled || first;
   const timeMatch = text.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
 
   let iso = '';
@@ -128,6 +150,8 @@ function findLiters(text) {
     /\bLTS?\.?\s*[:\-]?\s*(\d+[.,]\d{1,3})/i,
     /\bLITROS?\s*[:\-]?\s*(\d+[.,]\d{1,3})/i,
     /(\d+[.,]\d{1,3})\s*LITROS?\b/i,
+    // Remitos de combustible sin la palabra "litros": "Cant:75.87 PU:..."
+    /\bCANT\.?(?:IDAD)?\s*[:\-]?\s*(\d+[.,]\d{1,3})/i,
   ];
   for (const re of patterns) {
     const m = text.match(re);
@@ -145,6 +169,9 @@ function findPricePerLiter(text) {
   const patterns = [
     /P(?:RECIO)?\.?\s*(?:UNIT(?:ARIO)?|X?\s*LITRO|\/\s*L)\.?\s*[:\-]?\s*\$?\s*(\d+[.,]\d{2,4})/i,
     /\$\s*(\d+[.,]\d{2,4})\s*\/\s*L\b/i,
+    // Remitos de combustible: "Prec.Unit: 2439.0000" / "PU:2439.000"
+    /\bPREC\.?\s*UNIT\.?\s*[:\-]?\s*\$?\s*(\d+[.,]\d{2,4})/i,
+    /\bPU\s*[:\-]?\s*(\d+[.,]\d{2,4})\b/i,
   ];
   for (const re of patterns) {
     const m = text.match(re);
@@ -176,6 +203,7 @@ function findFuelType(text, fuelTypes) {
   // Sinónimos frecuentes en tickets que no coinciden textualmente con el nombre cargado
   const synonyms = [
     { re: /INFINIA\s*DIESEL/i, match: (t) => /INFINIA.*DIESEL/i.test(t.name) },
+    { re: /\bINF\.?\s*DIE\.?\b/i, match: (t) => /INFINIA.*DIESEL/i.test(t.name) }, // "INF DIE" abreviado
     { re: /\bGNC\b/i, match: (t) => /GNC/i.test(t.name) },
     { re: /\bDIESEL\s*500\b|\bGASOIL\b/i, match: (t) => /DIESEL\s*500/i.test(t.name) },
     { re: /\bINFINIA\b/i, match: (t) => /^INFINIA$/i.test(t.name.trim()) },
@@ -206,7 +234,11 @@ function findTicketNumber(text) {
   const patterns = [
     /TICKET\s*N?[°ºO]?\.?\s*[:\-]?\s*([\d][\d\-]{3,})/i,
     /COMPROBANTE\s*N?[°ºO]?\.?\s*[:\-]?\s*([\d][\d\-]{3,})/i,
+    /REMITO\s*(?:"?X"?)?\s*N?[°ºO]?\.?\s*[:\-]?\s*([\d][\d\-]{3,})/i,
     /N[°ºO]\.?\s*[:\-]?\s*(\d{4,}-\d{4,})/,
+    // Sin etiqueta reconocible: el formato NNNNN-NNNNNNNN de remito/factura
+    // es lo bastante distintivo (no lo confunde con fechas ni precios).
+    /\b(\d{4,6}-\d{6,10})\b/,
   ];
   for (const re of patterns) {
     const m = text.match(re);
