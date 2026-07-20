@@ -8,6 +8,8 @@ requireAdmin();
 
 $method = getMethod();
 $db     = getDB();
+$id     = getId();
+$action = $_GET['action'] ?? '';
 
 // Normaliza lo que llega en 'permissions': null = acceso total, array = lista de módulos
 function normalizePermissions(mixed $value): ?string {
@@ -16,14 +18,38 @@ function normalizePermissions(mixed $value): ?string {
     return json_encode(array_values($value));
 }
 
+// Genera un PIN numérico de 6 dígitos único entre usuarios, para el acceso
+// restringido "Carga con Foto" desde el celular. Reintenta ante una
+// colisión (muy improbable).
+function generarPinUsuario(PDO $db): string {
+    $check = $db->prepare('SELECT COUNT(*) FROM users WHERE pin = ?');
+    for ($i = 0; $i < 20; $i++) {
+        $pin = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $check->execute([$pin]);
+        if ((int)$check->fetchColumn() === 0) return $pin;
+    }
+    jsonError('No se pudo generar un PIN único, reintentá', 500);
+}
+
 if ($method === 'GET') {
-    $stmt = $db->query('SELECT id, username, role, permissions, active, created_at FROM users ORDER BY username');
+    $stmt = $db->query('SELECT id, username, role, permissions, pin, active, created_at FROM users ORDER BY username');
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($rows as &$row) {
         $row['permissions'] = $row['permissions'] !== null ? json_decode($row['permissions'], true) : null;
     }
     unset($row);
     jsonResponse($rows);
+}
+
+if ($method === 'PUT' && $id && $action === 'regenerar_pin') {
+    $pin = generarPinUsuario($db);
+    $db->prepare('UPDATE users SET pin = ? WHERE id = ?')->execute([$pin, $id]);
+    jsonResponse(['pin' => $pin]);
+}
+
+if ($method === 'PUT' && $id && $action === 'quitar_pin') {
+    $db->prepare('UPDATE users SET pin = NULL WHERE id = ?')->execute([$id]);
+    jsonResponse(['ok' => true]);
 }
 
 if ($method === 'POST') {
@@ -43,7 +69,6 @@ if ($method === 'POST') {
 }
 
 if ($method === 'PUT') {
-    $id   = getId();
     $body = getBody();
     if (!$id) jsonError('ID requerido');
 

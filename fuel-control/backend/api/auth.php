@@ -6,6 +6,35 @@ setCorsHeaders();
 handleOptions();
 
 $method = getMethod();
+$action = $_GET['action'] ?? '';
+
+// Login con PIN corto (acceso restringido "Carga con Foto" desde el
+// celular): siempre devuelve un token limitado a ese único módulo, sin
+// importar el rol o los permisos normales del usuario dueño del PIN.
+if ($method === 'POST' && $action === 'mobile_login') {
+    $body = getBody();
+    $pin  = trim((string)($body['pin'] ?? ''));
+    if ($pin === '') jsonError('Debe indicar el PIN');
+
+    $db   = getDB();
+    $stmt = $db->prepare('SELECT id, username FROM users WHERE pin = ? AND active = 1');
+    $stmt->execute([$pin]);
+    $user = $stmt->fetch();
+    if (!$user) jsonError('PIN inválido', 401);
+
+    $payload = [
+        'sub'         => $user['id'],
+        'username'    => $user['username'],
+        'role'        => 'operator',
+        'permissions' => ['fueling-photo'],
+        'exp'         => time() + JWT_EXPIRY,
+    ];
+
+    jsonResponse([
+        'token' => jwtEncode($payload, JWT_SECRET),
+        'user'  => ['id' => $user['id'], 'username' => $user['username'], 'role' => 'operator', 'permissions' => ['fueling-photo']],
+    ]);
+}
 
 if ($method === 'POST') {
     $body     = getBody();

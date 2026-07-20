@@ -38,6 +38,16 @@ export default function Users() {
     });
   };
 
+  const generarPin = async (id) => {
+    const r = await axios.put(`/fuel-control/backend/api/users.php?id=${id}&action=regenerar_pin`);
+    setUsers(us => us.map(u => u.id === id ? { ...u, pin: r.data.pin } : u));
+  };
+
+  const quitarPin = async (id) => {
+    await axios.put(`/fuel-control/backend/api/users.php?id=${id}&action=quitar_pin`);
+    setUsers(us => us.map(u => u.id === id ? { ...u, pin: null } : u));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -152,7 +162,7 @@ export default function Users() {
         <div className="table-wrapper">
           <table className="table">
             <thead>
-              <tr><th>Usuario</th><th>Rol</th><th>Acceso</th><th>Estado</th><th></th></tr>
+              <tr><th>Usuario</th><th>Rol</th><th>Acceso</th><th>Estado</th><th>PIN Carga con Foto 📷</th><th></th></tr>
             </thead>
             <tbody>
               {users.map(u => (
@@ -165,6 +175,16 @@ export default function Users() {
                       : <span style={{ color: 'var(--gray-500)', fontSize: '.85rem' }}>{u.permissions.length} módulo{u.permissions.length === 1 ? '' : 's'}</span>}
                   </td>
                   <td><span className={`badge ${u.active ? 'badge-green' : 'badge-red'}`}>{u.active ? 'Activo' : 'Inactivo'}</span></td>
+                  <td>
+                    {u.pin ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <code style={{ fontSize: '.95rem', letterSpacing: 1 }}>{u.pin}</code>
+                        <button className="btn btn-ghost btn-sm" title="Quitar acceso móvil" onClick={() => quitarPin(u.id)}>Quitar</button>
+                      </span>
+                    ) : (
+                      <button className="btn btn-ghost btn-sm" onClick={() => generarPin(u.id)}>Generar PIN</button>
+                    )}
+                  </td>
                   <td><button className="btn btn-ghost btn-sm" onClick={() => openEdit(u)}>Editar</button></td>
                 </tr>
               ))}

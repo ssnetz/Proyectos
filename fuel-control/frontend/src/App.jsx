@@ -5,6 +5,8 @@ import { MODULES, canAccess } from './config/modules';
 import Dashboard  from './pages/Dashboard';
 import Fueling    from './pages/Fueling';
 import FuelingPhoto from './pages/FuelingPhoto';
+import MobilePinLogin from './pages/MobilePinLogin';
+import MobileCarga    from './pages/MobileCarga';
 import Vehicles   from './pages/Vehicles';
 import FuelPrices from './pages/FuelPrices';
 import Users      from './pages/Users';
@@ -171,8 +173,10 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/login" element={<LoginGuard />} />
-        <Route path="/*"     element={<AppLayout />} />
+        <Route path="/login"       element={<LoginGuard />} />
+        <Route path="/movil"       element={<MobilePinLogin />} />
+        <Route path="/movil/carga" element={<MobileCarga />} />
+        <Route path="/*"           element={<AppLayout />} />
       </Routes>
     </AuthProvider>
   );
