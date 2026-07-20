@@ -3,6 +3,7 @@
 // y Usuarios ya está controlado por el rol admin.
 export const MODULES = [
   { key: 'fueling',         icon: '⛽',  label: 'Cargas' },
+  { key: 'fueling-photo',   icon: '📷',  label: 'Carga con Foto' },
   { key: 'vehicles',        icon: '🚛',  label: 'Vehículos' },
   { key: 'fuel-prices',     icon: '💲',  label: 'Precios' },
   { key: 'suppliers',       icon: '🏪',  label: 'Proveedores' },

@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { MODULES, canAccess } from './config/modules';
 import Dashboard  from './pages/Dashboard';
 import Fueling    from './pages/Fueling';
+import FuelingPhoto from './pages/FuelingPhoto';
 import Vehicles   from './pages/Vehicles';
 import FuelPrices from './pages/FuelPrices';
 import Users      from './pages/Users';
@@ -59,6 +61,7 @@ function SidebarUser() {
 const pageTitles = {
   '/':            'Dashboard',
   '/fueling':     'Cargas de Combustible',
+  '/fueling-photo': 'Carga con Foto',
   '/vehicles':    'Vehículos y Maquinaria',
   '/fuel-prices': 'Precios de Combustible',
   '/users':       'Usuarios',
@@ -83,6 +86,9 @@ function AppLayout() {
   const { user }     = useAuth();
   const title   = pageTitles[pathname] ?? 'Control de Combustible';
   const isAdmin = user?.role === 'admin';
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   const navItems = [
     { to: '/', icon: '📊', label: 'Dashboard' },
@@ -94,7 +100,8 @@ function AppLayout() {
 
   return (
     <div className="layout">
-      <aside className="sidebar">
+      {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+      <aside className={`sidebar${sidebarOpen ? ' sidebar-open' : ''}`}>
         <div className="sidebar-logo">
           <span>⛽</span> Combustible
         </div>
@@ -120,6 +127,9 @@ function AppLayout() {
 
       <div className="main">
         <header className="topbar">
+          <button className="btn btn-ghost btn-icon sidebar-toggle" onClick={() => setSidebarOpen(o => !o)} aria-label="Menú">
+            ☰
+          </button>
           <img
             src="/fuel-control/logo.png"
             alt="Municipalidad de Cosquín"
@@ -132,6 +142,7 @@ function AppLayout() {
           <Routes>
             <Route path="/"         element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/fueling"  element={<ProtectedRoute moduleKey="fueling"><Fueling /></ProtectedRoute>} />
+            <Route path="/fueling-photo" element={<ProtectedRoute moduleKey="fueling-photo"><FuelingPhoto /></ProtectedRoute>} />
             <Route path="/vehicles"    element={<ProtectedRoute moduleKey="vehicles"><Vehicles /></ProtectedRoute>} />
             <Route path="/fuel-prices" element={<ProtectedRoute moduleKey="fuel-prices"><FuelPrices /></ProtectedRoute>} />
             <Route path="/users"       element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
