@@ -4,6 +4,11 @@ define('DB_NAME', 'mundial2026');
 define('DB_USER', 'mundial_user');
 define('DB_PASS', '');
 
+// Clave compartida para las acciones de carga (cargar resultado, registrar
+// gol) en resultados.php, fixture.php y goleadores.php. Cambiar acá mismo,
+// nunca en el repo (este archivo no se sube con el valor real, ver deploy.sh).
+define('APP_PASSWORD', 'Luca1212');
+
 function getDB(): PDO {
     static $pdo = null;
     if ($pdo === null) {

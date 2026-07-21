@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/_auth.php';
 
 try {
     $pdo = getDB();
@@ -7,11 +8,15 @@ try {
     die('<p class="error">Error de conexión: ' . htmlspecialchars($e->getMessage()) . '</p>');
 }
 
-$mensaje = '';
-$error   = '';
+$mensaje    = '';
+$error      = '';
+$errorClave = procesarLoginClave();
 
 // Registrar un gol
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'registrar_gol') {
+    if (!estaAutorizado()) {
+        $error = 'Necesitás ingresar la clave para registrar goles.';
+    } else {
     $id_partido  = filter_input(INPUT_POST, 'id_partido',  FILTER_VALIDATE_INT);
     $id_jugador  = filter_input(INPUT_POST, 'id_jugador',  FILTER_VALIDATE_INT);
     $minuto      = filter_input(INPUT_POST, 'minuto',      FILTER_VALIDATE_INT);
@@ -33,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
         ");
         $stmt->execute([':ip' => $id_partido, ':ij' => $id_jugador, ':min' => $minuto, ':tipo' => $tipo]);
         $mensaje = 'Gol registrado correctamente.';
+    }
     }
 }
 
@@ -162,6 +168,9 @@ $jugadores = $pdo->query("
     </table>
     <?php endif; ?>
 
+    <?php if (!estaAutorizado()): ?>
+        <?php formularioClave($errorClave); ?>
+    <?php else: ?>
     <div class="form-card">
         <h3>Registrar gol</h3>
         <form method="post">
@@ -197,6 +206,7 @@ $jugadores = $pdo->query("
             <button type="submit" class="btn">Registrar gol</button>
         </form>
     </div>
+    <?php endif; ?>
 </main>
 
 <footer>Mundial FIFA 2026 &mdash; Desarrollado por 6to Año D de Informática &mdash; Escuela Presidente Sarmiento</footer>

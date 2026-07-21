@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/_auth.php';
 
 try {
     $pdo = getDB();
@@ -7,11 +8,15 @@ try {
     die('<p class="error">Error de conexión: ' . htmlspecialchars($e->getMessage()) . '</p>');
 }
 
-$mensaje = '';
-$error   = '';
+$mensaje    = '';
+$error      = '';
+$errorClave = procesarLoginClave();
 
 // Procesar formulario de carga de resultado
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'cargar_resultado') {
+    if (!estaAutorizado()) {
+        $error = 'Necesitás ingresar la clave para cargar resultados.';
+    } else {
     $id_partido       = filter_input(INPUT_POST, 'id_partido',       FILTER_VALIDATE_INT);
     $goles_local      = filter_input(INPUT_POST, 'goles_local',      FILTER_VALIDATE_INT);
     $goles_visitante  = filter_input(INPUT_POST, 'goles_visitante',  FILTER_VALIDATE_INT);
@@ -47,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
         } else {
             $error = 'No se encontró el partido con ese ID.';
         }
+    }
     }
 }
 
@@ -213,6 +219,9 @@ $pendientes = $pdo->query("
     </table>
     <?php endif; ?>
 
+    <?php if (!estaAutorizado()): ?>
+        <?php formularioClave($errorClave); ?>
+    <?php else: ?>
     <div class="form-card">
         <h3>Cargar resultado de partido</h3>
         <?php if (empty($pendientes)): ?>
@@ -259,6 +268,7 @@ $pendientes = $pdo->query("
         </form>
         <?php endif; ?>
     </div>
+    <?php endif; ?>
 </main>
 
 <footer>Mundial FIFA 2026 &mdash; Desarrollado por 6to Año D de Informática &mdash; Escuela Presidente Sarmiento</footer>
