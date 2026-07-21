@@ -382,6 +382,29 @@ const PRINT_FNS = {
   by_supplier:     printBySupplier,
 };
 
+// Lista de N° de ticket en pantalla: si hay más de uno, muestra el primero
+// y un "+N" que expande el resto al hacer clic (en la impresión van todos
+// juntos separados por coma, sin necesidad de expandir).
+function TicketList({ value }) {
+  const [expanded, setExpanded] = useState(false);
+  const tickets = (value || '').split(', ').filter(Boolean);
+  if (tickets.length === 0) return '—';
+  if (tickets.length === 1) return tickets[0];
+  return expanded ? (
+    <span>
+      {tickets.join(', ')}{' '}
+      <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '1px 6px', fontSize: '.75em' }}
+        onClick={() => setExpanded(false)}>−</button>
+    </span>
+  ) : (
+    <span>
+      {tickets[0]}{' '}
+      <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '1px 6px', fontSize: '.75em' }}
+        onClick={() => setExpanded(true)}>+{tickets.length - 1}</button>
+    </span>
+  );
+}
+
 /* ── Preview components ─────────────────────────────── */
 function PreviewFuelByVehicle({ data }) {
   const totLit  = data.reduce((a, r) => a + +r.total_litros, 0);
@@ -396,7 +419,7 @@ function PreviewFuelByVehicle({ data }) {
               <td style={{color:'var(--gray-400)',fontSize:'.8em'}}>{i+1}</td>
               <td><strong>{r.name}</strong></td>
               <td>{r.plate}</td>
-              <td>{r.numeros_ticket || '—'}</td>
+              <td><TicketList value={r.numeros_ticket} /></td>
               <td>{r.tipos_combustible || '—'}</td>
               <td style={{textAlign:'right'}}>{fmt(r.num_cargas)}</td>
               <td style={{textAlign:'right'}}>{fmt(r.total_litros,1)} L</td>
