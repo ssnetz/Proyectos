@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/_auth.php';
 
 try {
     $pdo = getDB();
@@ -7,11 +8,15 @@ try {
     die('<p class="error">Error de conexión: ' . htmlspecialchars($e->getMessage()) . '</p>');
 }
 
-$mensaje = '';
-$error   = '';
+$mensaje    = '';
+$error      = '';
+$errorClave = procesarLoginClave();
 
 // Guardar resultado desde formulario inline
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'guardar') {
+    if (!estaAutorizado()) {
+        $error = 'Necesitás ingresar la clave para cargar resultados.';
+    } else {
     $id  = filter_input(INPUT_POST, 'id_partido',      FILTER_VALIDATE_INT);
     $gl  = filter_input(INPUT_POST, 'goles_local',     FILTER_VALIDATE_INT);
     $gv  = filter_input(INPUT_POST, 'goles_visitante', FILTER_VALIDATE_INT);
@@ -29,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
         $mensaje = 'Resultado guardado correctamente.';
     } else {
         $error = 'Datos inválidos. Verificá los goles ingresados.';
+    }
     }
 }
 
@@ -162,6 +168,10 @@ $estado_colores = [
         <div class="alerta err"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
+    <?php if (!estaAutorizado()): ?>
+        <?php formularioClave($errorClave); ?>
+    <?php endif; ?>
+
     <div class="grupo-tabs">
         <a href="fixture.php" class="<?= $grupo_sel === '' ? 'activo' : '' ?>">Todos</a>
         <?php foreach ($grupos as $g): ?>
@@ -200,7 +210,7 @@ $estado_colores = [
                             <?php if ($p['fue_penales']): ?><span class="badge">Pen.</span><?php endif; ?>
                             <?php if ($p['fue_prorroga'] && !$p['fue_penales']): ?><span class="badge">Pr.</span><?php endif; ?>
                         </div>
-                    <?php else: ?>
+                    <?php elseif (estaAutorizado()): ?>
                         <form method="post" class="form-inline">
                             <input type="hidden" name="accion" value="guardar">
                             <input type="hidden" name="id_partido" value="<?= $p['id_partido'] ?>">
@@ -213,6 +223,8 @@ $estado_colores = [
                             </div>
                             <button type="submit">Guardar</button>
                         </form>
+                    <?php else: ?>
+                        <span class="badge">Pendiente</span>
                     <?php endif; ?>
                 </td>
                 <td class="equipo"><?= htmlspecialchars($p['visitante']) ?></td>
