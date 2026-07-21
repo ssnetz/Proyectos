@@ -3,6 +3,14 @@ import axios from 'axios';
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
+// Proveedor por defecto al abrir una carga nueva (normaliza acentos/mayúsculas
+// para no depender de cómo esté escrito exactamente "Yaguareté" en la lista).
+function defaultSupplierName(suppliers) {
+  const normalizado = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const yaguarete = suppliers.find(s => normalizado(s.name).includes('yaguarete'));
+  return yaguarete ? yaguarete.name : '';
+}
+
 const emptyForm = {
   vehicle_id: '', liters: '', km_recorridos: '', price_per_liter: '',
   fuel_type: '', station: '', notes: '', ticket_number: '',
@@ -135,7 +143,12 @@ export default function Fueling() {
   const openNew = () => {
     setEditing(null);
     const defaultType = fuelTypes.length > 0 ? fuelTypes[0].name : '';
-    setForm({ ...emptyForm, fuel_type: defaultType, price_per_liter: fuelPrices[defaultType] ?? '' });
+    setForm({
+      ...emptyForm,
+      fuel_type:       defaultType,
+      price_per_liter: fuelPrices[defaultType] ?? '',
+      station:         defaultSupplierName(suppliers),
+    });
     setVehicleSearch('');
     setError('');
     setShowForm(true);
