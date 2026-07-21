@@ -9,6 +9,25 @@ $user = requireAuth();
 $method = getMethod();
 $db     = getDB();
 
+// Busca si ese N° de ticket ya está cargado en otra fila (excluye $excludeId
+// al editar, para no chocar contra el propio registro).
+function buscarTicketDuplicado(PDO $db, string $ticketNumber, ?int $excludeId = null): ?array {
+    $sql = 'SELECT f.id, f.fueled_at, v.name AS vehicle_name, v.plate
+            FROM fueling f JOIN vehicles v ON v.id = f.vehicle_id
+            WHERE f.ticket_number = ?';
+    $params = [$ticketNumber];
+    if ($excludeId) { $sql .= ' AND f.id != ?'; $params[] = $excludeId; }
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+function mensajeTicketDuplicado(array $dup): string {
+    $fecha = date('d/m/Y', strtotime($dup['fueled_at']));
+    return "Ese N° de ticket ya está cargado: carga #{$dup['id']} — {$dup['vehicle_name']} ({$dup['plate']}), {$fecha}";
+}
+
 if ($method === 'GET') {
     $id         = getId();
     $vehicle_id = isset($_GET['vehicle_id']) ? (int)$_GET['vehicle_id'] : null;
@@ -68,6 +87,11 @@ if ($method === 'POST') {
 
     if (!$vehicle_id || $liters <= 0) jsonError('Vehículo y litros son requeridos');
 
+    if ($ticket_number !== '') {
+        $dup = buscarTicketDuplicado($db, $ticket_number);
+        if ($dup) jsonError(mensajeTicketDuplicado($dup), 409);
+    }
+
     $total_cost = ($price_per_l && $liters) ? round($price_per_l * $liters, 2) : null;
 
     $stmt = $db->prepare('
@@ -98,6 +122,11 @@ if ($method === 'PUT') {
     $total_cost    = ($price_per_l && $liters) ? round($price_per_l * $liters, 2) : null;
 
     if (!$vehicle_id || $liters <= 0) jsonError('Vehículo y litros son requeridos');
+
+    if ($ticket_number !== '') {
+        $dup = buscarTicketDuplicado($db, $ticket_number, $id);
+        if ($dup) jsonError(mensajeTicketDuplicado($dup), 409);
+    }
 
     $stmt = $db->prepare('
         UPDATE fueling SET vehicle_id=?, liters=?, km_recorridos=?, price_per_liter=?,
