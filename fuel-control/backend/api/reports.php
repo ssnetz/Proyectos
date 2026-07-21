@@ -44,7 +44,8 @@ if ($type === 'fuel_by_vehicle') {
                AVG(f.price_per_liter) AS prom_precio,
                v.tank_capacity,
                v.km_per_liter,
-               GROUP_CONCAT(DISTINCT f.fuel_type ORDER BY f.fuel_type SEPARATOR ', ') AS tipos_combustible
+               GROUP_CONCAT(DISTINCT f.fuel_type ORDER BY f.fuel_type SEPARATOR ', ') AS tipos_combustible,
+               GROUP_CONCAT(DISTINCT NULLIF(f.ticket_number, '') ORDER BY f.fueled_at SEPARATOR ', ') AS numeros_ticket
         FROM fueling f
         JOIN vehicles v ON v.id = f.vehicle_id
         WHERE f.fueled_at BETWEEN :from AND :to" . ($areaId ? " AND v.area_id = :area_id" : "") . ($fuelType ? " AND f.fuel_type = :fuel_type" : "") . "

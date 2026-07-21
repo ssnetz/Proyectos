@@ -171,7 +171,7 @@ function printFuelByVehicle(data, from, to, minDate, maxDate) {
       <td>${i + 1}</td>
       <td><strong>${r.name}</strong></td>
       <td>${r.plate}</td>
-      <td><span class="badge badge-blue">${r.type}</span></td>
+      <td>${r.numeros_ticket || '—'}</td>
       <td>${r.tipos_combustible || '—'}</td>
       <td class="num">${fmt(r.num_cargas)}</td>
       <td class="num">${fmt(r.total_litros, 1)} L</td>
@@ -186,7 +186,7 @@ function printFuelByVehicle(data, from, to, minDate, maxDate) {
     { label: 'Costo total', value: fmtPeso(totCost) },
   ], minDate, maxDate) + `
     <table>
-      <thead><tr><th>#</th><th>Vehículo</th><th>Patente</th><th>Tipo</th><th>Combustible</th><th class="num">Cargas</th><th class="num">Total Litros</th><th class="num">Prom/Carga</th><th class="num">Costo Total</th><th class="num">Precio/L</th></tr></thead>
+      <thead><tr><th>#</th><th>Vehículo</th><th>Patente</th><th>N° de Ticket</th><th>Combustible</th><th class="num">Cargas</th><th class="num">Total Litros</th><th class="num">Prom/Carga</th><th class="num">Costo Total</th><th class="num">Precio/L</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr><td colspan="5">TOTAL</td><td class="num">${fmt(totCar)}</td><td class="num">${fmt(totLit, 1)} L</td><td class="num">—</td><td class="num">${fmtPeso(totCost)}</td><td></td></tr></tfoot>
     </table>` + buildFooter();
@@ -389,14 +389,14 @@ function PreviewFuelByVehicle({ data }) {
   return (
     <div className="table-wrapper">
       <table className="table">
-        <thead><tr><th>#</th><th>Vehículo</th><th>Patente</th><th>Tipo</th><th>Combustible</th><th style={{textAlign:'right'}}>Cargas</th><th style={{textAlign:'right'}}>Litros</th><th style={{textAlign:'right'}}>Costo Total</th><th style={{textAlign:'right'}}>Prom/Carga</th></tr></thead>
+        <thead><tr><th>#</th><th>Vehículo</th><th>Patente</th><th>N° de Ticket</th><th>Combustible</th><th style={{textAlign:'right'}}>Cargas</th><th style={{textAlign:'right'}}>Litros</th><th style={{textAlign:'right'}}>Costo Total</th><th style={{textAlign:'right'}}>Prom/Carga</th></tr></thead>
         <tbody>
           {data.map((r, i) => (
             <tr key={r.id}>
               <td style={{color:'var(--gray-400)',fontSize:'.8em'}}>{i+1}</td>
               <td><strong>{r.name}</strong></td>
               <td>{r.plate}</td>
-              <td><span className="badge badge-gray">{r.type}</span></td>
+              <td>{r.numeros_ticket || '—'}</td>
               <td>{r.tipos_combustible || '—'}</td>
               <td style={{textAlign:'right'}}>{fmt(r.num_cargas)}</td>
               <td style={{textAlign:'right'}}>{fmt(r.total_litros,1)} L</td>
