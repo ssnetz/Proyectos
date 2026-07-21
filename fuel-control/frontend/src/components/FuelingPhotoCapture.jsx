@@ -9,6 +9,15 @@ const emptyForm = {
 
 const API = '/fuel-control/backend/api';
 
+// Proveedor por defecto cuando el OCR no reconoció ninguno en el ticket
+// (normaliza acentos/mayúsculas para no depender de cómo esté escrito
+// exactamente "Yaguareté" en la lista de proveedores).
+function defaultSupplierName(suppliers) {
+  const normalizado = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const yaguarete = suppliers.find(s => normalizado(s.name).includes('yaguarete'));
+  return yaguarete ? yaguarete.name : '';
+}
+
 // Flujo de "sacar foto al ticket y prellenar la carga", usado tanto por la
 // página de escritorio (dentro del layout con sidebar) como por el acceso
 // móvil restringido con PIN (pantalla standalone). El cliente HTTP se
@@ -87,7 +96,7 @@ export default function FuelingPhotoCapture({ api }) {
         km_recorridos:   '',
         price_per_liter: parsed.price_per_liter ?? (fuelPrices[defaultType] ?? ''),
         fuel_type:       defaultType,
-        station:         parsed.station || '',
+        station:         parsed.station || defaultSupplierName(suppliers),
         notes:           '',
         ticket_number:   parsed.ticket_number || '',
         fueled_at:       parsed.fueled_at || new Date().toISOString().slice(0, 16),
