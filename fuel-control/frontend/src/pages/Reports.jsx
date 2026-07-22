@@ -174,21 +174,21 @@ function printFuelByVehicle(data, from, to, minDate, maxDate) {
       <td>${r.numeros_ticket || '—'}</td>
       <td>${r.tipos_combustible || '—'}</td>
       <td class="num">${fmt(r.num_cargas)}</td>
-      <td class="num">${fmt(r.total_litros, 1)} L</td>
-      <td class="num">${fmt(r.prom_litros, 1)} L</td>
+      <td class="num">${fmt(r.total_litros, 2)} L</td>
+      <td class="num">${fmt(r.prom_litros, 2)} L</td>
       <td class="num">${fmtPeso(r.total_costo)}</td>
       <td class="num">${r.prom_precio ? '$' + fmt(r.prom_precio, 0) + '/L' : '—'}</td>
     </tr>`).join('');
   const html = buildHeader('Cargas de Combustible por Vehículo', from, to, [
     { label: 'Vehículos', value: data.length },
     { label: 'Total cargas', value: fmt(totCar) },
-    { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
+    { label: 'Total litros', value: fmt(totLit, 2) + ' L' },
     { label: 'Costo total', value: fmtPeso(totCost) },
   ], minDate, maxDate) + `
     <table>
       <thead><tr><th>#</th><th>Vehículo</th><th>Patente</th><th>N° de Ticket</th><th>Combustible</th><th class="num">Cargas</th><th class="num">Total Litros</th><th class="num">Prom/Carga</th><th class="num">Costo Total</th><th class="num">Precio/L</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td colspan="5">TOTAL</td><td class="num">${fmt(totCar)}</td><td class="num">${fmt(totLit, 1)} L</td><td class="num">—</td><td class="num">${fmtPeso(totCost)}</td><td></td></tr></tfoot>
+      <tfoot><tr><td colspan="5">TOTAL</td><td class="num">${fmt(totCar)}</td><td class="num">${fmt(totLit, 2)} L</td><td class="num">—</td><td class="num">${fmtPeso(totCost)}</td><td></td></tr></tfoot>
     </table>` + buildFooter();
   openPrintWindow(html);
 }
@@ -233,7 +233,7 @@ function printEfficiency(data, from, to, minDate, maxDate) {
       <td class="num">${r.km_l_teorico ? fmt(r.km_l_teorico, 2) : '—'}</td>
       <td class="num">${r.km_l_real ? fmt(r.km_l_real, 2) : '—'} ${badge}</td>
       <td class="num">${fmt(r.total_km, 0)} km</td>
-      <td class="num">${fmt(r.total_litros, 1)} L</td>
+      <td class="num">${fmt(r.total_litros, 2)} L</td>
       <td class="num">${r.costo_x_km ? '$' + fmt(r.costo_x_km, 0) + '/km' : '—'}</td>
     </tr>`;
   }).join('');
@@ -255,13 +255,13 @@ function printMonthlySummary(data, from, to, minDate, maxDate) {
     const [mName, yr] = r.mes_label.split(' ');
     const label = (MONTHS_ES[mName] || mName) + ' ' + yr;
     const detalle = (r.desglose_combustible || []).map(d =>
-      `<strong>${d.fuel_type}</strong>: ${fmt(d.total_litros, 1)} L${d.prom_precio ? ' ($' + fmt(d.prom_precio, 0) + '/L)' : ''} — ${fmtPeso(d.total_costo)}`
+      `<strong>${d.fuel_type}</strong>: ${fmt(d.total_litros, 2)} L${d.prom_precio ? ' ($' + fmt(d.prom_precio, 0) + '/L)' : ''} — ${fmtPeso(d.total_costo)}`
     ).join('&nbsp;&nbsp;|&nbsp;&nbsp;');
     return `<tr>
       <td><strong>${label}</strong></td>
       <td class="num">${fmt(r.num_cargas)}</td>
       <td class="num">${fmt(r.vehiculos)}</td>
-      <td class="num">${fmt(r.total_litros, 1)} L</td>
+      <td class="num">${fmt(r.total_litros, 2)} L</td>
       <td class="num">${r.total_km ? fmt(r.total_km, 0) + ' km' : '—'}</td>
       <td class="num">${fmtPeso(r.total_costo)}</td>
       <td class="num">${r.prom_precio ? '$' + fmt(r.prom_precio, 0) + '/L' : '—'}</td>
@@ -269,14 +269,14 @@ function printMonthlySummary(data, from, to, minDate, maxDate) {
   }).join('');
   const html = buildHeader('Resumen Mensual de Combustible', from, to, [
     { label: 'Meses', value: data.length },
-    { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
+    { label: 'Total litros', value: fmt(totLit, 2) + ' L' },
     { label: 'Total km', value: fmt(totKm, 0) + ' km' },
     { label: 'Costo total', value: fmtPeso(totCost) },
   ], minDate, maxDate) + `
     <table>
       <thead><tr><th>Mes</th><th class="num">Cargas</th><th class="num">Vehículos</th><th class="num">Total Litros</th><th class="num">Total Km</th><th class="num">Costo Total</th><th class="num">Precio Prom/L</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td>TOTAL</td><td class="num">${fmt(data.reduce((a,r)=>a+ +r.num_cargas,0))}</td><td></td><td class="num">${fmt(totLit,1)} L</td><td class="num">${fmt(totKm,0)} km</td><td class="num">${fmtPeso(totCost)}</td><td></td></tr></tfoot>
+      <tfoot><tr><td>TOTAL</td><td class="num">${fmt(data.reduce((a,r)=>a+ +r.num_cargas,0))}</td><td></td><td class="num">${fmt(totLit, 2)} L</td><td class="num">${fmt(totKm,0)} km</td><td class="num">${fmtPeso(totCost)}</td><td></td></tr></tfoot>
     </table>` + buildFooter();
   openPrintWindow(html);
 }
@@ -289,7 +289,7 @@ function printMonthlyComparison(data, from, to, minDate, maxDate) {
   const rows = data.map(r => `
     <tr>
       <td><strong>${monthLabel(r)}</strong></td>
-      <td class="num">${fmt(r.total_litros, 1)} L</td>
+      <td class="num">${fmt(r.total_litros, 2)} L</td>
       <td class="num">${fmtPeso(r.total_costo)}</td>
       <td class="num">${r.prom_precio ? '$' + fmt(r.prom_precio, 0) + '/L' : '—'}</td>
       <td class="num">${r.total_km ? fmt(r.total_km, 0) + ' km' : '—'}${(r.total_km_delta !== null && r.total_km_delta !== undefined) ? `<br>${deltaHtml(r.total_km_delta, r.total_km_pct, 0, ' km')}` : ''}</td>
@@ -309,7 +309,7 @@ function printMonthlyComparison(data, from, to, minDate, maxDate) {
   }).join('');
   const html = buildHeader('Comparativa Mensual de Combustible', from, to, [
     { label: 'Meses', value: data.length },
-    { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
+    { label: 'Total litros', value: fmt(totLit, 2) + ' L' },
     { label: 'Total km', value: fmt(totKm, 0) + ' km' },
     { label: 'Costo total', value: fmtPeso(totCost) },
   ], minDate, maxDate) + `
@@ -332,14 +332,14 @@ function printByFuelType(data, from, to, minDate, maxDate) {
       <td><strong>${r.fuel_type}</strong></td>
       <td class="num">${fmt(r.num_cargas)}</td>
       <td class="num">${fmt(r.vehiculos)}</td>
-      <td class="num">${fmt(r.total_litros, 1)} L</td>
+      <td class="num">${fmt(r.total_litros, 2)} L</td>
       <td class="num">${fmt((r.total_litros / totLit) * 100, 1)}%</td>
       <td class="num">${fmtPeso(r.total_costo)}</td>
       <td class="num">${r.prom_precio ? '$' + fmt(r.prom_precio, 0) + '/L' : '—'}</td>
     </tr>`).join('');
   const html = buildHeader('Consumo por Tipo de Combustible', from, to, [
     { label: 'Tipos', value: data.length },
-    { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
+    { label: 'Total litros', value: fmt(totLit, 2) + ' L' },
     { label: 'Costo total', value: fmtPeso(data.reduce((a,r)=>a+ +(r.total_costo||0),0)) },
   ], minDate, maxDate) + `
     <table>
@@ -356,13 +356,13 @@ function printBySupplier(data, from, to, minDate, maxDate) {
       <td><strong>${r.proveedor}</strong></td>
       <td class="num">${fmt(r.num_cargas)}</td>
       <td class="num">${fmt(r.vehiculos)}</td>
-      <td class="num">${fmt(r.total_litros, 1)} L</td>
+      <td class="num">${fmt(r.total_litros, 2)} L</td>
       <td class="num">${fmt((r.total_litros / totLit) * 100, 1)}%</td>
       <td class="num">${fmtPeso(r.total_costo)}</td>
     </tr>`).join('');
   const html = buildHeader('Cargas por Proveedor', from, to, [
     { label: 'Proveedores', value: data.length },
-    { label: 'Total litros', value: fmt(totLit, 1) + ' L' },
+    { label: 'Total litros', value: fmt(totLit, 2) + ' L' },
     { label: 'Costo total', value: fmtPeso(data.reduce((a,r)=>a+ +(r.total_costo||0),0)) },
   ], minDate, maxDate) + `
     <table>
@@ -422,16 +422,16 @@ function PreviewFuelByVehicle({ data }) {
               <td><TicketList value={r.numeros_ticket} /></td>
               <td>{r.tipos_combustible || '—'}</td>
               <td style={{textAlign:'right'}}>{fmt(r.num_cargas)}</td>
-              <td style={{textAlign:'right'}}>{fmt(r.total_litros,1)} L</td>
+              <td style={{textAlign:'right'}}>{fmt(r.total_litros, 2)} L</td>
               <td style={{textAlign:'right'}}>{fmtPeso(r.total_costo)}</td>
-              <td style={{textAlign:'right'}}>{fmt(r.prom_litros,1)} L</td>
+              <td style={{textAlign:'right'}}>{fmt(r.prom_litros, 2)} L</td>
             </tr>
           ))}
         </tbody>
         <tfoot><tr>
           <td colSpan={5}><strong>TOTAL</strong></td>
           <td style={{textAlign:'right'}}><strong>{fmt(data.reduce((a,r)=>a+ +r.num_cargas,0))}</strong></td>
-          <td style={{textAlign:'right'}}><strong>{fmt(totLit,1)} L</strong></td>
+          <td style={{textAlign:'right'}}><strong>{fmt(totLit, 2)} L</strong></td>
           <td style={{textAlign:'right'}}><strong>{fmtPeso(totCost)}</strong></td>
           <td></td>
         </tr></tfoot>
@@ -523,7 +523,7 @@ function PreviewMonthlySummary({ data }) {
                   <td><strong>{label}</strong></td>
                   <td style={{textAlign:'right'}}>{fmt(r.num_cargas)}</td>
                   <td style={{textAlign:'right'}}>{fmt(r.vehiculos)}</td>
-                  <td style={{textAlign:'right'}}>{fmt(r.total_litros,1)} L</td>
+                  <td style={{textAlign:'right'}}>{fmt(r.total_litros, 2)} L</td>
                   <td style={{textAlign:'right'}}>{r.total_km ? fmt(r.total_km,0)+' km' : '—'}</td>
                   <td style={{textAlign:'right'}}>{fmtPeso(r.total_costo)}</td>
                   <td style={{textAlign:'right'}}>{r.prom_precio ? '$'+fmt(r.prom_precio,0)+'/L' : '—'}</td>
@@ -546,7 +546,7 @@ function PreviewMonthlySummary({ data }) {
                           {detalle.map(d => (
                             <tr key={d.fuel_type}>
                               <td>{d.fuel_type}</td>
-                              <td style={{textAlign:'right'}}>{fmt(d.total_litros,1)} L</td>
+                              <td style={{textAlign:'right'}}>{fmt(d.total_litros, 2)} L</td>
                               <td style={{textAlign:'right'}}>{fmt((d.total_litros / r.total_litros) * 100, 1)}%</td>
                               <td style={{textAlign:'right'}}>{d.prom_precio ? '$'+fmt(d.prom_precio,0)+'/L' : '—'}</td>
                               <td style={{textAlign:'right'}}>{fmtPeso(d.total_costo)}</td>
@@ -608,7 +608,7 @@ function PreviewMonthlyComparison({ data }) {
             {data.map(r => (
               <tr key={r.mes}>
                 <td><strong>{monthLabel(r)}</strong></td>
-                <td style={{textAlign:'right'}}>{fmt(r.total_litros,1)} L</td>
+                <td style={{textAlign:'right'}}>{fmt(r.total_litros, 2)} L</td>
                 <td style={{textAlign:'right'}}>{fmtPeso(r.total_costo)}</td>
                 <td style={{textAlign:'right'}}>{r.prom_precio ? '$'+fmt(r.prom_precio,0)+'/L' : '—'}</td>
                 <td style={{textAlign:'right'}}>
@@ -771,7 +771,7 @@ export default function Reports() {
         { key:'km_l_teorico', label:'Km/L Teórico', right:true, render:r=>r.km_l_teorico ? fmt(r.km_l_teorico,2) : '—' },
         { key:'km_l_real', label:'Km/L Real', right:true, render:r=>r.km_l_real ? fmt(r.km_l_real,2) : '—' },
         { key:'total_km', label:'Total Km', right:true, render:r=>fmt(r.total_km,0)+' km' },
-        { key:'total_litros', label:'Total L', right:true, render:r=>fmt(r.total_litros,1)+' L' },
+        { key:'total_litros', label:'Total L', right:true, render:r=>fmt(r.total_litros, 2)+' L' },
         { key:'costo_x_km', label:'$/Km', right:true, render:r=>r.costo_x_km?fmtPeso(r.costo_x_km):'—' },
       ]} />
     );
@@ -784,7 +784,7 @@ export default function Reports() {
           { key:'fuel_type', label:'Tipo', render:r=><strong>{r.fuel_type}</strong> },
           { key:'num_cargas', label:'Cargas', right:true, render:r=>fmt(r.num_cargas) },
           { key:'vehiculos', label:'Vehículos', right:true, render:r=>fmt(r.vehiculos) },
-          { key:'total_litros', label:'Total Litros', right:true, render:r=>fmt(r.total_litros,1)+' L' },
+          { key:'total_litros', label:'Total Litros', right:true, render:r=>fmt(r.total_litros, 2)+' L' },
           { key:'pct', label:'% Total', right:true, render:r=>fmt((r.total_litros/totLit)*100,1)+'%' },
           { key:'total_costo', label:'Costo Total', right:true, render:r=>fmtPeso(r.total_costo) },
         ]} />
@@ -797,7 +797,7 @@ export default function Reports() {
           { key:'proveedor', label:'Proveedor', render:r=><strong>{r.proveedor}</strong> },
           { key:'num_cargas', label:'Cargas', right:true, render:r=>fmt(r.num_cargas) },
           { key:'vehiculos', label:'Vehículos', right:true, render:r=>fmt(r.vehiculos) },
-          { key:'total_litros', label:'Total Litros', right:true, render:r=>fmt(r.total_litros,1)+' L' },
+          { key:'total_litros', label:'Total Litros', right:true, render:r=>fmt(r.total_litros, 2)+' L' },
           { key:'pct', label:'% Total', right:true, render:r=>fmt((r.total_litros/totLit)*100,1)+'%' },
           { key:'total_costo', label:'Costo Total', right:true, render:r=>fmtPeso(r.total_costo) },
         ]} />
