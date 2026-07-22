@@ -43,6 +43,7 @@ if ($method === 'POST') {
     $userId   = (int)($authUser['sub'] ?? 0);
     $inserted = 0;
     $skipped  = 0;
+    $kmNuevosPorVehiculo = []; // vehicle_id => km, solo de días realmente nuevos (no reimportaciones)
 
     $vStmt = $db->query("SELECT id, plate FROM vehicles");
     $vehicleMap = [];
@@ -102,7 +103,19 @@ if ($method === 'POST') {
                 ':ubicacion_fin'    => $row['ubicacion_fin']    ?: null,
                 ':user_id'          => $userId,
             ]);
-            if ($ins->rowCount() > 0) $inserted++; else $skipped++;
+            // rowCount()===1 es un INSERT nuevo (día que no existía todavía);
+            // 2 es una fila que ya existía y se corrigió. Solo los días
+            // nuevos descuentan del nivel estimado, para no restar el
+            // consumo dos veces cuando se reimporta un reporte ya cargado.
+            $rc = $ins->rowCount();
+            if ($rc > 0) {
+                $inserted++;
+                if ($rc === 1 && $vehicleId && $km > 0) {
+                    $kmNuevosPorVehiculo[$vehicleId] = ($kmNuevosPorVehiculo[$vehicleId] ?? 0) + $km;
+                }
+            } else {
+                $skipped++;
+            }
         }
         $db->commit();
 
@@ -111,6 +124,10 @@ if ($method === 'POST') {
                    JOIN vehicles v ON UPPER(TRIM(v.plate)) = UPPER(TRIM(g.plate))
                    SET g.vehicle_id = v.id
                    WHERE g.vehicle_id IS NULL");
+
+        foreach ($kmNuevosPorVehiculo as $vehicleId => $km) {
+            ajustarNivelTanquePorKm($db, $vehicleId, $km);
+        }
 
         echo json_encode(['inserted' => $inserted, 'skipped' => $skipped]);
     } catch (Exception $e) {

@@ -781,7 +781,12 @@ export default function FuelOrders() {
                 <tr key={o.id}>
                   <td><strong>{String(o.id).padStart(5,'0')}</strong></td>
                   <td>{new Date(o.ordered_at).toLocaleString('es')}</td>
-                  <td><strong>{o.vehicle_name}</strong><br /><small>{o.plate}</small></td>
+                  <td>
+                    <strong>{o.vehicle_name}</strong><br /><small>{o.plate}</small>
+                    {Number(o.auto_generada) === 1 && (
+                      <div><span className="badge badge-purple" style={{ marginTop: 4 }} title="Generada sola cuando el nivel estimado del tanque bajó del 25%">🤖 Automática</span></div>
+                    )}
+                  </td>
                   <td><span className="badge badge-blue">{o.fuel_type}</span></td>
                   <td>{Number(o.liters_requested).toLocaleString('es', { minimumFractionDigits: 2 })} L</td>
                   <td>{o.driver_name}</td>

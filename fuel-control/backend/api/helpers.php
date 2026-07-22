@@ -113,6 +113,99 @@ function requireAdmin(): array {
     return $payload;
 }
 
+// Suma los km GPS importados entre la última carga de este vehículo (antes
+// de $fueledAt) y $fueledAt inclusive. Misma lógica que km_since_last_fuel.php,
+// para poder autocompletar km_recorridos al registrar una carga sin que el
+// usuario tenga que elegir los días de GPS a mano.
+function calcularKmDesdeUltimaCarga(PDO $db, int $vehicleId, string $fueledAt): ?float {
+    $untilDate = substr($fueledAt, 0, 10);
+
+    $stmt = $db->prepare(
+        'SELECT DATE(fueled_at) AS last_date FROM fueling
+         WHERE vehicle_id = ? AND DATE(fueled_at) < ?
+         ORDER BY fueled_at DESC LIMIT 1'
+    );
+    $stmt->execute([$vehicleId, $untilDate]);
+    $fromDate = $stmt->fetchColumn();
+
+    $sql = 'SELECT SUM(km_recorridos) FROM gps_daily_stats WHERE vehicle_id = ? AND import_date <= ?';
+    $params = [$vehicleId, $untilDate];
+    if ($fromDate) { $sql .= ' AND import_date > ?'; $params[] = $fromDate; }
+
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $total = $stmt->fetchColumn();
+    return $total !== null ? round((float)$total, 2) : null;
+}
+
+// ─── Nivel estimado de tanque (sin sensores reales) ────────────────────────
+//
+// Se calcula solo con lo que ya existe: sube con cada carga registrada
+// (ajustarNivelTanque, llamado desde fueling.php) y baja con los km GPS
+// importados (ajustarNivelTanquePorKm). No hay hardware de nivel de tanque: es una
+// estimación que arranca en "tanque lleno" la primera vez que se toca un
+// vehículo y se va ajustando con cada movimiento real.
+const TANK_LEVEL_THRESHOLD_PCT = 0.25; // 25% del tanque dispara la orden automática
+
+// Suma o resta $deltaLiters al nivel estimado del vehículo (clamp entre 0 y
+// tank_capacity) y, si corresponde, dispara la orden de carga automática.
+// No hace nada si el vehículo no tiene tank_capacity cargado (no hay con qué
+// calcular un %).
+function ajustarNivelTanque(PDO $db, int $vehicleId, float $deltaLiters): void {
+    $stmt = $db->prepare('SELECT tank_capacity, km_per_liter, fuel_level_liters FROM vehicles WHERE id = ?');
+    $stmt->execute([$vehicleId]);
+    $v = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$v || !$v['tank_capacity']) return;
+
+    $tankCapacity = (float)$v['tank_capacity'];
+    $nivelActual  = $v['fuel_level_liters'] !== null ? (float)$v['fuel_level_liters'] : $tankCapacity;
+    $nuevoNivel   = max(0, min($tankCapacity, $nivelActual + $deltaLiters));
+
+    $upd = $db->prepare('UPDATE vehicles SET fuel_level_liters = ?, fuel_level_updated_at = NOW() WHERE id = ?');
+    $upd->execute([$nuevoNivel, $vehicleId]);
+
+    if ($tankCapacity > 0 && ($nuevoNivel / $tankCapacity) <= TANK_LEVEL_THRESHOLD_PCT) {
+        generarOrdenAutomaticaSiNoExiste($db, $vehicleId, $nuevoNivel, $tankCapacity);
+    }
+}
+
+// Descuenta el consumo estimado por km recorridos (km / km_per_liter). No
+// hace nada si el vehículo no tiene km_per_liter cargado.
+function ajustarNivelTanquePorKm(PDO $db, int $vehicleId, float $km): void {
+    $stmt = $db->prepare('SELECT km_per_liter FROM vehicles WHERE id = ?');
+    $stmt->execute([$vehicleId]);
+    $kmPerLiter = (float)($stmt->fetchColumn() ?: 0);
+    if ($kmPerLiter <= 0) return;
+
+    ajustarNivelTanque($db, $vehicleId, -($km / $kmPerLiter));
+}
+
+function generarOrdenAutomaticaSiNoExiste(PDO $db, int $vehicleId, float $nivelActual, float $tankCapacity): void {
+    $existe = $db->prepare("SELECT id FROM fuel_orders WHERE vehicle_id = ? AND status = 'pendiente' LIMIT 1");
+    $existe->execute([$vehicleId]);
+    if ($existe->fetchColumn()) return; // ya hay una pendiente, no duplicar
+
+    $fuelType = $db->prepare('SELECT fuel_type FROM fueling WHERE vehicle_id = ? ORDER BY fueled_at DESC LIMIT 1');
+    $fuelType->execute([$vehicleId]);
+    $tipo = $fuelType->fetchColumn() ?: 'Diesel 500';
+
+    $adminId = (int)($db->query("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")->fetchColumn() ?: 0);
+    if (!$adminId) return; // no hay a quién atribuir la orden
+
+    $pct = round(($nivelActual / $tankCapacity) * 100, 1);
+    $litrosFaltantes = round($tankCapacity - $nivelActual, 2);
+
+    $ins = $db->prepare('
+        INSERT INTO fuel_orders (vehicle_id, user_id, fuel_type, liters_requested, driver_name, notes, auto_generada)
+        VALUES (?, ?, ?, ?, ?, ?, 1)
+    ');
+    $ins->execute([
+        $vehicleId, $adminId, $tipo, $litrosFaltantes,
+        'Sin asignar (orden automática)',
+        "Generada automáticamente: nivel estimado del tanque {$pct}%.",
+    ]);
+}
+
 // Filas agregadas por mes (litros, costo, precio prom, km) — usada por los
 // reportes mensuales de fuel-control y por la alerta automática del Dashboard.
 function monthlyAggregateRows(PDO $db, string $fromDt, string $toDt, string $fromG, string $toG, int $areaId): array {

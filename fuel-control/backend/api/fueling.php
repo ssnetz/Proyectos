@@ -87,6 +87,12 @@ if ($method === 'POST') {
 
     if (!$vehicle_id || $liters <= 0) jsonError('Vehículo y litros son requeridos');
 
+    // Si no se especificó km_recorridos a mano, se calcula solo con el GPS
+    // ya importado (mismos días que usaba el botón "GPS" manual).
+    if ($km_recorridos === null) {
+        $km_recorridos = calcularKmDesdeUltimaCarga($db, $vehicle_id, $fueled_at);
+    }
+
     if ($ticket_number !== '') {
         $dup = buscarTicketDuplicado($db, $ticket_number);
         if ($dup) jsonError(mensajeTicketDuplicado($dup), 409);
@@ -102,6 +108,7 @@ if ($method === 'POST') {
         $vehicle_id, $user['sub'], $liters, $km_recorridos, $price_per_l, $total_cost,
         $fuel_type, $station, $notes, $ticket_number, $fueled_at
     ]);
+    ajustarNivelTanque($db, $vehicle_id, $liters);
     jsonResponse(['id' => (int)$db->lastInsertId()], 201);
 }
 
