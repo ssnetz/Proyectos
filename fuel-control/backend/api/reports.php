@@ -313,29 +313,18 @@ if ($type === 'by_supplier') {
     jsonResponse(withMeta($db, $stmt->fetchAll(PDO::FETCH_ASSOC), 'fueling', 'fueled_at', $fromDt, $toDt, $areaId));
 }
 
-/* ── 7. Km desde última carga (auditoría GPS por vehículo) ──── */
-// Por vehículo: fecha y litros de la última carga, y km GPS acumulados desde
-// entonces (sin contar el día de esa última carga — misma convención que
-// calcularKmDesdeUltimaCarga en helpers.php), con el detalle día por día.
+/* ── 7. Km entre cargas (real) ───────────────────────────────── */
+// Solo tramos CERRADOS (una carga y la siguiente ya registrada): km GPS
+// estrictamente entre esas dos fechas (sin contar ninguno de los dos días)
+// dividido los litros cargados al abrir el tramo, para tener un km/L real
+// verificable. No incluye el tramo abierto actual (desde la última carga
+// hasta hoy) porque todavía no hay una carga que lo confirme.
 if ($type === 'km_desde_carga') {
-    $toG = $to ?: date('Y-m-d');
-
     $sqlV = "
-        SELECT v.id, v.name, v.plate, v.type, v.tank_capacity, v.km_per_liter,
-               lc.last_date, lc.last_liters
-        FROM vehicles v
-        LEFT JOIN (
-            SELECT f1.vehicle_id, f1.fueled_at AS last_date, f1.liters AS last_liters
-            FROM fueling f1
-            WHERE f1.id = (
-                SELECT f2.id FROM fueling f2
-                WHERE f2.vehicle_id = f1.vehicle_id
-                ORDER BY f2.fueled_at DESC, f2.id DESC
-                LIMIT 1
-            )
-        ) lc ON lc.vehicle_id = v.id
-        WHERE v.active = 1" . ($areaId ? " AND v.area_id = :area_id" : "") . "
-        ORDER BY v.name";
+        SELECT id, name, plate, type, km_per_liter
+        FROM vehicles
+        WHERE active = 1" . ($areaId ? " AND area_id = :area_id" : "") . "
+        ORDER BY name";
     $stmtV = $db->prepare($sqlV);
     $paramsV = [];
     if ($areaId) $paramsV[':area_id'] = $areaId;
@@ -346,13 +335,26 @@ if ($type === 'km_desde_carga') {
 
     $ids = array_column($vehicles, 'id');
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+    $stmtF = $db->prepare("
+        SELECT id, vehicle_id, fueled_at, liters
+        FROM fueling
+        WHERE vehicle_id IN ($placeholders)
+        ORDER BY vehicle_id, fueled_at, id
+    ");
+    $stmtF->execute($ids);
+    $fuelingsByVehicle = [];
+    foreach ($stmtF->fetchAll(PDO::FETCH_ASSOC) as $f) {
+        $fuelingsByVehicle[$f['vehicle_id']][] = $f;
+    }
+
     $stmtG = $db->prepare("
         SELECT vehicle_id, import_date, km_recorridos
         FROM gps_daily_stats
-        WHERE vehicle_id IN ($placeholders) AND import_date <= ?
+        WHERE vehicle_id IN ($placeholders)
         ORDER BY import_date
     ");
-    $stmtG->execute([...$ids, $toG]);
+    $stmtG->execute($ids);
     $gpsByVehicle = [];
     foreach ($stmtG->fetchAll(PDO::FETCH_ASSOC) as $g) {
         $gpsByVehicle[$g['vehicle_id']][] = $g;
@@ -360,38 +362,72 @@ if ($type === 'km_desde_carga') {
 
     $rows = [];
     foreach ($vehicles as $v) {
-        $lastDate = $v['last_date'] ? substr($v['last_date'], 0, 10) : null;
-        $dias = [];
-        $totalKm = 0.0;
-        foreach ($gpsByVehicle[$v['id']] ?? [] as $g) {
-            if ($lastDate && $g['import_date'] <= $lastDate) continue;
-            $dias[] = ['fecha' => $g['import_date'], 'km' => (float)$g['km_recorridos']];
-            $totalKm += (float)$g['km_recorridos'];
+        $fuelings = $fuelingsByVehicle[$v['id']] ?? [];
+        $gps      = $gpsByVehicle[$v['id']] ?? [];
+        $tramos   = [];
+
+        for ($i = 1; $i < count($fuelings); $i++) {
+            $prev     = $fuelings[$i - 1];
+            $next     = $fuelings[$i];
+            $fromDate = substr($prev['fueled_at'], 0, 10);
+            $toDate   = substr($next['fueled_at'], 0, 10);
+
+            // Filtro opcional de fechas: contra el día en que se cerró el tramo
+            if ($from && $toDate < $from) continue;
+            if ($to   && $toDate > $to)   continue;
+
+            $kmTramo = 0.0;
+            $diasGps = 0;
+            foreach ($gps as $g) {
+                if ($g['import_date'] > $fromDate && $g['import_date'] < $toDate) {
+                    $kmTramo += (float)$g['km_recorridos'];
+                    $diasGps++;
+                }
+            }
+            $litros  = (float)$prev['liters'];
+            $kmLReal = $litros > 0 ? round($kmTramo / $litros, 2) : null;
+
+            $tramos[] = [
+                'desde'    => $fromDate,
+                'hasta'    => $toDate,
+                'litros'   => $litros,
+                'km'       => round($kmTramo, 1),
+                'dias_gps' => $diasGps,
+                'km_l'     => $kmLReal,
+            ];
         }
-        // Umbral de alerta: km que un tanque lleno alcanzaría a recorrer con el
-        // rendimiento cargado. Si ya se superó eso sin una carga nueva
-        // registrada, lo más probable es que falte cargar una carga en el
-        // sistema (nadie anda con el tanque en negativo).
-        $tankCapacity   = $v['tank_capacity']  !== null ? (float)$v['tank_capacity']  : null;
-        $kmPerLiter     = $v['km_per_liter']   !== null ? (float)$v['km_per_liter']   : null;
-        $kmMaximo       = ($tankCapacity && $kmPerLiter) ? round($tankCapacity * $kmPerLiter, 1) : null;
-        $alerta         = $kmMaximo !== null && $totalKm > $kmMaximo;
+
+        if (empty($tramos)) continue; // sin tramos cerrados todavía: no hay nada verificable que mostrar
+
+        $totalKm     = array_sum(array_column($tramos, 'km'));
+        $totalLitros = array_sum(array_column($tramos, 'litros'));
+        $kmPerLiter  = $v['km_per_liter'] !== null ? (float)$v['km_per_liter'] : null;
+        $kmLReal     = $totalLitros > 0 ? round($totalKm / $totalLitros, 2) : null;
+        $diff        = ($kmLReal !== null && $kmPerLiter) ? round($kmLReal - $kmPerLiter, 2) : null;
 
         $rows[] = [
-            'id'              => $v['id'],
-            'name'            => $v['name'],
-            'plate'           => $v['plate'],
-            'type'            => $v['type'],
-            'ultima_carga'    => $lastDate,
-            'ultimos_litros'  => $v['last_liters'] !== null ? (float)$v['last_liters'] : null,
-            'total_km'        => round($totalKm, 2),
-            'dias_gps'        => count($dias),
-            'dias_detalle'    => $dias,
-            'km_maximo'       => $kmMaximo,
-            'alerta'          => $alerta,
+            'id'            => $v['id'],
+            'name'          => $v['name'],
+            'plate'         => $v['plate'],
+            'type'          => $v['type'],
+            'km_per_liter'  => $kmPerLiter,
+            'num_tramos'    => count($tramos),
+            'total_km'      => round($totalKm, 1),
+            'total_litros'  => round($totalLitros, 2),
+            'km_l_real'     => $kmLReal,
+            'diff'          => $diff,
+            'tramos'        => $tramos,
         ];
     }
-    usort($rows, fn($a, $b) => ((int)$b['alerta'] <=> (int)$a['alerta']) ?: ($b['total_km'] <=> $a['total_km']));
+
+    // Peor diferencia primero (más por debajo del rendimiento teórico); los
+    // que no tienen rendimiento teórico cargado (diff null) van al final.
+    usort($rows, function ($a, $b) {
+        if ($a['diff'] === null && $b['diff'] === null) return 0;
+        if ($a['diff'] === null) return 1;
+        if ($b['diff'] === null) return -1;
+        return $a['diff'] <=> $b['diff'];
+    });
 
     jsonResponse(['data' => $rows, 'min_date' => null, 'max_date' => null]);
 }
