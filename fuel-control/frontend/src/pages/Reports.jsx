@@ -605,8 +605,39 @@ function PreviewMonthlySummary({ data }) {
   );
 }
 
+// Lunes de la semana calendario que contiene esa fecha (semana lunes-domingo).
+function mondayOf(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay(); // 0=domingo .. 6=sábado
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d.toISOString().slice(0, 10);
+}
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// Agrupa los tramos cerrados de un vehículo por semana calendario (según la
+// fecha en que se cerró cada tramo), sumando litros y km — para amortiguar el
+// ruido de tramos muy cortos cuando se carga varias veces por semana.
+function groupTramosByWeek(tramos) {
+  const weeks = {};
+  (tramos || []).forEach(t => {
+    const wk = mondayOf(t.hasta);
+    if (!weeks[wk]) weeks[wk] = { weekStart: wk, litros: 0, km: 0, tramos: 0 };
+    weeks[wk].litros += Number(t.litros);
+    weeks[wk].km += Number(t.km);
+    weeks[wk].tramos += 1;
+  });
+  return Object.values(weeks)
+    .map(w => ({ ...w, weekEnd: addDays(w.weekStart, 6), km_l: w.litros > 0 ? w.km / w.litros : null }))
+    .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+}
+
 function PreviewKmDesdeCarga({ data }) {
   const [expanded, setExpanded] = useState(() => new Set());
+  const [viewMode, setViewMode] = useState('tramo'); // 'tramo' | 'semanal'
   const toggle = (id) => {
     setExpanded(prev => {
       const next = new Set(prev);
@@ -620,6 +651,16 @@ function PreviewKmDesdeCarga({ data }) {
         Solo tramos cerrados (una carga y la siguiente ya registrada). El tramo abierto actual —desde la última
         carga hasta hoy— no se muestra acá porque todavía no hay una carga que lo confirme.
       </p>
+      <div style={{display:'flex', gap:4, marginBottom:12}}>
+        <button type="button" className={`btn btn-sm ${viewMode==='tramo' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setViewMode('tramo')}>
+          Por tramo
+        </button>
+        <button type="button" className={`btn btn-sm ${viewMode==='semanal' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setViewMode('semanal')} title="Agrupa los tramos por semana calendario, útil cuando se carga varias veces por semana">
+          Resumen semanal
+        </button>
+      </div>
       <div className="table-wrapper">
         <table className="table">
           <thead>
@@ -656,7 +697,7 @@ function PreviewKmDesdeCarga({ data }) {
                       {r.diff != null && <DeltaBadge delta={r.diff} pct={r.km_per_liter ? (r.diff / r.km_per_liter) * 100 : null} decimals={2} />}
                     </td>
                   </tr>
-                  {isOpen && (
+                  {isOpen && viewMode === 'tramo' && (
                     <tr>
                       <td></td>
                       <td colSpan={7} style={{padding:'0 0 8px'}}>
@@ -680,6 +721,35 @@ function PreviewKmDesdeCarga({ data }) {
                                 <td style={{textAlign:'right'}}>{fmt(t.km, 1)} km</td>
                                 <td style={{textAlign:'right'}}>{fmt(t.dias_gps)}</td>
                                 <td style={{textAlign:'right'}}>{t.km_l != null ? fmt(t.km_l, 2) : '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                  {isOpen && viewMode === 'semanal' && (
+                    <tr>
+                      <td></td>
+                      <td colSpan={7} style={{padding:'0 0 8px'}}>
+                        <table className="table" style={{margin:0, background:'var(--gray-50,#f9fafb)'}}>
+                          <thead>
+                            <tr>
+                              <th>Semana</th>
+                              <th style={{textAlign:'right'}}>Tramos</th>
+                              <th style={{textAlign:'right'}}>Litros</th>
+                              <th style={{textAlign:'right'}}>Km</th>
+                              <th style={{textAlign:'right'}}>Km/L real</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groupTramosByWeek(tramos).map(w => (
+                              <tr key={w.weekStart}>
+                                <td>{fmtDate(w.weekStart)} al {fmtDate(w.weekEnd)}</td>
+                                <td style={{textAlign:'right'}}>{fmt(w.tramos)}</td>
+                                <td style={{textAlign:'right'}}>{fmt(w.litros, 2)} L</td>
+                                <td style={{textAlign:'right'}}>{fmt(w.km, 1)} km</td>
+                                <td style={{textAlign:'right'}}>{w.km_l != null ? fmt(w.km_l, 2) : '—'}</td>
                               </tr>
                             ))}
                           </tbody>
