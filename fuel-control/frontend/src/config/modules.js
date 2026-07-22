@@ -9,6 +9,7 @@ export const MODULES = [
   { key: 'suppliers',       icon: '🏪',  label: 'Proveedores' },
   { key: 'areas',           icon: '🏛️', label: 'Áreas' },
   { key: 'fuel-orders',     icon: '📋',  label: 'Órdenes de Carga' },
+  { key: 'tank-levels',     icon: '🌡️', label: 'Tablero de Niveles' },
   { key: 'ordenes-pago',    icon: '💳',  label: 'Órdenes de Pago' },
   { key: 'cost-dashboard',  icon: '📈',  label: 'Tablero Costos' },
   { key: 'reports',         icon: '📄',  label: 'Reportes' },

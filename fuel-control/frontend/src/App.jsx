@@ -14,6 +14,7 @@ import FuelTypes      from './pages/FuelTypes';
 import Lubricants     from './pages/Lubricants';
 import LubricantTypes from './pages/LubricantTypes';
 import FuelOrders     from './pages/FuelOrders';
+import TankLevels     from './pages/TankLevels';
 import Zones        from './pages/Zones';
 import Drivers      from './pages/Drivers';
 import CostConfig   from './pages/CostConfig';
@@ -71,6 +72,7 @@ const pageTitles = {
   '/fuel-types':       'Tipos de Combustible',
   '/lubricant-types':  'Tipos de Lubricante',
   '/fuel-orders':      'Órdenes de Carga',
+  '/tank-levels':      'Tablero de Niveles',
   '/zones':            'Zonas de Recolección',
   '/drivers':          'Choferes',
   '/cost-config':      'Configuración de Costos',
@@ -152,6 +154,7 @@ function AppLayout() {
             <Route path="/lubricant-types" element={<ProtectedRoute moduleKey="lubricant-types"><LubricantTypes /></ProtectedRoute>} />
             <Route path="/fuel-types"      element={<ProtectedRoute moduleKey="fuel-types"><FuelTypes /></ProtectedRoute>} />
             <Route path="/fuel-orders"     element={<ProtectedRoute moduleKey="fuel-orders"><FuelOrders /></ProtectedRoute>} />
+            <Route path="/tank-levels"     element={<ProtectedRoute moduleKey="tank-levels"><TankLevels /></ProtectedRoute>} />
             <Route path="/zones"           element={<ProtectedRoute moduleKey="zones"><Zones /></ProtectedRoute>} />
             <Route path="/drivers"         element={<ProtectedRoute moduleKey="drivers"><Drivers /></ProtectedRoute>} />
             <Route path="/cost-config"     element={<ProtectedRoute moduleKey="cost-config"><CostConfig /></ProtectedRoute>} />

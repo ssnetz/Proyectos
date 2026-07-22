@@ -6,6 +6,21 @@ const VEHICLE_TYPES = ['Auto', 'Camioneta', 'Utilitario', 'Moto', 'Camión', 'Mo
 
 const emptyForm = { name: '', plate: '', type: 'Auto', tank_capacity: '', km_per_liter: '', area_id: '', active: true };
 
+// Nivel estimado (sin sensores reales, ver helpers.php ajustarNivelTanque).
+// Solo se puede mostrar si el vehículo tiene tank_capacity cargado.
+function nivelBadge(v) {
+  if (!v.tank_capacity || v.fuel_level_liters === null || v.fuel_level_liters === undefined) {
+    return <span style={{ color: 'var(--gray-400)' }}>—</span>;
+  }
+  const pct = Math.round((Number(v.fuel_level_liters) / Number(v.tank_capacity)) * 100);
+  const color = pct <= 25 ? 'badge-red' : pct <= 50 ? 'badge-yellow' : 'badge-green';
+  return (
+    <span className={`badge ${color}`} title={`${Number(v.fuel_level_liters).toFixed(0)} L estimados`}>
+      {pct}%
+    </span>
+  );
+}
+
 export default function Vehicles() {
   const { user }              = useAuth();
   const [vehicles, setVehicles] = useState([]);
@@ -172,13 +187,14 @@ export default function Vehicles() {
                 <th>Área</th>
                 <th>Tanque</th>
                 <th>Rendimiento</th>
+                <th>Nivel</th>
                 <th>Estado</th>
                 {isAdmin && <th></th>}
               </tr>
             </thead>
             <tbody>
               {vehicles.length === 0 && (
-                <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--gray-500)' }}>Sin vehículos</td></tr>
+                <tr><td colSpan={isAdmin ? 9 : 8} style={{ textAlign: 'center', color: 'var(--gray-500)' }}>Sin vehículos</td></tr>
               )}
               {vehicles.map(v => (
                 <tr key={v.id}>
@@ -190,6 +206,7 @@ export default function Vehicles() {
                   </td>
                   <td>{v.tank_capacity ? `${v.tank_capacity} L` : '—'}</td>
                   <td>{v.km_per_liter ? `${v.km_per_liter} km/L` : '—'}</td>
+                  <td>{nivelBadge(v)}</td>
                   <td>
                     <span className={`badge ${v.active ? 'badge-green' : 'badge-red'}`}>
                       {v.active ? 'Activo' : 'Inactivo'}
