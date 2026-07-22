@@ -7,16 +7,21 @@ const VEHICLE_TYPES = ['Auto', 'Camioneta', 'Utilitario', 'Moto', 'Camión', 'Mo
 const emptyForm = { name: '', plate: '', type: 'Auto', tank_capacity: '', km_per_liter: '', area_id: '', active: true };
 
 // Nivel estimado (sin sensores reales, ver helpers.php ajustarNivelTanque).
-// Solo se puede mostrar si el vehículo tiene tank_capacity cargado.
+// Solo tiene sentido si el vehículo tiene tank_capacity cargado. Si todavía
+// no tuvo ningún movimiento (carga o GPS), fuel_level_liters sigue en NULL
+// hasta que se lo toque — pero igual se puede abrir el editor manual para
+// inicializarlo (ej. "tanque lleno") sin esperar al primer movimiento.
 function NivelBadge({ v, onEdit }) {
-  if (!v.tank_capacity || v.fuel_level_liters === null || v.fuel_level_liters === undefined) {
+  if (!v.tank_capacity) {
     return <span style={{ color: 'var(--gray-400)' }}>—</span>;
   }
-  const pct = Math.round((Number(v.fuel_level_liters) / Number(v.tank_capacity)) * 100);
-  const color = pct <= 25 ? 'badge-red' : pct <= 50 ? 'badge-yellow' : 'badge-green';
+  const hasLevel = v.fuel_level_liters !== null && v.fuel_level_liters !== undefined;
+  const pct   = hasLevel ? Math.round((Number(v.fuel_level_liters) / Number(v.tank_capacity)) * 100) : null;
+  const color = pct === null ? 'badge-gray' : pct <= 25 ? 'badge-red' : pct <= 50 ? 'badge-yellow' : 'badge-green';
   const badge = (
-    <span className={`badge ${color}`} title={`${Number(v.fuel_level_liters).toFixed(0)} L estimados`}>
-      {pct}%
+    <span className={`badge ${color}`}
+      title={hasLevel ? `${Number(v.fuel_level_liters).toFixed(0)} L estimados` : 'Sin movimientos todavía'}>
+      {pct === null ? '—' : `${pct}%`}
     </span>
   );
   if (!onEdit) return badge;
