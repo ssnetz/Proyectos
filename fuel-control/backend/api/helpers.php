@@ -113,10 +113,11 @@ function requireAdmin(): array {
     return $payload;
 }
 
-// Suma los km GPS importados entre la última carga de este vehículo (antes
-// de $fueledAt) y $fueledAt inclusive. Misma lógica que km_since_last_fuel.php,
-// para poder autocompletar km_recorridos al registrar una carga sin que el
-// usuario tenga que elegir los días de GPS a mano.
+// Suma los km GPS importados entre la última carga de este vehículo
+// (exclusive) y el día de $fueledAt (exclusive también: el día de la carga
+// no cuenta, igual que el selector manual "GPS" de Fueling.jsx, que resta un
+// día a propósito antes de mostrar los registros). Así el km autocompletado
+// al guardar una carga queda igual al que el usuario elegiría a mano.
 function calcularKmDesdeUltimaCarga(PDO $db, int $vehicleId, string $fueledAt): ?float {
     $untilDate = substr($fueledAt, 0, 10);
 
@@ -128,7 +129,7 @@ function calcularKmDesdeUltimaCarga(PDO $db, int $vehicleId, string $fueledAt): 
     $stmt->execute([$vehicleId, $untilDate]);
     $fromDate = $stmt->fetchColumn();
 
-    $sql = 'SELECT SUM(km_recorridos) FROM gps_daily_stats WHERE vehicle_id = ? AND import_date <= ?';
+    $sql = 'SELECT SUM(km_recorridos) FROM gps_daily_stats WHERE vehicle_id = ? AND import_date < ?';
     $params = [$vehicleId, $untilDate];
     if ($fromDate) { $sql .= ' AND import_date > ?'; $params[] = $fromDate; }
 
