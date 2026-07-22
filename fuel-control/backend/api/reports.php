@@ -327,7 +327,12 @@ if ($type === 'km_desde_carga') {
         LEFT JOIN (
             SELECT f1.vehicle_id, f1.fueled_at AS last_date, f1.liters AS last_liters
             FROM fueling f1
-            WHERE f1.fueled_at = (SELECT MAX(f2.fueled_at) FROM fueling f2 WHERE f2.vehicle_id = f1.vehicle_id)
+            WHERE f1.id = (
+                SELECT f2.id FROM fueling f2
+                WHERE f2.vehicle_id = f1.vehicle_id
+                ORDER BY f2.fueled_at DESC, f2.id DESC
+                LIMIT 1
+            )
         ) lc ON lc.vehicle_id = v.id
         WHERE v.active = 1" . ($areaId ? " AND v.area_id = :area_id" : "") . "
         ORDER BY v.name";
