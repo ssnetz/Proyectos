@@ -148,7 +148,6 @@ export default function FuelOrders() {
   const [budgetForm, setBudgetForm]     = useState({ budget_type: 'litros', budget_amount: '' });
   const [budgetSaving, setBudgetSaving] = useState(false);
   const [tankStatus, setTankStatus]   = useState([]);
-  const [tankLoading, setTankLoading] = useState(false);
   const [tankSelected, setTankSelected] = useState({});
   const [tankMode, setTankMode]   = useState('lleno'); // 'lleno' | 'litros'
   const [tankLitros, setTankLitros] = useState('');
@@ -244,29 +243,19 @@ export default function FuelOrders() {
     }
   };
 
-  const loadTankStatus = async () => {
-    setTankLoading(true);
-    const today = new Date().toISOString().slice(0, 10);
-    const eligible = vehicles.filter(v => v.active && v.tank_capacity && v.km_per_liter);
-    const results = await Promise.all(eligible.map(async v => {
-      try {
-        const r = await axios.get('/fuel-control/backend/api/km_since_last_fuel.php', {
-          params: { vehicle_id: v.id, until_date: today }
-        });
-        const km         = parseFloat(r.data.total_km)   || 0;
-        const lastLiters = parseFloat(r.data.last_liters) || parseFloat(v.tank_capacity);
-        const consumido  = km / parseFloat(v.km_per_liter);
-        const restante   = Math.max(0, lastLiters - consumido);
-        const pct        = Math.min(100, Math.round((restante / parseFloat(v.tank_capacity)) * 100));
-        const ultima_carga = r.data.ultima_carga ?? null;
-        return { ...v, km_desde_carga: km, litros_restantes: restante.toFixed(1), pct, ultima_carga, last_liters: lastLiters };
-      } catch {
-        return { ...v, km_desde_carga: 0, litros_restantes: '—', pct: null };
-      }
-    }));
+  // Nivel estimado guardado por vehículo (ver ajustarNivelTanque en helpers.php):
+  // sube con cada carga y baja con los km GPS importados. No hace falta
+  // recalcular en vivo, el backend ya lo mantiene actualizado.
+  const loadTankStatus = () => {
+    const eligible = vehicles.filter(v => v.active && v.tank_capacity);
+    const results = eligible.map(v => {
+      const cap    = parseFloat(v.tank_capacity);
+      const nivel  = v.fuel_level_liters != null ? parseFloat(v.fuel_level_liters) : cap;
+      const pct    = Math.min(100, Math.round((nivel / cap) * 100));
+      return { ...v, litros_restantes: nivel.toFixed(1), pct };
+    });
     results.sort((a, b) => (a.pct ?? 999) - (b.pct ?? 999));
     setTankStatus(results);
-    setTankLoading(false);
   };
 
   const handleBulkOrder = async () => {
@@ -384,13 +373,12 @@ export default function FuelOrders() {
       {/* Panel estado de tanques */}
       {tab === 'tanques' && (
         <div>
-          {tankLoading && <div className="spinner" />}
-          {!tankLoading && tankStatus.length === 0 && (
+          {tankStatus.length === 0 && (
             <div className="card" style={{ padding: 24, color: 'var(--gray-500)' }}>
-              Sin vehículos con tanque y rendimiento configurados. Editá los vehículos para agregar esos datos.
+              Sin vehículos con capacidad de tanque configurada. Editá los vehículos para agregar ese dato.
             </div>
           )}
-          {!tankLoading && tankStatus.length > 0 && (
+          {tankStatus.length > 0 && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12, marginBottom: 20 }}>
                 {tankStatus.map(v => {
@@ -419,8 +407,9 @@ export default function FuelOrders() {
                         <span>Tanque: {v.tank_capacity} L</span>
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 4 }}>
-                        {v.km_desde_carga > 0 ? `${v.km_desde_carga.toFixed(1)} km recorridos` : 'Sin km GPS registrados'}
-                        {v.ultima_carga && <span> · Última carga: {v.ultima_carga} ({v.last_liters.toFixed(0)} L)</span>}
+                        {v.fuel_level_updated_at
+                          ? `Actualizado: ${new Date(v.fuel_level_updated_at).toLocaleString('es')}`
+                          : 'Nivel inicial (tanque lleno, sin movimientos aún)'}
                       </div>
                     </div>
                   );
