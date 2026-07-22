@@ -44,6 +44,12 @@ const REPORT_TYPES = [
     label: 'Por Proveedor',
     desc: 'Litros y costo por proveedor / estación de carga',
   },
+  {
+    id: 'km_desde_carga',
+    icon: '🔍',
+    label: 'Km desde Última Carga',
+    desc: 'Fecha y litros de la última carga, y km GPS acumulados desde entonces día por día',
+  },
 ];
 
 const MONTHS_ES = {
@@ -372,6 +378,30 @@ function printBySupplier(data, from, to, minDate, maxDate) {
   openPrintWindow(html);
 }
 
+function printKmDesdeCarga(data, from, to, minDate, maxDate) {
+  const totKm = data.reduce((a, r) => a + +r.total_km, 0);
+  const rows = data.map(r => {
+    const detalle = (r.dias_detalle || []).map(d => `${fmtDate(d.fecha)}: ${fmt(d.km, 1)} km`).join(' | ');
+    return `<tr>
+      <td><strong>${r.name}</strong></td>
+      <td>${r.plate}</td>
+      <td>${r.ultima_carga ? fmtDate(r.ultima_carga) : 'Sin cargas'}</td>
+      <td class="num">${r.ultimos_litros != null ? fmt(r.ultimos_litros, 2) + ' L' : '—'}</td>
+      <td class="num">${fmt(r.total_km, 1)} km</td>
+      <td class="num">${fmt(r.dias_gps)}</td>
+    </tr>` + (detalle ? `<tr><td colspan="6" style="padding:2px 8px 8px 20px;font-size:9px;color:#5a6478;">${detalle}</td></tr>` : '');
+  }).join('');
+  const html = buildHeader('Km desde Última Carga (Auditoría GPS)', from, to, [
+    { label: 'Vehículos', value: data.length },
+    { label: 'Total km pendientes', value: fmt(totKm, 1) + ' km' },
+  ], minDate, maxDate) + `
+    <table>
+      <thead><tr><th>Vehículo</th><th>Patente</th><th>Última Carga</th><th class="num">Litros</th><th class="num">Km desde Entonces</th><th class="num">Días GPS</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>` + buildFooter();
+  openPrintWindow(html);
+}
+
 const PRINT_FNS = {
   fuel_by_vehicle: printFuelByVehicle,
   km_ranking:      printKmRanking,
@@ -380,6 +410,7 @@ const PRINT_FNS = {
   monthly_comparison: printMonthlyComparison,
   by_fuel_type:    printByFuelType,
   by_supplier:     printBySupplier,
+  km_desde_carga:  printKmDesdeCarga,
 };
 
 // Lista de N° de ticket en pantalla: si hay más de uno, muestra el primero
@@ -550,6 +581,79 @@ function PreviewMonthlySummary({ data }) {
                               <td style={{textAlign:'right'}}>{fmt((d.total_litros / r.total_litros) * 100, 1)}%</td>
                               <td style={{textAlign:'right'}}>{d.prom_precio ? '$'+fmt(d.prom_precio,0)+'/L' : '—'}</td>
                               <td style={{textAlign:'right'}}>{fmtPeso(d.total_costo)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PreviewKmDesdeCarga({ data }) {
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggle = (id) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  return (
+    <div className="table-wrapper">
+      <table className="table">
+        <thead>
+          <tr>
+            <th style={{width:24}}></th>
+            <th>Vehículo</th>
+            <th>Patente</th>
+            <th>Última Carga</th>
+            <th style={{textAlign:'right'}}>Litros</th>
+            <th style={{textAlign:'right'}}>Km desde Entonces</th>
+            <th style={{textAlign:'right'}}>Días GPS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map(r => {
+            const dias = r.dias_detalle || [];
+            const isOpen = expanded.has(r.id);
+            return (
+              <Fragment key={r.id}>
+                <tr
+                  onClick={() => dias.length && toggle(r.id)}
+                  style={{cursor: dias.length ? 'pointer' : 'default'}}
+                >
+                  <td style={{textAlign:'center', color:'var(--gray-400)'}}>{dias.length ? (isOpen ? '▾' : '▸') : ''}</td>
+                  <td><strong>{r.name}</strong></td>
+                  <td>{r.plate}</td>
+                  <td>{r.ultima_carga ? fmtDate(r.ultima_carga) : <span style={{color:'var(--gray-400)'}}>Sin cargas</span>}</td>
+                  <td style={{textAlign:'right'}}>{r.ultimos_litros != null ? fmt(r.ultimos_litros, 2) + ' L' : '—'}</td>
+                  <td style={{textAlign:'right'}}><strong>{fmt(r.total_km, 1)} km</strong></td>
+                  <td style={{textAlign:'right'}}>{fmt(r.dias_gps)}</td>
+                </tr>
+                {isOpen && (
+                  <tr>
+                    <td></td>
+                    <td colSpan={6} style={{padding:'0 0 8px'}}>
+                      <table className="table" style={{margin:0, background:'var(--gray-50,#f9fafb)'}}>
+                        <thead>
+                          <tr>
+                            <th>Fecha GPS</th>
+                            <th style={{textAlign:'right'}}>Km</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dias.map(d => (
+                            <tr key={d.fecha}>
+                              <td>{fmtDate(d.fecha)}</td>
+                              <td style={{textAlign:'right'}}>{fmt(d.km, 1)} km</td>
                             </tr>
                           ))}
                         </tbody>
@@ -790,6 +894,7 @@ export default function Reports() {
         ]} />
       );
     }
+    if (selected === 'km_desde_carga') return <PreviewKmDesdeCarga data={rows} />;
     if (selected === 'by_supplier') {
       const totLit = rows.reduce((a,r)=>a+ +r.total_litros,0);
       return (
@@ -832,12 +937,14 @@ export default function Reports() {
       {selected && (
         <div className="card" style={{marginBottom:16}}>
           <div style={{display:'flex', gap:12, alignItems:'flex-end', flexWrap:'wrap', padding:'4px 0'}}>
+            {selected !== 'km_desde_carga' && (
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label">Desde</label>
+                <input type="date" className="form-input" value={from} onChange={e=>setFrom(e.target.value)} style={{width:160}} />
+              </div>
+            )}
             <div className="form-group" style={{marginBottom:0}}>
-              <label className="form-label">Desde</label>
-              <input type="date" className="form-input" value={from} onChange={e=>setFrom(e.target.value)} style={{width:160}} />
-            </div>
-            <div className="form-group" style={{marginBottom:0}}>
-              <label className="form-label">Hasta</label>
+              <label className="form-label">{selected === 'km_desde_carga' ? 'Hasta (día del corte)' : 'Hasta'}</label>
               <input type="date" className="form-input" value={to} onChange={e=>setTo(e.target.value)} style={{width:160}} />
             </div>
             <div className="form-group" style={{marginBottom:0}}>
