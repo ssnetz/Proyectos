@@ -24,8 +24,9 @@ export default function Login() {
   return (
     <div className="login-bg">
       <form className="login-card" onSubmit={handleSubmit}>
-        <div className="login-logo">⛽</div>
-        <h1 className="login-title">Control de Combustible</h1>
+        <div className="login-logo">
+          <img src="/fuel-control/logo.png" alt="Octano — Sistema de Control de Combustible" />
+        </div>
         {error && <div className="alert alert-error">{error}</div>}
         <div className="form-group">
           <label className="form-label">Usuario</label>
