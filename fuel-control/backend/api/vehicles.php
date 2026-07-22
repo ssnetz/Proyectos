@@ -8,6 +8,7 @@ requireAuth();
 
 $method = getMethod();
 $db     = getDB();
+$action = $_GET['action'] ?? '';
 
 if ($method === 'GET') {
     $id = getId();
@@ -47,6 +48,28 @@ if ($method === 'POST') {
     $stmt = $db->prepare('INSERT INTO vehicles (name, plate, type, tank_capacity, km_per_liter, area_id, active) VALUES (?, ?, ?, ?, ?, ?, 1)');
     $stmt->execute([$name, $plate, $type, $tank_capacity, $km_per_liter, $area_id]);
     jsonResponse(['id' => (int)$db->lastInsertId()], 201);
+}
+
+// Recalibrar a mano el nivel estimado de tanque (ver ajustarNivelTanque en
+// helpers.php), para cuando la estimación se desvió de la realidad.
+if ($method === 'PUT' && $action === 'set_level') {
+    requireAdmin();
+    $id = getId();
+    if (!$id) jsonError('ID requerido');
+
+    $stmt = $db->prepare('SELECT tank_capacity FROM vehicles WHERE id = ?');
+    $stmt->execute([$id]);
+    $tankCapacity = (float)($stmt->fetchColumn() ?: 0);
+    if (!$tankCapacity) jsonError('El vehículo no tiene capacidad de tanque configurada');
+
+    $body  = getBody();
+    $nivel = isset($body['fuel_level_liters']) ? (float)$body['fuel_level_liters'] : null;
+    if ($nivel === null || $nivel < 0) jsonError('Nivel inválido');
+    $nivel = min($nivel, $tankCapacity);
+
+    $upd = $db->prepare('UPDATE vehicles SET fuel_level_liters = ?, fuel_level_updated_at = NOW() WHERE id = ?');
+    $upd->execute([$nivel, $id]);
+    jsonResponse(['ok' => true, 'fuel_level_liters' => $nivel]);
 }
 
 if ($method === 'PUT') {
