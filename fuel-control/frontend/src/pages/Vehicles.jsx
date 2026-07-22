@@ -8,16 +8,23 @@ const emptyForm = { name: '', plate: '', type: 'Auto', tank_capacity: '', km_per
 
 // Nivel estimado (sin sensores reales, ver helpers.php ajustarNivelTanque).
 // Solo se puede mostrar si el vehículo tiene tank_capacity cargado.
-function nivelBadge(v) {
+function NivelBadge({ v, onEdit }) {
   if (!v.tank_capacity || v.fuel_level_liters === null || v.fuel_level_liters === undefined) {
     return <span style={{ color: 'var(--gray-400)' }}>—</span>;
   }
   const pct = Math.round((Number(v.fuel_level_liters) / Number(v.tank_capacity)) * 100);
   const color = pct <= 25 ? 'badge-red' : pct <= 50 ? 'badge-yellow' : 'badge-green';
-  return (
+  const badge = (
     <span className={`badge ${color}`} title={`${Number(v.fuel_level_liters).toFixed(0)} L estimados`}>
       {pct}%
     </span>
+  );
+  if (!onEdit) return badge;
+  return (
+    <button type="button" className="btn btn-ghost btn-sm" style={{ padding: 0, gap: 6 }}
+      title="Ajustar nivel a mano" onClick={() => onEdit(v)}>
+      {badge} ✏️
+    </button>
   );
 }
 
@@ -35,6 +42,10 @@ export default function Vehicles() {
   const [autoKmLoading, setAutoKmLoading] = useState(false);
   const [autoKmSaving, setAutoKmSaving]   = useState(false);
   const [areas, setAreas]             = useState([]);
+  const [levelEditing, setLevelEditing] = useState(null);
+  const [levelValue, setLevelValue]     = useState('');
+  const [levelSaving, setLevelSaving]   = useState(false);
+  const [levelError, setLevelError]     = useState('');
   const isAdmin = user?.role === 'admin';
 
   const load = () =>
@@ -92,6 +103,29 @@ export default function Vehicles() {
     setAutoKmSaving(false);
     setShowAutoKm(false);
     load();
+  };
+
+  const openLevelEdit = (v) => {
+    setLevelEditing(v);
+    setLevelValue(v.fuel_level_liters ?? v.tank_capacity ?? '');
+    setLevelError('');
+  };
+
+  const saveLevel = async (e) => {
+    e.preventDefault();
+    setLevelSaving(true);
+    setLevelError('');
+    try {
+      await axios.put(`/fuel-control/backend/api/vehicles.php?id=${levelEditing.id}&action=set_level`, {
+        fuel_level_liters: parseFloat(levelValue),
+      });
+      setLevelEditing(null);
+      load();
+    } catch (err) {
+      setLevelError(err.response?.data?.error ?? 'Error al guardar');
+    } finally {
+      setLevelSaving(false);
+    }
   };
 
   if (loading) return <div className="spinner" />;
@@ -206,7 +240,7 @@ export default function Vehicles() {
                   </td>
                   <td>{v.tank_capacity ? `${v.tank_capacity} L` : '—'}</td>
                   <td>{v.km_per_liter ? `${v.km_per_liter} km/L` : '—'}</td>
-                  <td>{nivelBadge(v)}</td>
+                  <td><NivelBadge v={v} onEdit={isAdmin && v.tank_capacity ? openLevelEdit : null} /></td>
                   <td>
                     <span className={`badge ${v.active ? 'badge-green' : 'badge-red'}`}>
                       {v.active ? 'Activo' : 'Inactivo'}
@@ -282,6 +316,48 @@ export default function Vehicles() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal ajuste manual de nivel */}
+      {levelEditing && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Ajustar nivel — {levelEditing.name}</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setLevelEditing(null)}>✕</button>
+            </div>
+            <form onSubmit={saveLevel}>
+              {levelError && <div className="alert alert-error">{levelError}</div>}
+              <div style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 14 }}>
+                Nivel estimado sin sensores reales. Usá esto solo si notás que se desvió de la realidad
+                (por ejemplo, después de una carga a mano no registrada en el sistema).
+              </div>
+              <div className="form-group">
+                <label className="form-label">
+                  Litros en el tanque
+                  <span style={{ fontWeight: 400, color: 'var(--gray-500)', marginLeft: 8 }}>
+                    Tanque: {levelEditing.tank_capacity} L
+                  </span>
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input className="form-input" type="number" min="0" max={levelEditing.tank_capacity}
+                    step="0.1" required value={levelValue}
+                    onChange={e => setLevelValue(e.target.value)} />
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ whiteSpace: 'nowrap' }}
+                    onClick={() => setLevelValue(levelEditing.tank_capacity)}>
+                    Tanque lleno
+                  </button>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setLevelEditing(null)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={levelSaving}>
+                  {levelSaving ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
