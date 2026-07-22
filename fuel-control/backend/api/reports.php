@@ -313,4 +313,71 @@ if ($type === 'by_supplier') {
     jsonResponse(withMeta($db, $stmt->fetchAll(PDO::FETCH_ASSOC), 'fueling', 'fueled_at', $fromDt, $toDt, $areaId));
 }
 
+/* ── 7. Km desde última carga (auditoría GPS por vehículo) ──── */
+// Por vehículo: fecha y litros de la última carga, y km GPS acumulados desde
+// entonces (sin contar el día de esa última carga — misma convención que
+// calcularKmDesdeUltimaCarga en helpers.php), con el detalle día por día.
+if ($type === 'km_desde_carga') {
+    $toG = $to ?: date('Y-m-d');
+
+    $sqlV = "
+        SELECT v.id, v.name, v.plate, v.type,
+               lc.last_date, lc.last_liters
+        FROM vehicles v
+        LEFT JOIN (
+            SELECT f1.vehicle_id, f1.fueled_at AS last_date, f1.liters AS last_liters
+            FROM fueling f1
+            WHERE f1.fueled_at = (SELECT MAX(f2.fueled_at) FROM fueling f2 WHERE f2.vehicle_id = f1.vehicle_id)
+        ) lc ON lc.vehicle_id = v.id
+        WHERE v.active = 1" . ($areaId ? " AND v.area_id = :area_id" : "") . "
+        ORDER BY v.name";
+    $stmtV = $db->prepare($sqlV);
+    $paramsV = [];
+    if ($areaId) $paramsV[':area_id'] = $areaId;
+    $stmtV->execute($paramsV);
+    $vehicles = $stmtV->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($vehicles)) jsonResponse(['data' => [], 'min_date' => null, 'max_date' => null]);
+
+    $ids = array_column($vehicles, 'id');
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $stmtG = $db->prepare("
+        SELECT vehicle_id, import_date, km_recorridos
+        FROM gps_daily_stats
+        WHERE vehicle_id IN ($placeholders) AND import_date <= ?
+        ORDER BY import_date
+    ");
+    $stmtG->execute([...$ids, $toG]);
+    $gpsByVehicle = [];
+    foreach ($stmtG->fetchAll(PDO::FETCH_ASSOC) as $g) {
+        $gpsByVehicle[$g['vehicle_id']][] = $g;
+    }
+
+    $rows = [];
+    foreach ($vehicles as $v) {
+        $lastDate = $v['last_date'] ? substr($v['last_date'], 0, 10) : null;
+        $dias = [];
+        $totalKm = 0.0;
+        foreach ($gpsByVehicle[$v['id']] ?? [] as $g) {
+            if ($lastDate && $g['import_date'] <= $lastDate) continue;
+            $dias[] = ['fecha' => $g['import_date'], 'km' => (float)$g['km_recorridos']];
+            $totalKm += (float)$g['km_recorridos'];
+        }
+        $rows[] = [
+            'id'              => $v['id'],
+            'name'            => $v['name'],
+            'plate'           => $v['plate'],
+            'type'            => $v['type'],
+            'ultima_carga'    => $lastDate,
+            'ultimos_litros'  => $v['last_liters'] !== null ? (float)$v['last_liters'] : null,
+            'total_km'        => round($totalKm, 2),
+            'dias_gps'        => count($dias),
+            'dias_detalle'    => $dias,
+        ];
+    }
+    usort($rows, fn($a, $b) => $b['total_km'] <=> $a['total_km']);
+
+    jsonResponse(['data' => $rows, 'min_date' => null, 'max_date' => null]);
+}
+
 jsonError('Tipo de reporte no válido', 400);
