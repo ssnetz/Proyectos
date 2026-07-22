@@ -47,8 +47,8 @@ const REPORT_TYPES = [
   {
     id: 'km_desde_carga',
     icon: '🔍',
-    label: 'Km desde Última Carga',
-    desc: 'Fecha y litros de la última carga, y km GPS acumulados desde entonces día por día',
+    label: 'Km entre Cargas (Real)',
+    desc: 'Km/L real de cada tramo cerrado entre una carga y la siguiente, comparado con el rendimiento cargado',
   },
 ];
 
@@ -380,29 +380,31 @@ function printBySupplier(data, from, to, minDate, maxDate) {
 
 function printKmDesdeCarga(data, from, to, minDate, maxDate) {
   const totKm = data.reduce((a, r) => a + +r.total_km, 0);
-  const numAlertas = data.filter(r => r.alerta).length;
   const rows = data.map(r => {
-    const detalle = (r.dias_detalle || []).map(d => `${fmtDate(d.fecha)}: ${fmt(d.km, 1)} km`).join(' | ');
-    const kmCell = r.alerta
-      ? `<span class="badge badge-red">${fmt(r.total_km, 1)} km ⚠</span>`
-      : `${fmt(r.total_km, 1)} km`;
+    const diff = r.diff;
+    const diffBadge = diff == null ? '' : diff >= 0
+      ? `<span class="badge badge-green">+${fmt(diff, 2)}</span>`
+      : `<span class="badge badge-red">${fmt(diff, 2)}</span>`;
+    const detalle = (r.tramos || []).map(t =>
+      `${fmtDate(t.desde)} → ${fmtDate(t.hasta)}: ${fmt(t.km, 1)} km / ${fmt(t.litros, 2)} L${t.km_l != null ? ' = ' + fmt(t.km_l, 2) + ' km/L' : ''} (${t.dias_gps} día${t.dias_gps !== 1 ? 's' : ''} GPS)`
+    ).join(' | ');
     return `<tr>
       <td><strong>${r.name}</strong></td>
       <td>${r.plate}</td>
-      <td>${r.ultima_carga ? fmtDate(r.ultima_carga) : 'Sin cargas'}</td>
-      <td class="num">${r.ultimos_litros != null ? fmt(r.ultimos_litros, 2) + ' L' : '—'}</td>
-      <td class="num">${kmCell}</td>
-      <td class="num">${fmt(r.dias_gps)}</td>
-    </tr>` + (r.alerta ? `<tr><td colspan="6" style="padding:0 8px 4px 20px;font-size:9px;color:#dc2626;">⚠ Supera lo que un tanque lleno alcanzaría (${fmt(r.km_maximo, 1)} km) — probablemente falta cargar una carga en el sistema.</td></tr>` : '')
-      + (detalle ? `<tr><td colspan="6" style="padding:2px 8px 8px 20px;font-size:9px;color:#5a6478;">${detalle}</td></tr>` : '');
+      <td class="num">${fmt(r.num_tramos)}</td>
+      <td class="num">${fmt(r.total_km, 1)} km</td>
+      <td class="num">${fmt(r.total_litros, 2)} L</td>
+      <td class="num">${r.km_per_liter ? fmt(r.km_per_liter, 2) : '—'}</td>
+      <td class="num">${r.km_l_real != null ? fmt(r.km_l_real, 2) : '—'} ${diffBadge}</td>
+    </tr>` + (detalle ? `<tr><td colspan="7" style="padding:2px 8px 8px 20px;font-size:9px;color:#5a6478;">${detalle}</td></tr>` : '');
   }).join('');
-  const html = buildHeader('Km desde Última Carga (Auditoría GPS)', from, to, [
+  const html = buildHeader('Km entre Cargas (Real)', from, to, [
     { label: 'Vehículos', value: data.length },
-    { label: 'Total km pendientes', value: fmt(totKm, 1) + ' km' },
-    { label: 'Con alerta', value: numAlertas },
+    { label: 'Tramos cerrados', value: data.reduce((a, r) => a + r.num_tramos, 0) },
+    { label: 'Total km', value: fmt(totKm, 1) + ' km' },
   ], minDate, maxDate) + `
     <table>
-      <thead><tr><th>Vehículo</th><th>Patente</th><th>Última Carga</th><th class="num">Litros</th><th class="num">Km desde Entonces</th><th class="num">Días GPS</th></tr></thead>
+      <thead><tr><th>Vehículo</th><th>Patente</th><th class="num">Tramos</th><th class="num">Total Km</th><th class="num">Total Litros</th><th class="num">Km/L Teórico</th><th class="num">Km/L Real</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>` + buildFooter();
   openPrintWindow(html);
@@ -612,78 +614,85 @@ function PreviewKmDesdeCarga({ data }) {
       return next;
     });
   };
-  const numAlertas = data.filter(r => r.alerta).length;
   return (
     <div>
-      {numAlertas > 0 && (
-        <div className="alert alert-error" style={{marginBottom:12}}>
-          ⚠ {numAlertas} vehículo{numAlertas !== 1 ? 's' : ''} superó{numAlertas !== 1 ? 'aron' : ''} lo que un tanque lleno alcanzaría desde la última carga — probablemente falta cargar una carga en el sistema.
-        </div>
-      )}
-    <div className="table-wrapper">
-      <table className="table">
-        <thead>
-          <tr>
-            <th style={{width:24}}></th>
-            <th>Vehículo</th>
-            <th>Patente</th>
-            <th>Última Carga</th>
-            <th style={{textAlign:'right'}}>Litros</th>
-            <th style={{textAlign:'right'}}>Km desde Entonces</th>
-            <th style={{textAlign:'right'}}>Días GPS</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map(r => {
-            const dias = r.dias_detalle || [];
-            const isOpen = expanded.has(r.id);
-            return (
-              <Fragment key={r.id}>
-                <tr
-                  onClick={() => dias.length && toggle(r.id)}
-                  style={{cursor: dias.length ? 'pointer' : 'default', background: r.alerta ? '#fef2f2' : undefined}}
-                >
-                  <td style={{textAlign:'center', color:'var(--gray-400)'}}>{dias.length ? (isOpen ? '▾' : '▸') : ''}</td>
-                  <td><strong>{r.name}</strong></td>
-                  <td>{r.plate}</td>
-                  <td>{r.ultima_carga ? fmtDate(r.ultima_carga) : <span style={{color:'var(--gray-400)'}}>Sin cargas</span>}</td>
-                  <td style={{textAlign:'right'}}>{r.ultimos_litros != null ? fmt(r.ultimos_litros, 2) + ' L' : '—'}</td>
-                  <td style={{textAlign:'right'}}>
-                    {r.alerta
-                      ? <span className="badge badge-red" title={`Supera lo que un tanque lleno alcanzaría (${fmt(r.km_maximo, 1)} km): probablemente falta cargar una carga en el sistema`}>{fmt(r.total_km, 1)} km ⚠</span>
-                      : <strong>{fmt(r.total_km, 1)} km</strong>}
-                  </td>
-                  <td style={{textAlign:'right'}}>{fmt(r.dias_gps)}</td>
-                </tr>
-                {isOpen && (
-                  <tr>
-                    <td></td>
-                    <td colSpan={6} style={{padding:'0 0 8px'}}>
-                      <table className="table" style={{margin:0, background:'var(--gray-50,#f9fafb)'}}>
-                        <thead>
-                          <tr>
-                            <th>Fecha GPS</th>
-                            <th style={{textAlign:'right'}}>Km</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {dias.map(d => (
-                            <tr key={d.fecha}>
-                              <td>{fmtDate(d.fecha)}</td>
-                              <td style={{textAlign:'right'}}>{fmt(d.km, 1)} km</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+      <p style={{fontSize:'.75rem', color:'var(--gray-500)', margin:'-4px 0 12px'}}>
+        Solo tramos cerrados (una carga y la siguiente ya registrada). El tramo abierto actual —desde la última
+        carga hasta hoy— no se muestra acá porque todavía no hay una carga que lo confirme.
+      </p>
+      <div className="table-wrapper">
+        <table className="table">
+          <thead>
+            <tr>
+              <th style={{width:24}}></th>
+              <th>Vehículo</th>
+              <th>Patente</th>
+              <th style={{textAlign:'right'}}>Tramos</th>
+              <th style={{textAlign:'right'}}>Total Km</th>
+              <th style={{textAlign:'right'}}>Total Litros</th>
+              <th style={{textAlign:'right'}}>Km/L Teórico</th>
+              <th style={{textAlign:'right'}}>Km/L Real</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map(r => {
+              const tramos = r.tramos || [];
+              const isOpen = expanded.has(r.id);
+              return (
+                <Fragment key={r.id}>
+                  <tr
+                    onClick={() => tramos.length && toggle(r.id)}
+                    style={{cursor: tramos.length ? 'pointer' : 'default'}}
+                  >
+                    <td style={{textAlign:'center', color:'var(--gray-400)'}}>{tramos.length ? (isOpen ? '▾' : '▸') : ''}</td>
+                    <td><strong>{r.name}</strong></td>
+                    <td>{r.plate}</td>
+                    <td style={{textAlign:'right'}}>{fmt(r.num_tramos)}</td>
+                    <td style={{textAlign:'right'}}>{fmt(r.total_km, 1)} km</td>
+                    <td style={{textAlign:'right'}}>{fmt(r.total_litros, 2)} L</td>
+                    <td style={{textAlign:'right'}}>{r.km_per_liter ? fmt(r.km_per_liter, 2) : '—'}</td>
+                    <td style={{textAlign:'right'}}>
+                      <strong>{r.km_l_real != null ? fmt(r.km_l_real, 2) : '—'}</strong>{' '}
+                      {r.diff != null && <DeltaBadge delta={r.diff} pct={r.km_per_liter ? (r.diff / r.km_per_liter) * 100 : null} decimals={2} />}
                     </td>
                   </tr>
-                )}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  {isOpen && (
+                    <tr>
+                      <td></td>
+                      <td colSpan={7} style={{padding:'0 0 8px'}}>
+                        <table className="table" style={{margin:0, background:'var(--gray-50,#f9fafb)'}}>
+                          <thead>
+                            <tr>
+                              <th>Desde</th>
+                              <th>Hasta</th>
+                              <th style={{textAlign:'right'}}>Litros</th>
+                              <th style={{textAlign:'right'}}>Km</th>
+                              <th style={{textAlign:'right'}}>Días GPS</th>
+                              <th style={{textAlign:'right'}}>Km/L real</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tramos.map((t, i) => (
+                              <tr key={i}>
+                                <td>{fmtDate(t.desde)}</td>
+                                <td>{fmtDate(t.hasta)}</td>
+                                <td style={{textAlign:'right'}}>{fmt(t.litros, 2)} L</td>
+                                <td style={{textAlign:'right'}}>{fmt(t.km, 1)} km</td>
+                                <td style={{textAlign:'right'}}>{fmt(t.dias_gps)}</td>
+                                <td style={{textAlign:'right'}}>{t.km_l != null ? fmt(t.km_l, 2) : '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -955,14 +964,12 @@ export default function Reports() {
       {selected && (
         <div className="card" style={{marginBottom:16}}>
           <div style={{display:'flex', gap:12, alignItems:'flex-end', flexWrap:'wrap', padding:'4px 0'}}>
-            {selected !== 'km_desde_carga' && (
-              <div className="form-group" style={{marginBottom:0}}>
-                <label className="form-label">Desde</label>
-                <input type="date" className="form-input" value={from} onChange={e=>setFrom(e.target.value)} style={{width:160}} />
-              </div>
-            )}
             <div className="form-group" style={{marginBottom:0}}>
-              <label className="form-label">{selected === 'km_desde_carga' ? 'Hasta (día del corte)' : 'Hasta'}</label>
+              <label className="form-label">Desde</label>
+              <input type="date" className="form-input" value={from} onChange={e=>setFrom(e.target.value)} style={{width:160}} />
+            </div>
+            <div className="form-group" style={{marginBottom:0}}>
+              <label className="form-label">Hasta</label>
               <input type="date" className="form-input" value={to} onChange={e=>setTo(e.target.value)} style={{width:160}} />
             </div>
             <div className="form-group" style={{marginBottom:0}}>
