@@ -380,20 +380,26 @@ function printBySupplier(data, from, to, minDate, maxDate) {
 
 function printKmDesdeCarga(data, from, to, minDate, maxDate) {
   const totKm = data.reduce((a, r) => a + +r.total_km, 0);
+  const numAlertas = data.filter(r => r.alerta).length;
   const rows = data.map(r => {
     const detalle = (r.dias_detalle || []).map(d => `${fmtDate(d.fecha)}: ${fmt(d.km, 1)} km`).join(' | ');
+    const kmCell = r.alerta
+      ? `<span class="badge badge-red">${fmt(r.total_km, 1)} km ⚠</span>`
+      : `${fmt(r.total_km, 1)} km`;
     return `<tr>
       <td><strong>${r.name}</strong></td>
       <td>${r.plate}</td>
       <td>${r.ultima_carga ? fmtDate(r.ultima_carga) : 'Sin cargas'}</td>
       <td class="num">${r.ultimos_litros != null ? fmt(r.ultimos_litros, 2) + ' L' : '—'}</td>
-      <td class="num">${fmt(r.total_km, 1)} km</td>
+      <td class="num">${kmCell}</td>
       <td class="num">${fmt(r.dias_gps)}</td>
-    </tr>` + (detalle ? `<tr><td colspan="6" style="padding:2px 8px 8px 20px;font-size:9px;color:#5a6478;">${detalle}</td></tr>` : '');
+    </tr>` + (r.alerta ? `<tr><td colspan="6" style="padding:0 8px 4px 20px;font-size:9px;color:#dc2626;">⚠ Supera lo que un tanque lleno alcanzaría (${fmt(r.km_maximo, 1)} km) — probablemente falta cargar una carga en el sistema.</td></tr>` : '')
+      + (detalle ? `<tr><td colspan="6" style="padding:2px 8px 8px 20px;font-size:9px;color:#5a6478;">${detalle}</td></tr>` : '');
   }).join('');
   const html = buildHeader('Km desde Última Carga (Auditoría GPS)', from, to, [
     { label: 'Vehículos', value: data.length },
     { label: 'Total km pendientes', value: fmt(totKm, 1) + ' km' },
+    { label: 'Con alerta', value: numAlertas },
   ], minDate, maxDate) + `
     <table>
       <thead><tr><th>Vehículo</th><th>Patente</th><th>Última Carga</th><th class="num">Litros</th><th class="num">Km desde Entonces</th><th class="num">Días GPS</th></tr></thead>
@@ -606,7 +612,14 @@ function PreviewKmDesdeCarga({ data }) {
       return next;
     });
   };
+  const numAlertas = data.filter(r => r.alerta).length;
   return (
+    <div>
+      {numAlertas > 0 && (
+        <div className="alert alert-error" style={{marginBottom:12}}>
+          ⚠ {numAlertas} vehículo{numAlertas !== 1 ? 's' : ''} superó{numAlertas !== 1 ? 'aron' : ''} lo que un tanque lleno alcanzaría desde la última carga — probablemente falta cargar una carga en el sistema.
+        </div>
+      )}
     <div className="table-wrapper">
       <table className="table">
         <thead>
@@ -628,14 +641,18 @@ function PreviewKmDesdeCarga({ data }) {
               <Fragment key={r.id}>
                 <tr
                   onClick={() => dias.length && toggle(r.id)}
-                  style={{cursor: dias.length ? 'pointer' : 'default'}}
+                  style={{cursor: dias.length ? 'pointer' : 'default', background: r.alerta ? '#fef2f2' : undefined}}
                 >
                   <td style={{textAlign:'center', color:'var(--gray-400)'}}>{dias.length ? (isOpen ? '▾' : '▸') : ''}</td>
                   <td><strong>{r.name}</strong></td>
                   <td>{r.plate}</td>
                   <td>{r.ultima_carga ? fmtDate(r.ultima_carga) : <span style={{color:'var(--gray-400)'}}>Sin cargas</span>}</td>
                   <td style={{textAlign:'right'}}>{r.ultimos_litros != null ? fmt(r.ultimos_litros, 2) + ' L' : '—'}</td>
-                  <td style={{textAlign:'right'}}><strong>{fmt(r.total_km, 1)} km</strong></td>
+                  <td style={{textAlign:'right'}}>
+                    {r.alerta
+                      ? <span className="badge badge-red" title={`Supera lo que un tanque lleno alcanzaría (${fmt(r.km_maximo, 1)} km): probablemente falta cargar una carga en el sistema`}>{fmt(r.total_km, 1)} km ⚠</span>
+                      : <strong>{fmt(r.total_km, 1)} km</strong>}
+                  </td>
                   <td style={{textAlign:'right'}}>{fmt(r.dias_gps)}</td>
                 </tr>
                 {isOpen && (
@@ -666,6 +683,7 @@ function PreviewKmDesdeCarga({ data }) {
           })}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }

@@ -321,7 +321,7 @@ if ($type === 'km_desde_carga') {
     $toG = $to ?: date('Y-m-d');
 
     $sqlV = "
-        SELECT v.id, v.name, v.plate, v.type,
+        SELECT v.id, v.name, v.plate, v.type, v.tank_capacity, v.km_per_liter,
                lc.last_date, lc.last_liters
         FROM vehicles v
         LEFT JOIN (
@@ -368,6 +368,15 @@ if ($type === 'km_desde_carga') {
             $dias[] = ['fecha' => $g['import_date'], 'km' => (float)$g['km_recorridos']];
             $totalKm += (float)$g['km_recorridos'];
         }
+        // Umbral de alerta: km que un tanque lleno alcanzaría a recorrer con el
+        // rendimiento cargado. Si ya se superó eso sin una carga nueva
+        // registrada, lo más probable es que falte cargar una carga en el
+        // sistema (nadie anda con el tanque en negativo).
+        $tankCapacity   = $v['tank_capacity']  !== null ? (float)$v['tank_capacity']  : null;
+        $kmPerLiter     = $v['km_per_liter']   !== null ? (float)$v['km_per_liter']   : null;
+        $kmMaximo       = ($tankCapacity && $kmPerLiter) ? round($tankCapacity * $kmPerLiter, 1) : null;
+        $alerta         = $kmMaximo !== null && $totalKm > $kmMaximo;
+
         $rows[] = [
             'id'              => $v['id'],
             'name'            => $v['name'],
@@ -378,9 +387,11 @@ if ($type === 'km_desde_carga') {
             'total_km'        => round($totalKm, 2),
             'dias_gps'        => count($dias),
             'dias_detalle'    => $dias,
+            'km_maximo'       => $kmMaximo,
+            'alerta'          => $alerta,
         ];
     }
-    usort($rows, fn($a, $b) => $b['total_km'] <=> $a['total_km']);
+    usort($rows, fn($a, $b) => ((int)$b['alerta'] <=> (int)$a['alerta']) ?: ($b['total_km'] <=> $a['total_km']));
 
     jsonResponse(['data' => $rows, 'min_date' => null, 'max_date' => null]);
 }
