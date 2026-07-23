@@ -1,27 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useMunicipios, useMesas, useElecciones } from '../hooks/useApi';
+import { useMesas, useElecciones } from '../hooks/useApi';
 import { useMunicipio } from '../context/MunicipioContext';
 import { useEleccion } from '../context/EleccionContext';
 
 // Datos variables que antes estaban fijos en el código de la Constancia de
-// Emisión de Voto (y que van a reusarse en otras actas): el encabezado de
-// la Junta Electoral, la fecha/nombre de la elección, y el corte de mesa
-// (cuántos electores tiene cada mesa), que hoy se carga a mano mesa por
-// mesa.
+// Emisión de Voto (y que van a reusarse en otras actas): el nombre/fecha de
+// la elección y el encabezado de la Junta Electoral (ambos propios de cada
+// elección: un mismo municipio puede tener varias, cada una con lo suyo), y
+// el corte de mesa (cuántos electores tiene cada mesa), que hoy se carga a
+// mano mesa por mesa.
 
 export default function Configuracion() {
-  const { get: getMunicipio, update: updateMunicipio } = useMunicipios();
   const { list: listMesas, update: updateMesa } = useMesas();
   const { get: getEleccion, update: updateEleccion } = useElecciones();
   const { selectedId: municipioId } = useMunicipio();
   const { selectedId: eleccionId } = useEleccion();
 
-  const [municipio, setMunicipio]     = useState(null);
-  const [juntaNombre, setJuntaNombre] = useState('');
-  const [savingJunta, setSavingJunta] = useState(false);
-
   const [eleccionNombre, setEleccionNombre] = useState('');
   const [eleccionFecha, setEleccionFecha]   = useState('');
+  const [juntaNombre, setJuntaNombre]       = useState('');
   const [savingEleccion, setSavingEleccion] = useState(false);
 
   const [mesas, setMesas]         = useState([]);
@@ -36,11 +33,9 @@ export default function Configuracion() {
 
   const load = () => {
     if (!municipioId) return Promise.resolve();
-    const pedidos = [getMunicipio(municipioId), listMesas()];
+    const pedidos = [listMesas()];
     if (eleccionId) pedidos.push(getEleccion(eleccionId));
-    return Promise.all(pedidos).then(([m, ms, e]) => {
-      setMunicipio(m.data);
-      setJuntaNombre(m.data.junta_electoral_nombre || '');
+    return Promise.all(pedidos).then(([ms, e]) => {
       setMesas(ms.data);
       const iniciales = {};
       ms.data.forEach((mesa) => { iniciales[mesa.id] = mesa.electores_habilitados ?? 0; });
@@ -48,6 +43,7 @@ export default function Configuracion() {
       if (e) {
         setEleccionNombre(e.data.nombre || '');
         setEleccionFecha(e.data.fecha || '');
+        setJuntaNombre(e.data.junta_electoral_nombre || '');
       }
     });
   };
@@ -64,34 +60,17 @@ export default function Configuracion() {
     setSavingEleccion(true);
     setError('');
     try {
-      await updateEleccion(eleccionId, { nombre: eleccionNombre, fecha: eleccionFecha || null });
+      await updateEleccion(eleccionId, {
+        nombre: eleccionNombre,
+        fecha: eleccionFecha || null,
+        junta_electoral_nombre: juntaNombre,
+      });
       notify('Elección actualizada');
       await load();
     } catch (e) {
       setError(e.response?.data?.error || 'Error al guardar');
     } finally {
       setSavingEleccion(false);
-    }
-  };
-
-  const handleSaveJunta = async () => {
-    if (!municipio) return;
-    setSavingJunta(true);
-    setError('');
-    try {
-      await updateMunicipio(municipio.id, {
-        nombre: municipio.nombre,
-        provincia: municipio.provincia,
-        seccion_electoral: municipio.seccion_electoral,
-        activo: municipio.activo,
-        junta_electoral_nombre: juntaNombre,
-      });
-      notify('Nombre de la Junta Electoral actualizado');
-      await load();
-    } catch (e) {
-      setError(e.response?.data?.error || 'Error al guardar');
-    } finally {
-      setSavingJunta(false);
     }
   };
 
@@ -123,9 +102,11 @@ export default function Configuracion() {
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ marginTop: 0 }}>Elección</h3>
         <p style={{ fontSize: '.85rem', color: 'var(--gray-500)', marginBottom: 16 }}>
-          Nombre y fecha de la elección actualmente seleccionada (arriba, en el selector del
-          costado). Se muestran tanto en el encabezado del padrón como en el troquel de la
-          Constancia de Emisión de Voto.
+          Nombre, fecha y encabezado de la Junta Electoral de la elección actualmente
+          seleccionada (arriba, en el selector del costado) — propios de esta elección, no del
+          municipio: un mismo municipio puede tener otra elección con otros valores. Se muestran
+          en el encabezado del padrón y en el troquel de la Constancia de Emisión de Voto (y de
+          las próximas actas que lo reusen).
         </p>
         {!eleccionId ? (
           <p style={{ color: 'var(--gray-500)' }}>No hay ninguna elección seleccionada.</p>
@@ -151,33 +132,20 @@ export default function Configuracion() {
                 />
               </div>
             </div>
+            <div className="form-group">
+              <label className="form-label">Nombre de la Junta Electoral</label>
+              <input
+                className="form-control"
+                value={juntaNombre}
+                onChange={(e) => setJuntaNombre(e.target.value)}
+                placeholder="Ej: Junta Electoral Municipal"
+              />
+            </div>
             <button className="btn btn-primary" onClick={handleSaveEleccion} disabled={savingEleccion}>
               {savingEleccion ? 'Guardando...' : 'Guardar'}
             </button>
           </>
         )}
-      </div>
-
-      <div className="card" style={{ marginBottom: 24 }}>
-        <h3 style={{ marginTop: 0 }}>Junta Electoral</h3>
-        <p style={{ fontSize: '.85rem', color: 'var(--gray-500)', marginBottom: 16 }}>
-          Texto que encabeza el troquel de la Constancia de Emisión de Voto (y de las próximas
-          actas que reusen el mismo encabezado), para este municipio.
-        </p>
-        <div className="form-row">
-          <div className="form-group" style={{ flex: 1 }}>
-            <label className="form-label">Nombre de la Junta Electoral</label>
-            <input
-              className="form-control"
-              value={juntaNombre}
-              onChange={(e) => setJuntaNombre(e.target.value)}
-              placeholder="Ej: Junta Electoral Municipal"
-            />
-          </div>
-        </div>
-        <button className="btn btn-primary" onClick={handleSaveJunta} disabled={savingJunta}>
-          {savingJunta ? 'Guardando...' : 'Guardar'}
-        </button>
       </div>
 
       <div className="card">

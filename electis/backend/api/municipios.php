@@ -37,39 +37,19 @@ function createMunicipio(PDO $db): void {
     $data = getBody();
     if (empty($data['nombre'])) jsonError('El nombre es requerido');
 
-    $stmt = $db->prepare("INSERT INTO municipios (nombre, provincia, seccion_electoral, junta_electoral_nombre) VALUES (?, ?, ?, ?)");
-    $stmt->execute([
-        $data['nombre'], $data['provincia'] ?? null, $data['seccion_electoral'] ?? null,
-        ($data['junta_electoral_nombre'] ?? '') ?: 'JUNTA ELECTORAL MUNICIPAL',
-    ]);
+    $stmt = $db->prepare("INSERT INTO municipios (nombre, provincia, seccion_electoral) VALUES (?, ?, ?)");
+    $stmt->execute([$data['nombre'], $data['provincia'] ?? null, $data['seccion_electoral'] ?? null]);
     jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Municipio creado'], 201);
 }
 
-// El formulario de Municipios (nombre/provincia/sección/activo) y la pantalla
-// de Configuración (junta_electoral_nombre) actualizan municipios desde dos
-// pantallas distintas, cada una mandando solo lo suyo: si `junta_electoral_
-// nombre` no viene en el body, se conserva el valor ya guardado en vez de
-// pisarlo con el default (por ejemplo, al activar/desactivar un municipio
-// desde Municipios no se manda ese campo).
 function updateMunicipio(PDO $db, int $id): void {
     $data = getBody();
     if (empty($data['nombre'])) jsonError('El nombre es requerido');
 
     $activo = isset($data['activo']) ? (int)(bool)$data['activo'] : 1;
 
-    if (array_key_exists('junta_electoral_nombre', $data)) {
-        $juntaElectoralNombre = $data['junta_electoral_nombre'] ?: 'JUNTA ELECTORAL MUNICIPAL';
-    } else {
-        $actual = $db->prepare("SELECT junta_electoral_nombre FROM municipios WHERE id = ?");
-        $actual->execute([$id]);
-        $juntaElectoralNombre = $actual->fetchColumn() ?: 'JUNTA ELECTORAL MUNICIPAL';
-    }
-
-    $stmt = $db->prepare("UPDATE municipios SET nombre=?, provincia=?, seccion_electoral=?, junta_electoral_nombre=?, activo=?, updated_at=NOW() WHERE id=?");
-    $stmt->execute([
-        $data['nombre'], $data['provincia'] ?? null, $data['seccion_electoral'] ?? null,
-        $juntaElectoralNombre, $activo, $id,
-    ]);
+    $stmt = $db->prepare("UPDATE municipios SET nombre=?, provincia=?, seccion_electoral=?, activo=?, updated_at=NOW() WHERE id=?");
+    $stmt->execute([$data['nombre'], $data['provincia'] ?? null, $data['seccion_electoral'] ?? null, $activo, $id]);
     jsonResponse(['message' => 'Municipio actualizado']);
 }
 

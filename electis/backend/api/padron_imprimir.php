@@ -32,11 +32,11 @@ $mesaStmt->execute([$mesaId, $municipioId, $eleccionId]);
 $mesa = $mesaStmt->fetch();
 if (!$mesa) jsonError('Mesa no encontrada', 404);
 
-$municipioStmt = $db->prepare("SELECT nombre, provincia, seccion_electoral, junta_electoral_nombre FROM municipios WHERE id = ?");
+$municipioStmt = $db->prepare("SELECT nombre, provincia, seccion_electoral FROM municipios WHERE id = ?");
 $municipioStmt->execute([$municipioId]);
 $municipio = $municipioStmt->fetch();
 
-$eleccionStmt = $db->prepare("SELECT nombre, fecha FROM elecciones WHERE id = ?");
+$eleccionStmt = $db->prepare("SELECT nombre, fecha, junta_electoral_nombre FROM elecciones WHERE id = ?");
 $eleccionStmt->execute([$eleccionId]);
 $eleccion = $eleccionStmt->fetch();
 
