@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS municipios (
     nombre VARCHAR(150) NOT NULL,
     provincia VARCHAR(100),
     seccion_electoral VARCHAR(100),
+    -- Encabezado del troquel de la Constancia de Emisión de Voto (y de las
+    -- próximas actas que lo reusen). Editable desde Configuración.
+    junta_electoral_nombre VARCHAR(150) NOT NULL DEFAULT 'JUNTA ELECTORAL MUNICIPAL',
     activo TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

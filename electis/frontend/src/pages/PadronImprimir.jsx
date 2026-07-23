@@ -111,7 +111,7 @@ function Ticket({ elector, mesa, municipio, eleccion }) {
 
       <div className="padron-mitad-der">
         <div className="padron-der-header">
-          <div>JUNTA ELECTORAL MUNICIPAL</div>
+          <div>{municipio?.junta_electoral_nombre || 'JUNTA ELECTORAL MUNICIPAL'}</div>
           <div>{(eleccion?.nombre || '').toUpperCase()} — {formatFecha(eleccion?.fecha)}</div>
         </div>
         <div className="padron-constancia-title">CONSTANCIA DE EMISIÓN DE VOTO</div>
