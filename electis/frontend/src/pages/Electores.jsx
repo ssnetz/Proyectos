@@ -39,6 +39,9 @@ export default function Electores() {
   // (hay que eliminar el padrón existente primero).
   const [padronTotal, setPadronTotal]     = useState(null);
   const [deletingPadron, setDeletingPadron] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword]   = useState('');
+  const [deleteError, setDeleteError]         = useState('');
 
   const load = (params) => list(params).then((r) => { setElectores(r.data.data); setMeta(r.data.meta); });
   const checkPadron = () => list({}).then((r) => setPadronTotal(r.data.meta.total));
@@ -146,24 +149,32 @@ export default function Electores() {
     }
   };
 
-  const handleDeletePadron = async () => {
+  const openDeleteModal = () => {
     if (!confirm(
       `¿Eliminar el padrón completo (${padronTotal} elector${padronTotal === 1 ? '' : 'es'})? ` +
       'Esta acción borra la base del sistema para esta elección: todos los electores cargados, ' +
       'quién votó y las habilitaciones. No se puede deshacer.'
     )) return;
+    setDeletePassword('');
+    setDeleteError('');
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeletePadron = async () => {
+    if (!deletePassword) { setDeleteError('Ingresá tu contraseña para confirmar'); return; }
 
     setDeletingPadron(true);
-    setError('');
+    setDeleteError('');
     try {
-      await deletePadron();
+      await deletePadron(deletePassword);
+      setDeleteModalOpen(false);
       notify('Padrón eliminado');
       setPage(1);
       await reload();
       await checkPadron();
       await listMesas().then((res) => setMesas(res.data));
     } catch (e) {
-      setError(e.response?.data?.error || 'Error al eliminar el padrón');
+      setDeleteError(e.response?.data?.error || 'Error al eliminar el padrón');
     } finally {
       setDeletingPadron(false);
     }
@@ -190,11 +201,11 @@ export default function Electores() {
               padronTotal > 0 ? (
                 <button
                   className="btn btn-danger"
-                  onClick={handleDeletePadron}
+                  onClick={openDeleteModal}
                   disabled={deletingPadron}
                   title="Ya hay un padrón cargado. Para importar uno nuevo, primero hay que eliminar este."
                 >
-                  {deletingPadron ? 'Eliminando...' : '🗑️ Eliminar padrón'}
+                  🗑️ Eliminar padrón
                 </button>
               ) : (
                 <button className="btn btn-ghost" onClick={openImport} disabled={padronTotal === null}>📥 Importar padrón</button>
@@ -414,6 +425,38 @@ export default function Electores() {
               )}
             </div>
           )}
+        </Modal>
+      )}
+
+      {deleteModalOpen && (
+        <Modal
+          title="Confirmar eliminación del padrón"
+          onClose={() => setDeleteModalOpen(false)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setDeleteModalOpen(false)} disabled={deletingPadron}>Cancelar</button>
+              <button className="btn btn-danger" onClick={handleDeletePadron} disabled={deletingPadron || !deletePassword}>
+                {deletingPadron ? 'Eliminando...' : 'Eliminar padrón'}
+              </button>
+            </>
+          }
+        >
+          {deleteError && <div className="alert alert-danger">{deleteError}</div>}
+          <p style={{ fontSize: '.85rem', color: 'var(--gray-500)', marginBottom: 12 }}>
+            Como segunda confirmación, ingresá tu propia contraseña de Electis para borrar los
+            {' '}{padronTotal} elector{padronTotal === 1 ? '' : 'es'} de esta elección.
+          </p>
+          <div className="form-group">
+            <label className="form-label">Tu contraseña</label>
+            <input
+              type="password"
+              autoFocus
+              className="form-control"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !deletingPadron && deletePassword && handleDeletePadron()}
+            />
+          </div>
         </Modal>
       )}
     </div>
