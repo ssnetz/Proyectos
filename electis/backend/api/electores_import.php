@@ -155,16 +155,29 @@ function importPadron(PDO $db): void {
 // aunque sea un elector cargado, importPadron() rechaza subir otro. Las
 // mesas no se tocan (pueden tener PIN de fiscal ya generado y estar
 // reasignadas a su escuela real), solo se resetea el contador de electores
-// habilitados a 0. Requiere `?confirmar=1` para evitar un DELETE accidental:
-// la confirmación real (preguntarle al usuario) la hace el frontend antes de
-// llamar a este endpoint.
+// habilitados a 0. Requiere `?confirmar=1` (el frontend ya le preguntó al
+// usuario) y, además, la contraseña del propio admin logueado en el body —
+// un segundo factor para que un click de más (o un token robado sin la
+// contraseña) no pueda borrar el padrón.
 function eliminarPadron(PDO $db): void {
-    $scope = requireMunicipioScope(requireAdmin());
+    $payload = requireAdmin();
+    $scope = requireMunicipioScope($payload);
     $municipioId = $scope['municipio_id'];
     $eleccionId = requireEleccionScope();
 
     if (($_GET['confirmar'] ?? '') !== '1') {
         jsonError('Falta confirmar la eliminación del padrón (?confirmar=1)', 400);
+    }
+
+    $password = getBody()['password'] ?? '';
+    if ($password === '') {
+        jsonError('Debe ingresar tu contraseña para confirmar', 400);
+    }
+    $userStmt = $db->prepare("SELECT contrasena FROM usuarios WHERE id = ?");
+    $userStmt->execute([$payload['sub']]);
+    $hash = $userStmt->fetchColumn();
+    if (!$hash || !password_verify($password, $hash)) {
+        jsonError('Contraseña incorrecta', 401);
     }
 
     $db->beginTransaction();
