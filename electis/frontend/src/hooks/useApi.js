@@ -65,7 +65,8 @@ export function useElectores() {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   };
-  return { ...base, importPadron };
+  const deletePadron = () => api.delete('/electores_import.php', { params: { confirmar: 1 } });
+  return { ...base, importPadron, deletePadron };
 }
 export function useUsuarios()        { return crud('usuarios'); }
 export function useMunicipios()      { return crud('municipios'); }

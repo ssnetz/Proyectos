@@ -20,8 +20,9 @@ $db = getDB();
 $method = getMethod();
 
 match($method) {
-    'POST'  => importPadron($db),
-    default => jsonError('Método no permitido', 405),
+    'POST'   => importPadron($db),
+    'DELETE' => eliminarPadron($db),
+    default  => jsonError('Método no permitido', 405),
 };
 
 function importPadron(PDO $db): void {
@@ -30,6 +31,12 @@ function importPadron(PDO $db): void {
     $scope = requireMunicipioScope(requireAdmin());
     $municipioId = $scope['municipio_id'];
     $eleccionId = requireEleccionScope();
+
+    $countStmt = $db->prepare("SELECT COUNT(*) FROM electores WHERE municipio_id = ? AND eleccion_id = ?");
+    $countStmt->execute([$municipioId, $eleccionId]);
+    if ((int)$countStmt->fetchColumn() > 0) {
+        jsonError('Ya hay un padrón cargado para esta elección. Eliminalo antes de importar uno nuevo.', 409);
+    }
 
     if (empty($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
         jsonError('Debe subir un archivo CSV', 400);
@@ -140,5 +147,43 @@ function importPadron(PDO $db): void {
         'mesas_creadas'                 => $mesasCreadas,
         'errores'                       => array_slice($errores, 0, 50),
         'total_errores'                 => count($errores),
+    ]);
+}
+
+// Borra todo el padrón de la elección actual (todos los electores, sin
+// excepción). Es la única forma de volver a importar un CSV: mientras haya
+// aunque sea un elector cargado, importPadron() rechaza subir otro. Las
+// mesas no se tocan (pueden tener PIN de fiscal ya generado y estar
+// reasignadas a su escuela real), solo se resetea el contador de electores
+// habilitados a 0. Requiere `?confirmar=1` para evitar un DELETE accidental:
+// la confirmación real (preguntarle al usuario) la hace el frontend antes de
+// llamar a este endpoint.
+function eliminarPadron(PDO $db): void {
+    $scope = requireMunicipioScope(requireAdmin());
+    $municipioId = $scope['municipio_id'];
+    $eleccionId = requireEleccionScope();
+
+    if (($_GET['confirmar'] ?? '') !== '1') {
+        jsonError('Falta confirmar la eliminación del padrón (?confirmar=1)', 400);
+    }
+
+    $db->beginTransaction();
+    try {
+        $del = $db->prepare("DELETE FROM electores WHERE municipio_id = ? AND eleccion_id = ?");
+        $del->execute([$municipioId, $eleccionId]);
+        $borrados = $del->rowCount();
+
+        $reset = $db->prepare("UPDATE mesas SET electores_habilitados = 0 WHERE municipio_id = ? AND eleccion_id = ?");
+        $reset->execute([$municipioId, $eleccionId]);
+
+        $db->commit();
+    } catch (\Throwable $e) {
+        $db->rollBack();
+        jsonError('Error al eliminar el padrón: ' . $e->getMessage(), 500);
+    }
+
+    jsonResponse([
+        'message' => 'Padrón eliminado',
+        'electores_eliminados' => $borrados,
     ]);
 }

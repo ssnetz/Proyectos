@@ -9,7 +9,7 @@ const emptyForm = {
 };
 
 export default function Electores() {
-  const { list, create, update, importPadron } = useElectores();
+  const { list, create, update, importPadron, deletePadron } = useElectores();
   const { list: listMesas } = useMesas();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -33,10 +33,19 @@ export default function Electores() {
   const [importResult, setImportResult]   = useState(null);
   const [importError, setImportError]     = useState('');
 
+  // Independiente de los filtros de búsqueda: dice si ya hay un padrón
+  // cargado en esta elección, sin importar qué se esté filtrando en la
+  // tabla. Mientras haya al menos un elector, no se puede importar otro CSV
+  // (hay que eliminar el padrón existente primero).
+  const [padronTotal, setPadronTotal]     = useState(null);
+  const [deletingPadron, setDeletingPadron] = useState(false);
+
   const load = (params) => list(params).then((r) => { setElectores(r.data.data); setMeta(r.data.meta); });
+  const checkPadron = () => list({}).then((r) => setPadronTotal(r.data.meta.total));
 
   useEffect(() => {
     listMesas().then((r) => setMesas(r.data)).catch(() => setError('Error cargando mesas'));
+    checkPadron().catch(() => setError('Error verificando el padrón'));
   }, []);
 
   useEffect(() => {
@@ -128,11 +137,35 @@ export default function Electores() {
       const r = await importPadron(importFile);
       setImportResult(r.data);
       await reload();
+      await checkPadron();
       await listMesas().then((res) => setMesas(res.data));
     } catch (e) {
       setImportError(e.response?.data?.error || 'Error al importar el padrón');
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleDeletePadron = async () => {
+    if (!confirm(
+      `¿Eliminar el padrón completo (${padronTotal} elector${padronTotal === 1 ? '' : 'es'})? ` +
+      'Esta acción borra la base del sistema para esta elección: todos los electores cargados, ' +
+      'quién votó y las habilitaciones. No se puede deshacer.'
+    )) return;
+
+    setDeletingPadron(true);
+    setError('');
+    try {
+      await deletePadron();
+      notify('Padrón eliminado');
+      setPage(1);
+      await reload();
+      await checkPadron();
+      await listMesas().then((res) => setMesas(res.data));
+    } catch (e) {
+      setError(e.response?.data?.error || 'Error al eliminar el padrón');
+    } finally {
+      setDeletingPadron(false);
     }
   };
 
@@ -153,7 +186,20 @@ export default function Electores() {
             </select>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {isAdmin && <button className="btn btn-ghost" onClick={openImport}>📥 Importar padrón</button>}
+            {isAdmin && (
+              padronTotal > 0 ? (
+                <button
+                  className="btn btn-danger"
+                  onClick={handleDeletePadron}
+                  disabled={deletingPadron}
+                  title="Ya hay un padrón cargado. Para importar uno nuevo, primero hay que eliminar este."
+                >
+                  {deletingPadron ? 'Eliminando...' : '🗑️ Eliminar padrón'}
+                </button>
+              ) : (
+                <button className="btn btn-ghost" onClick={openImport} disabled={padronTotal === null}>📥 Importar padrón</button>
+              )
+            )}
             <button className="btn btn-primary" onClick={openCreate}>+ Nuevo elector</button>
           </div>
         </div>
