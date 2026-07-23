@@ -2,6 +2,8 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import JsBarcode from 'jsbarcode';
 import { usePadronImprimir } from '../hooks/useApi';
+import { formatFecha, Encabezado } from './PadronComun';
+import './PadronComun.css';
 import './PadronImprimir.css';
 
 // El alto disponible se mide en tiempo real (ver más abajo), así que este
@@ -12,46 +14,11 @@ import './PadronImprimir.css';
 const PAGE_HEIGHT_PX = Math.round(13.8 * 96);
 const FOOTER_HEIGHT_PX = 14;
 
-const MESES = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-];
-
-function formatFecha(fecha) {
-  if (!fecha) return '';
-  const [y, m, d] = fecha.split('-').map(Number);
-  return `${d} DE ${MESES[m - 1].toUpperCase()} DE ${y}`;
-}
-
-const LEYENDA = `(*) NO SABE LEER NI ESCRIBIR / (F,M) FEMENINO, MASCULINO / (LD) LIBRETA DUPLICADA / (LT) LIBRETA TRIPLICADA /
-(LC) LIBRETA CUADRUPLICADA / (DNI) DOC.NAC.DE IDENTIDAD / (DNID,DNIT,DNIC) DOC.NAC.DE IDENTIDAD DUP./TRIP./CUADRUP. /
-(DNI-EA,DNI-EB,...) DOC.NAC.DE IDENT. EJEMPLAR "A","B"...`;
-
 function FotoPlaceholder() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.5c-3.3 0-9.8 1.6-9.8 4.9v2.4h19.6v-2.4c0-3.3-6.5-4.9-9.8-4.9z" />
     </svg>
-  );
-}
-
-function Encabezado({ mesa, municipio, eleccion }) {
-  return (
-    <div className="padron-encabezado">
-      <div className="padron-leyenda">{LEYENDA}</div>
-      <div className="padron-titulo">
-        <div className="padron-titulo-linea1">
-          PADRON ELECTORAL <span className="padron-mesa-badge">MESA {String(mesa.numero).padStart(3, '0')}</span>
-        </div>
-        <div className="padron-titulo-linea2">
-          {(eleccion?.nombre || '').toUpperCase()} — {formatFecha(eleccion?.fecha)}
-        </div>
-      </div>
-      <div className="padron-seccional">
-        SECCIONAL ELECTORAL {municipio?.seccion_electoral} · CIRCUITO {mesa.circuito}<br />
-        {(municipio?.nombre || '').toUpperCase()}
-      </div>
-    </div>
   );
 }
 

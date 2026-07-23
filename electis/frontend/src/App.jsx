@@ -20,6 +20,7 @@ import Municipios         from './pages/Municipios';
 import Elecciones         from './pages/Elecciones';
 import Configuracion      from './pages/Configuracion';
 import PadronImprimir     from './pages/PadronImprimir';
+import PadronSinTroquel   from './pages/PadronSinTroquel';
 import Login              from './pages/Login';
 import FiscalLogin        from './pages/FiscalLogin';
 import FiscalVotacion     from './pages/FiscalVotacion';
@@ -207,6 +208,7 @@ function AppLayout() {
             <Route path="/establecimientos" element={<ProtectedRoute moduleKey="establecimientos"><Establecimientos /></ProtectedRoute>} />
             <Route path="/mesas"            element={<ProtectedRoute moduleKey="mesas"><Mesas /></ProtectedRoute>} />
             <Route path="/mesas/:mesaId/padron" element={<ProtectedRoute moduleKey="mesas"><PadronImprimir /></ProtectedRoute>} />
+            <Route path="/mesas/:mesaId/padron-sin-troquel" element={<ProtectedRoute moduleKey="mesas"><PadronSinTroquel /></ProtectedRoute>} />
             <Route path="/partidos"         element={<ProtectedRoute moduleKey="partidos"><Partidos /></ProtectedRoute>} />
             <Route path="/cargos"           element={<ProtectedRoute moduleKey="cargos"><Cargos /></ProtectedRoute>} />
             <Route path="/listas"           element={<ProtectedRoute moduleKey="listas"><Listas /></ProtectedRoute>} />
