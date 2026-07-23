@@ -103,7 +103,12 @@ export default function PadronSinTroquel() {
     const cabeceraH = encabezado.getBoundingClientRect().height + thead.getBoundingClientRect().height;
     const filaH = fila.getBoundingClientRect().height;
     const disponible = PAGE_HEIGHT_PX - cabeceraH - FOOTER_HEIGHT_PX;
-    setPorHoja(Math.max(1, Math.floor(disponible / filaH)));
+    // Un colchón de pixeles no alcanza: con filas tan bajas, cualquier
+    // pequeño desvío de redondeo entre "una fila medida" y "N filas reales"
+    // hacía que la última fila de la hoja quedara cortada contra el borde
+    // de la hoja (sin su línea inferior). Restar una fila entera de
+    // seguridad garantiza que la última siempre cierre completa.
+    setPorHoja(Math.max(1, Math.floor(disponible / filaH) - 1));
   }, [data, porHoja]);
 
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
