@@ -46,19 +46,36 @@ function createEleccion(PDO $db, int $municipioId): void {
     $data = getBody();
     if (empty($data['nombre'])) jsonError('El nombre es requerido');
 
-    $stmt = $db->prepare("INSERT INTO elecciones (municipio_id, nombre, fecha) VALUES (?, ?, ?)");
-    $stmt->execute([$municipioId, $data['nombre'], $data['fecha'] ?: null]);
+    $stmt = $db->prepare("INSERT INTO elecciones (municipio_id, nombre, fecha, junta_electoral_nombre) VALUES (?, ?, ?, ?)");
+    $stmt->execute([
+        $municipioId, $data['nombre'], $data['fecha'] ?: null,
+        ($data['junta_electoral_nombre'] ?? '') ?: 'JUNTA ELECTORAL MUNICIPAL',
+    ]);
     jsonResponse(['id' => (int)$db->lastInsertId(), 'message' => 'Elección creada'], 201);
 }
 
+// El formulario de Elecciones (nombre/fecha/activo) y la pantalla de
+// Configuración (junta_electoral_nombre) actualizan la elección desde dos
+// pantallas distintas, cada una mandando solo lo suyo: si `junta_electoral_
+// nombre` no viene en el body, se conserva el valor ya guardado en vez de
+// pisarlo con el default (por ejemplo, al activar/desactivar una elección
+// desde Elecciones no se manda ese campo).
 function updateEleccion(PDO $db, int $id, int $municipioId): void {
     $data = getBody();
     if (empty($data['nombre'])) jsonError('El nombre es requerido');
 
     $activo = isset($data['activo']) ? (int)(bool)$data['activo'] : 1;
 
-    $stmt = $db->prepare("UPDATE elecciones SET nombre=?, fecha=?, activo=?, updated_at=NOW() WHERE id=? AND municipio_id=?");
-    $stmt->execute([$data['nombre'], $data['fecha'] ?: null, $activo, $id, $municipioId]);
+    if (array_key_exists('junta_electoral_nombre', $data)) {
+        $juntaElectoralNombre = $data['junta_electoral_nombre'] ?: 'JUNTA ELECTORAL MUNICIPAL';
+    } else {
+        $actual = $db->prepare("SELECT junta_electoral_nombre FROM elecciones WHERE id = ? AND municipio_id = ?");
+        $actual->execute([$id, $municipioId]);
+        $juntaElectoralNombre = $actual->fetchColumn() ?: 'JUNTA ELECTORAL MUNICIPAL';
+    }
+
+    $stmt = $db->prepare("UPDATE elecciones SET nombre=?, fecha=?, junta_electoral_nombre=?, activo=?, updated_at=NOW() WHERE id=? AND municipio_id=?");
+    $stmt->execute([$data['nombre'], $data['fecha'] ?: null, $juntaElectoralNombre, $activo, $id, $municipioId]);
     jsonResponse(['message' => 'Elección actualizada']);
 }
 
