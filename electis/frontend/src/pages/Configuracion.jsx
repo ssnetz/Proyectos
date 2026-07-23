@@ -1,20 +1,28 @@
 import { useState, useEffect } from 'react';
-import { useMunicipios, useMesas } from '../hooks/useApi';
+import { useMunicipios, useMesas, useElecciones } from '../hooks/useApi';
 import { useMunicipio } from '../context/MunicipioContext';
+import { useEleccion } from '../context/EleccionContext';
 
 // Datos variables que antes estaban fijos en el código de la Constancia de
 // Emisión de Voto (y que van a reusarse en otras actas): el encabezado de
-// la Junta Electoral, y el corte de mesa (cuántos electores tiene cada
-// mesa), que hoy se carga a mano mesa por mesa.
+// la Junta Electoral, la fecha/nombre de la elección, y el corte de mesa
+// (cuántos electores tiene cada mesa), que hoy se carga a mano mesa por
+// mesa.
 
 export default function Configuracion() {
   const { get: getMunicipio, update: updateMunicipio } = useMunicipios();
   const { list: listMesas, update: updateMesa } = useMesas();
+  const { get: getEleccion, update: updateEleccion } = useElecciones();
   const { selectedId: municipioId } = useMunicipio();
+  const { selectedId: eleccionId } = useEleccion();
 
   const [municipio, setMunicipio]     = useState(null);
   const [juntaNombre, setJuntaNombre] = useState('');
   const [savingJunta, setSavingJunta] = useState(false);
+
+  const [eleccionNombre, setEleccionNombre] = useState('');
+  const [eleccionFecha, setEleccionFecha]   = useState('');
+  const [savingEleccion, setSavingEleccion] = useState(false);
 
   const [mesas, setMesas]         = useState([]);
   const [cortes, setCortes]       = useState({}); // mesaId -> valor en edición
@@ -28,13 +36,19 @@ export default function Configuracion() {
 
   const load = () => {
     if (!municipioId) return Promise.resolve();
-    return Promise.all([getMunicipio(municipioId), listMesas()]).then(([m, ms]) => {
+    const pedidos = [getMunicipio(municipioId), listMesas()];
+    if (eleccionId) pedidos.push(getEleccion(eleccionId));
+    return Promise.all(pedidos).then(([m, ms, e]) => {
       setMunicipio(m.data);
       setJuntaNombre(m.data.junta_electoral_nombre || '');
       setMesas(ms.data);
       const iniciales = {};
       ms.data.forEach((mesa) => { iniciales[mesa.id] = mesa.electores_habilitados ?? 0; });
       setCortes(iniciales);
+      if (e) {
+        setEleccionNombre(e.data.nombre || '');
+        setEleccionFecha(e.data.fecha || '');
+      }
     });
   };
 
@@ -42,7 +56,23 @@ export default function Configuracion() {
     setLoading(true);
     load().catch(() => setError('Error cargando la configuración')).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [municipioId]);
+  }, [municipioId, eleccionId]);
+
+  const handleSaveEleccion = async () => {
+    if (!eleccionId) return;
+    if (!eleccionNombre) { setError('El nombre de la elección es requerido'); return; }
+    setSavingEleccion(true);
+    setError('');
+    try {
+      await updateEleccion(eleccionId, { nombre: eleccionNombre, fecha: eleccionFecha || null });
+      notify('Elección actualizada');
+      await load();
+    } catch (e) {
+      setError(e.response?.data?.error || 'Error al guardar');
+    } finally {
+      setSavingEleccion(false);
+    }
+  };
 
   const handleSaveJunta = async () => {
     if (!municipio) return;
@@ -89,6 +119,44 @@ export default function Configuracion() {
     <div>
       {error   && <div className="alert alert-danger">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
+
+      <div className="card" style={{ marginBottom: 24 }}>
+        <h3 style={{ marginTop: 0 }}>Elección</h3>
+        <p style={{ fontSize: '.85rem', color: 'var(--gray-500)', marginBottom: 16 }}>
+          Nombre y fecha de la elección actualmente seleccionada (arriba, en el selector del
+          costado). Se muestran tanto en el encabezado del padrón como en el troquel de la
+          Constancia de Emisión de Voto.
+        </p>
+        {!eleccionId ? (
+          <p style={{ color: 'var(--gray-500)' }}>No hay ninguna elección seleccionada.</p>
+        ) : (
+          <>
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label className="form-label">Nombre de la elección</label>
+                <input
+                  className="form-control"
+                  value={eleccionNombre}
+                  onChange={(e) => setEleccionNombre(e.target.value)}
+                  placeholder="Ej: Elección 2027"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Fecha</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={eleccionFecha}
+                  onChange={(e) => setEleccionFecha(e.target.value)}
+                />
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={handleSaveEleccion} disabled={savingEleccion}>
+              {savingEleccion ? 'Guardando...' : 'Guardar'}
+            </button>
+          </>
+        )}
+      </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ marginTop: 0 }}>Junta Electoral</h3>
