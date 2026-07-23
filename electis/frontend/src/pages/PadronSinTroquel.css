@@ -2,11 +2,11 @@
    troquelada. La hoja y el encabezado son compartidos (ver PadronComun.css);
    acá solo va la tabla. */
 
-.lista-tabla { width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; }
+.lista-tabla { width: 100%; border-collapse: collapse; font-size: 10.5px; table-layout: fixed; }
 .lista-tabla th, .lista-tabla td { border: 1px solid #000; padding: 2px 5px; text-align: left; vertical-align: middle; }
 .lista-tabla th { background: #ececec; font-weight: bold; text-align: center; }
 
-.lista-col-orden { width: 46px; text-align: center; }
+.lista-col-orden { width: 64px; text-align: center; }
 .lista-col-matricula { width: 90px; }
 .lista-col-voto { width: 50px; }
 

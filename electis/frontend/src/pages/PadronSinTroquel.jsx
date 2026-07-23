@@ -11,7 +11,11 @@ import './PadronSinTroquel.css';
 // muchos más electores por página. Comparte hoja y encabezado con
 // PadronImprimir (ver PadronComun); solo cambia el cuerpo.
 const PAGE_HEIGHT_PX = Math.round(13.8 * 96);
-const FOOTER_HEIGHT_PX = 14;
+// Con filas tan bajas (tabla densa, no la ficha de media hoja de
+// PadronImprimir) el cálculo quedaba justo al límite y el pie de página
+// aparecía cortado contra el borde inferior de la hoja. Se reserva más aire
+// acá para que "Hoja X de Y" quede siempre con margen.
+const FOOTER_HEIGHT_PX = 28;
 
 // Argentina no usa punto de miles en el DNI de un elector individual en el
 // padrón oficial, pero el listado sin troquel sí lo trae así en el modelo
