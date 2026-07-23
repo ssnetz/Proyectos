@@ -300,19 +300,18 @@ function printMonthlyComparison(data, from, to, minDate, maxDate) {
       <td class="num">${r.prom_precio ? '$' + fmt(r.prom_precio, 0) + '/L' : '—'}</td>
       <td class="num">${r.total_km ? fmt(r.total_km, 0) + ' km' : '—'}${(r.total_km_delta !== null && r.total_km_delta !== undefined) ? `<br>${deltaHtml(r.total_km_delta, r.total_km_pct, 0, ' km')}` : ''}</td>
     </tr>`).join('');
-  const detailRows = data.map(r => {
-    const vehDetalle = (r.detalle_vehiculos || []).map(d => {
-      const cls = d.costo_delta > 0 ? 'delta-up' : d.costo_delta < 0 ? 'delta-down' : 'delta-flat';
-      return `<span class="${cls}"><strong>${d.name}</strong> (${d.plate}): ${formatDelta(d.litros_delta, 1, ' L', false)} — ${formatDelta(d.costo_delta, 0, '', true)} — ${formatDelta(d.km_delta, 0, ' km', false)}</span>`;
-    }).join('&nbsp;&nbsp;|&nbsp;&nbsp;');
-    return `<tr>
+  // Nota: a propósito NO se imprime el detalle por vehículo de cada mes (el
+  // que se ve en pantalla al tocar un mes) — con muchos vehículos queda todo
+  // apilado en una sola línea e ilegible en el PDF. Ese detalle solo se
+  // consulta en pantalla.
+  const detailRows = data.map(r => `
+    <tr>
       <td><strong>${monthLabel(r)}</strong></td>
       <td class="num">${deltaHtml(r.total_litros_delta, r.total_litros_pct, 1, ' L')}</td>
       <td class="num">${deltaHtml(r.total_costo_delta, r.total_costo_pct, 0, '', true)}</td>
       <td class="num">${deltaHtml(r.prom_precio_delta, r.prom_precio_pct, 0, '', true)}</td>
       <td class="num">${deltaHtml(r.total_km_delta, r.total_km_pct, 0, ' km')}</td>
-    </tr>` + (vehDetalle ? `<tr><td colspan="5" style="padding:2px 8px 8px 20px;font-size:9px;">${vehDetalle}</td></tr>` : '');
-  }).join('');
+    </tr>`).join('');
   const html = buildHeader('Comparativa Mensual de Combustible', from, to, [
     { label: 'Meses', value: data.length },
     { label: 'Total litros', value: fmt(totLit, 2) + ' L' },
