@@ -18,6 +18,7 @@ import Fiscales           from './pages/Fiscales';
 import Usuarios           from './pages/Usuarios';
 import Municipios         from './pages/Municipios';
 import Elecciones         from './pages/Elecciones';
+import Configuracion      from './pages/Configuracion';
 import PadronImprimir     from './pages/PadronImprimir';
 import Login              from './pages/Login';
 import FiscalLogin        from './pages/FiscalLogin';
@@ -129,6 +130,7 @@ const pageTitles = {
   '/usuarios':          'Usuarios',
   '/municipios':        'Municipios / Comunas',
   '/elecciones':        'Elecciones',
+  '/configuracion':     'Configuración',
 };
 
 function AppLayout() {
@@ -180,6 +182,9 @@ function AppLayout() {
               <NavLink to="/elecciones" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
                 <span className="nav-icon">🗓️</span> Elecciones
               </NavLink>
+              <NavLink to="/configuracion" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+                <span className="nav-icon">⚙️</span> Configuración
+              </NavLink>
             </>
           )}
         </nav>
@@ -210,6 +215,7 @@ function AppLayout() {
             <Route path="/usuarios"         element={<ProtectedRoute adminOnly><Usuarios /></ProtectedRoute>} />
             <Route path="/municipios"       element={<ProtectedRoute adminOnly><Municipios /></ProtectedRoute>} />
             <Route path="/elecciones"       element={<ProtectedRoute adminOnly><Elecciones /></ProtectedRoute>} />
+            <Route path="/configuracion"    element={<ProtectedRoute adminOnly><Configuracion /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
