@@ -148,9 +148,16 @@ export default function Mesas() {
                         <button
                           className="btn btn-ghost btn-sm"
                           onClick={() => navigate(`/mesas/${m.id}/padron`)}
-                          title="Imprimir padrón de esta mesa"
+                          title="Imprimir padrón con troquel (constancia de emisión de voto)"
                         >
                           🖨️
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => navigate(`/mesas/${m.id}/padron-sin-troquel`)}
+                          title="Imprimir padrón sin troquel (listado simple)"
+                        >
+                          📋
                         </button>
                         {isAdmin && (
                           <>
