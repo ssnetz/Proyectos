@@ -144,8 +144,10 @@ export default function PadronImprimir() {
         </span>
       </div>
       <div className="padron-aviso-papel">
-        ⚠️ En el diálogo de impresión, elegí tamaño de papel <strong>Legal (Oficio, 8.5 x 14 in)</strong>.
-        Si queda en Carta/A4, cada hoja se corta entre dos páginas y quedan páginas en blanco de más.
+        ⚠️ En "Más opciones de configuración" del diálogo de impresión, elegí tamaño de papel{' '}
+        <strong>Legal (Oficio, 8.5 x 14 in)</strong> y márgenes <strong>Ninguno</strong>. Si el
+        tamaño queda en Carta/A4, o los márgenes en "Predeterminado", cada hoja se corta entre
+        dos páginas y quedan páginas en blanco de más.
       </div>
 
       <div className="padron-imprimible">
