@@ -75,7 +75,10 @@ export function useUsuarios()        { return crud('usuarios'); }
 export function useMunicipios()      { return crud('municipios'); }
 export function useElecciones()      { return crud('elecciones'); }
 export function useCortesMesa() {
-  const cortar = (maxPorMesa) => api.post('/cortes_mesa.php', { max_por_mesa: maxPorMesa });
+  const cortar = (maxPorMesa, numeroInicial) => api.post('/cortes_mesa.php', {
+    max_por_mesa: maxPorMesa,
+    numero_inicial: numeroInicial,
+  });
   return { cortar };
 }
 

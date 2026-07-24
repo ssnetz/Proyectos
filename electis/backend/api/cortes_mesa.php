@@ -35,6 +35,9 @@ function cortarMesas(PDO $db): void {
     $maxPorMesa = (int)($data['max_por_mesa'] ?? 0);
     if ($maxPorMesa < 1) jsonError('El máximo de electores por mesa debe ser mayor a 0', 400);
 
+    $numeroInicial = (int)($data['numero_inicial'] ?? 1);
+    if ($numeroInicial < 1) jsonError('El número de mesa inicial debe ser mayor a 0', 400);
+
     $stmt = $db->prepare(
         "SELECT id FROM electores WHERE municipio_id = ? AND eleccion_id = ? ORDER BY apellido, nombre, id"
     );
@@ -70,7 +73,7 @@ function cortarMesas(PDO $db): void {
     $db->beginTransaction();
     try {
         foreach (array_chunk($electorIds, $maxPorMesa) as $i => $bloque) {
-            $numero = (string)($i + 1);
+            $numero = (string)($numeroInicial + $i);
             $findMesa->execute([$municipioId, $eleccionId, $establecimientoId, $numero]);
             $mesaId = $findMesa->fetchColumn();
             if (!$mesaId) {
@@ -97,5 +100,7 @@ function cortarMesas(PDO $db): void {
         'total_mesas'      => $totalMesas,
         'mesas_creadas'    => $mesasCreadas,
         'max_por_mesa'     => $maxPorMesa,
+        'numero_inicial'   => $numeroInicial,
+        'numero_final'     => $numeroInicial + $totalMesas - 1,
     ]);
 }
