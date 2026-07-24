@@ -28,6 +28,7 @@ export default function Configuracion() {
 
   const [maxPorMesa, setMaxPorMesa] = useState(350);
   const [numeroInicial, setNumeroInicial] = useState(1);
+  const [reiniciarOrden, setReiniciarOrden] = useState(false);
   const [cortando, setCortando]     = useState(false);
   const [corteResultado, setCorteResultado] = useState(null);
   const [corteError, setCorteError] = useState('');
@@ -113,7 +114,7 @@ export default function Configuracion() {
     setCorteError('');
     setCorteResultado(null);
     try {
-      const r = await cortar(maxPorMesa, numeroInicial);
+      const r = await cortar(maxPorMesa, numeroInicial, reiniciarOrden);
       setCorteResultado(r.data);
       notify('Corte de mesa aplicado');
       await load();
@@ -184,9 +185,9 @@ export default function Configuracion() {
         <h3 style={{ marginTop: 0 }}>Armar mesas automáticamente</h3>
         <p style={{ fontSize: '.85rem', color: 'var(--gray-500)', marginBottom: 16 }}>
           Ordena todo el padrón de esta elección alfabéticamente (apellido, nombre), le asigna el
-          número de orden correlativo dentro de cada mesa, y arma las mesas cortando cada tantos
-          electores como indiques acá. Las mesas quedan bajo el establecimiento "Sin asignar" —
-          reasignalas a la escuela real después desde Mesas.
+          número de orden a cada elector, y arma las mesas cortando cada tantos electores como
+          indiques acá. Las mesas quedan bajo el establecimiento "Sin asignar" — reasignalas a la
+          escuela real después desde Mesas.
         </p>
         {corteError && <div className="alert alert-danger">{corteError}</div>}
         <div className="form-row" style={{ alignItems: 'flex-end' }}>
@@ -216,6 +217,17 @@ export default function Configuracion() {
             {cortando ? 'Aplicando...' : 'Aplicar corte'}
           </button>
         </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={reiniciarOrden}
+            onChange={(e) => setReiniciarOrden(e.target.checked)}
+          />
+          <span style={{ fontSize: '.85rem' }}>
+            Reiniciar el orden en 1 en cada mesa (si no se marca, el orden es correlativo en todo
+            el padrón: la mesa 2 sigue donde terminó la 1)
+          </span>
+        </label>
         {corteResultado && (
           <div className="alert alert-success" style={{ marginTop: 12 }}>
             {corteResultado.total_electores} electores repartidos en {corteResultado.total_mesas} mesa
@@ -226,7 +238,7 @@ export default function Configuracion() {
             {corteResultado.mesas_borradas > 0
               ? `, ${corteResultado.mesas_borradas} mesa${corteResultado.mesas_borradas === 1 ? '' : 's'} vieja${corteResultado.mesas_borradas === 1 ? '' : 's'} vacía${corteResultado.mesas_borradas === 1 ? '' : 's'} eliminada${corteResultado.mesas_borradas === 1 ? '' : 's'}`
               : ''}
-            ).
+            ). Orden {corteResultado.reiniciar_orden ? 'reiniciado en 1 en cada mesa' : 'correlativo en todo el padrón'}.
           </div>
         )}
       </div>
