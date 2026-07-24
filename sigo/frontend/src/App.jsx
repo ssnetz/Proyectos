@@ -33,7 +33,7 @@ function SidebarUser() {
         className="btn btn-ghost btn-sm btn-icon"
         title="Cerrar sesión"
         onClick={logout}
-        style={{ color: 'var(--gray-400)', borderColor: 'var(--gray-700)', marginLeft: 'auto' }}
+        style={{ color: 'var(--gray-400)', borderColor: 'var(--gray-300)', marginLeft: 'auto' }}
       >
         ⏻
       </button>
