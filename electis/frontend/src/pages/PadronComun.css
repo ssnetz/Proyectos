@@ -26,10 +26,14 @@
   font-family: Arial, sans-serif;
   color: #000;
   /* El body global fija line-height:1.5 — heredado, cada línea de texto de
-     la ficha queda ~30% más alta de lo necesario y hace que entren menos
-     filas por hoja de las que en realidad caben. Se pisa acá con un valor
-     ajustado a texto de formulario denso. */
-  line-height: 1.15;
+     la ficha queda más alta de lo necesario. Con 1.15 entraban justo las 8
+     fichas del troquel para un nombre de elección corto ("Elección 2023"),
+     pero un nombre más largo (ej. "Elección Centro de Estudiantes IPEM 157")
+     se corta en dos líneas dentro de la columna angosta del troquel y el
+     total termina pasándose de las 14in de la hoja (medido: 14.72in),
+     partiendo cada ficha entre dos páginas al imprimir. Con 1.0 entran las 8
+     con margen de sobra incluso en ese caso (medido: 13.62in). */
+  line-height: 1;
 }
 
 .padron-encabezado { display: flex; border: 1px solid #000; margin-bottom: 2px; }
