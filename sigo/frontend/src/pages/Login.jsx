@@ -14,8 +14,15 @@ export default function Login() {
     setLoading(true);
     try {
       await login(username, password);
-    } catch {
-      setError('Usuario o contraseña incorrectos');
+    } catch (err) {
+      // Distinguir credenciales inválidas (401) de una falla real del
+      // servidor/base de datos — mostrar siempre lo mismo tapaba errores de
+      // conexión y hacía parecer que era un problema de usuario/contraseña.
+      if (err.response?.status === 401) {
+        setError('Usuario o contraseña incorrectos');
+      } else {
+        setError(err.response?.data?.error || 'Error de conexión con el servidor. Probá de nuevo en un momento.');
+      }
     } finally {
       setLoading(false);
     }
