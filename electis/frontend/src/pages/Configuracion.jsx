@@ -27,6 +27,7 @@ export default function Configuracion() {
   const [savingMesa, setSavingMesa] = useState(null); // mesaId que se está guardando
 
   const [maxPorMesa, setMaxPorMesa] = useState(350);
+  const [numeroInicial, setNumeroInicial] = useState(1);
   const [cortando, setCortando]     = useState(false);
   const [corteResultado, setCorteResultado] = useState(null);
   const [corteError, setCorteError] = useState('');
@@ -100,9 +101,11 @@ export default function Configuracion() {
 
   const handleCortarMesas = async () => {
     if (!maxPorMesa || maxPorMesa < 1) { setCorteError('Ingresá un máximo válido'); return; }
+    if (!numeroInicial || numeroInicial < 1) { setCorteError('Ingresá un número de mesa inicial válido'); return; }
     if (!confirm(
       `Esto va a reordenar TODO el padrón de esta elección alfabéticamente y reasignar la mesa ` +
-      `y el número de orden de cada elector, en bloques de hasta ${maxPorMesa}. ` +
+      `y el número de orden de cada elector, en bloques de hasta ${maxPorMesa}, numerando las mesas ` +
+      `a partir de la ${numeroInicial}. ` +
       'Las mesas armadas a mano (o por curso) quedan sin electores. ¿Confirmás?'
     )) return;
 
@@ -110,7 +113,7 @@ export default function Configuracion() {
     setCorteError('');
     setCorteResultado(null);
     try {
-      const r = await cortar(maxPorMesa);
+      const r = await cortar(maxPorMesa, numeroInicial);
       setCorteResultado(r.data);
       notify('Corte de mesa aplicado');
       await load();
@@ -198,6 +201,17 @@ export default function Configuracion() {
               onChange={(e) => setMaxPorMesa(Number(e.target.value))}
             />
           </div>
+          <div className="form-group">
+            <label className="form-label">Número de mesa inicial</label>
+            <input
+              type="number"
+              min="1"
+              className="form-control"
+              style={{ width: 160 }}
+              value={numeroInicial}
+              onChange={(e) => setNumeroInicial(Number(e.target.value))}
+            />
+          </div>
           <button className="btn btn-primary" onClick={handleCortarMesas} disabled={cortando}>
             {cortando ? 'Aplicando...' : 'Aplicar corte'}
           </button>
@@ -205,7 +219,8 @@ export default function Configuracion() {
         {corteResultado && (
           <div className="alert alert-success" style={{ marginTop: 12 }}>
             {corteResultado.total_electores} electores repartidos en {corteResultado.total_mesas} mesa
-            {corteResultado.total_mesas === 1 ? '' : 's'} de hasta {corteResultado.max_por_mesa} cada una
+            {corteResultado.total_mesas === 1 ? '' : 's'} de hasta {corteResultado.max_por_mesa} cada una,
+            numeradas de la {corteResultado.numero_inicial} a la {corteResultado.numero_final}
             ({corteResultado.mesas_creadas} mesa{corteResultado.mesas_creadas === 1 ? '' : 's'} nueva
             {corteResultado.mesas_creadas === 1 ? '' : 's'}).
           </div>
