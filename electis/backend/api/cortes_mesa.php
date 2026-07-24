@@ -2,9 +2,11 @@
 // Corte de mesa automático: dado un máximo de electores por mesa, reparte
 // TODO el padrón de la elección actual en mesas, en bloques ordenados
 // alfabéticamente (apellido, nombre) — igual al criterio real de la
-// Justicia Electoral. Reasigna mesa_id y orden (correlativo, reiniciando en
-// cada mesa) de cada elector; es re-ejecutable: cada corrida recalcula todo
-// desde cero según el máximo indicado, sin importar cortes anteriores.
+// Justicia Electoral. Reasigna mesa_id y orden (correlativo a lo largo de
+// TODO el padrón, no reinicia en cada mesa: el orden real de la Justicia
+// Electoral numera 1..N sobre el padrón completo, mesa 2 sigue donde
+// terminó la 1) de cada elector; es re-ejecutable: cada corrida recalcula
+// todo desde cero según el máximo indicado, sin importar cortes anteriores.
 //
 // Las mesas quedan bajo el establecimiento genérico "Sin asignar" (mismo
 // criterio que la importación de CSV), para repartirlas después a los
@@ -71,6 +73,8 @@ function cortarMesas(PDO $db): void {
     $mesasCreadas = 0;
     $mesaIdsUsados = [];
 
+    $orden = 0;
+
     $db->beginTransaction();
     try {
         foreach (array_chunk($electorIds, $maxPorMesa) as $i => $bloque) {
@@ -84,8 +88,9 @@ function cortarMesas(PDO $db): void {
             }
             $mesaIdsUsados[] = $mesaId;
 
-            foreach ($bloque as $orden => $electorId) {
-                $updateElector->execute([$mesaId, $orden + 1, $electorId]);
+            foreach ($bloque as $electorId) {
+                $orden++;
+                $updateElector->execute([$mesaId, $orden, $electorId]);
             }
             $updateMesaCount->execute([count($bloque), $mesaId]);
         }
