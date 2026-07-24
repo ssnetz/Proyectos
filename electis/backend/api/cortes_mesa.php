@@ -69,6 +69,7 @@ function cortarMesas(PDO $db): void {
 
     $totalMesas = (int)ceil(count($electorIds) / $maxPorMesa);
     $mesasCreadas = 0;
+    $mesaIdsUsados = [];
 
     $db->beginTransaction();
     try {
@@ -81,6 +82,7 @@ function cortarMesas(PDO $db): void {
                 $mesaId = (int)$db->lastInsertId();
                 $mesasCreadas++;
             }
+            $mesaIdsUsados[] = $mesaId;
 
             foreach ($bloque as $orden => $electorId) {
                 $updateElector->execute([$mesaId, $orden + 1, $electorId]);
@@ -94,11 +96,39 @@ function cortarMesas(PDO $db): void {
         jsonError('Error al cortar mesas: ' . $e->getMessage(), 500);
     }
 
+    // Limpieza: mesas que quedaron bajo "Sin asignar" de cortes anteriores y
+    // que ya no tienen ningún elector asignado (porque todos se movieron a las
+    // mesas de esta corrida). Si una mesa vieja ya tiene un fiscal asignado
+    // (FK en la tabla fiscales), el DELETE falla y la dejamos como está.
+    $mesasBorradas = 0;
+    $placeholders = implode(',', array_fill(0, count($mesaIdsUsados), '?'));
+    $findViejas = $db->prepare(
+        "SELECT id FROM mesas
+         WHERE municipio_id = ? AND eleccion_id = ? AND establecimiento_id = ?
+           AND id NOT IN ($placeholders)"
+    );
+    $findViejas->execute([$municipioId, $eleccionId, $establecimientoId, ...$mesaIdsUsados]);
+    $mesasViejas = $findViejas->fetchAll(PDO::FETCH_COLUMN);
+
+    $countElectores = $db->prepare("SELECT COUNT(*) FROM electores WHERE mesa_id = ?");
+    $deleteMesaVieja = $db->prepare("DELETE FROM mesas WHERE id = ?");
+    foreach ($mesasViejas as $mesaViejaId) {
+        $countElectores->execute([$mesaViejaId]);
+        if ((int)$countElectores->fetchColumn() > 0) continue;
+        try {
+            $deleteMesaVieja->execute([$mesaViejaId]);
+            $mesasBorradas++;
+        } catch (\Throwable $e) {
+            // Tiene fiscal u otra referencia asociada; se deja como está.
+        }
+    }
+
     jsonResponse([
         'message'          => 'Corte de mesa aplicado',
         'total_electores'  => count($electorIds),
         'total_mesas'      => $totalMesas,
         'mesas_creadas'    => $mesasCreadas,
+        'mesas_borradas'   => $mesasBorradas,
         'max_por_mesa'     => $maxPorMesa,
         'numero_inicial'   => $numeroInicial,
         'numero_final'     => $numeroInicial + $totalMesas - 1,

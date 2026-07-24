@@ -222,7 +222,11 @@ export default function Configuracion() {
             {corteResultado.total_mesas === 1 ? '' : 's'} de hasta {corteResultado.max_por_mesa} cada una,
             numeradas de la {corteResultado.numero_inicial} a la {corteResultado.numero_final}
             ({corteResultado.mesas_creadas} mesa{corteResultado.mesas_creadas === 1 ? '' : 's'} nueva
-            {corteResultado.mesas_creadas === 1 ? '' : 's'}).
+            {corteResultado.mesas_creadas === 1 ? '' : 's'}
+            {corteResultado.mesas_borradas > 0
+              ? `, ${corteResultado.mesas_borradas} mesa${corteResultado.mesas_borradas === 1 ? '' : 's'} vieja${corteResultado.mesas_borradas === 1 ? '' : 's'} vacía${corteResultado.mesas_borradas === 1 ? '' : 's'} eliminada${corteResultado.mesas_borradas === 1 ? '' : 's'}`
+              : ''}
+            ).
           </div>
         )}
       </div>
