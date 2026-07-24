@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMesas, useElecciones } from '../hooks/useApi';
+import { useMesas, useElecciones, useCortesMesa } from '../hooks/useApi';
 import { useMunicipio } from '../context/MunicipioContext';
 import { useEleccion } from '../context/EleccionContext';
 
@@ -13,6 +13,7 @@ import { useEleccion } from '../context/EleccionContext';
 export default function Configuracion() {
   const { list: listMesas, update: updateMesa } = useMesas();
   const { get: getEleccion, update: updateEleccion } = useElecciones();
+  const { cortar } = useCortesMesa();
   const { selectedId: municipioId } = useMunicipio();
   const { selectedId: eleccionId } = useEleccion();
 
@@ -24,6 +25,11 @@ export default function Configuracion() {
   const [mesas, setMesas]         = useState([]);
   const [cortes, setCortes]       = useState({}); // mesaId -> valor en edición
   const [savingMesa, setSavingMesa] = useState(null); // mesaId que se está guardando
+
+  const [maxPorMesa, setMaxPorMesa] = useState(350);
+  const [cortando, setCortando]     = useState(false);
+  const [corteResultado, setCorteResultado] = useState(null);
+  const [corteError, setCorteError] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -92,6 +98,29 @@ export default function Configuracion() {
     }
   };
 
+  const handleCortarMesas = async () => {
+    if (!maxPorMesa || maxPorMesa < 1) { setCorteError('Ingresá un máximo válido'); return; }
+    if (!confirm(
+      `Esto va a reordenar TODO el padrón de esta elección alfabéticamente y reasignar la mesa ` +
+      `y el número de orden de cada elector, en bloques de hasta ${maxPorMesa}. ` +
+      'Las mesas armadas a mano (o por curso) quedan sin electores. ¿Confirmás?'
+    )) return;
+
+    setCortando(true);
+    setCorteError('');
+    setCorteResultado(null);
+    try {
+      const r = await cortar(maxPorMesa);
+      setCorteResultado(r.data);
+      notify('Corte de mesa aplicado');
+      await load();
+    } catch (e) {
+      setCorteError(e.response?.data?.error || 'Error al cortar mesas');
+    } finally {
+      setCortando(false);
+    }
+  };
+
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
 
   return (
@@ -145,6 +174,41 @@ export default function Configuracion() {
               {savingEleccion ? 'Guardando...' : 'Guardar'}
             </button>
           </>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 24 }}>
+        <h3 style={{ marginTop: 0 }}>Armar mesas automáticamente</h3>
+        <p style={{ fontSize: '.85rem', color: 'var(--gray-500)', marginBottom: 16 }}>
+          Ordena todo el padrón de esta elección alfabéticamente (apellido, nombre), le asigna el
+          número de orden correlativo dentro de cada mesa, y arma las mesas cortando cada tantos
+          electores como indiques acá. Las mesas quedan bajo el establecimiento "Sin asignar" —
+          reasignalas a la escuela real después desde Mesas.
+        </p>
+        {corteError && <div className="alert alert-danger">{corteError}</div>}
+        <div className="form-row" style={{ alignItems: 'flex-end' }}>
+          <div className="form-group">
+            <label className="form-label">Máximo de electores por mesa</label>
+            <input
+              type="number"
+              min="1"
+              className="form-control"
+              style={{ width: 160 }}
+              value={maxPorMesa}
+              onChange={(e) => setMaxPorMesa(Number(e.target.value))}
+            />
+          </div>
+          <button className="btn btn-primary" onClick={handleCortarMesas} disabled={cortando}>
+            {cortando ? 'Aplicando...' : 'Aplicar corte'}
+          </button>
+        </div>
+        {corteResultado && (
+          <div className="alert alert-success" style={{ marginTop: 12 }}>
+            {corteResultado.total_electores} electores repartidos en {corteResultado.total_mesas} mesa
+            {corteResultado.total_mesas === 1 ? '' : 's'} de hasta {corteResultado.max_por_mesa} cada una
+            ({corteResultado.mesas_creadas} mesa{corteResultado.mesas_creadas === 1 ? '' : 's'} nueva
+            {corteResultado.mesas_creadas === 1 ? '' : 's'}).
+          </div>
         )}
       </div>
 
