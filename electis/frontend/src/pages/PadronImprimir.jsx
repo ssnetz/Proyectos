@@ -4,13 +4,13 @@ import JsBarcode from 'jsbarcode';
 import { usePadronImprimir } from '../hooks/useApi';
 import './PadronImprimir.css';
 
-// El alto disponible se mide en tiempo real (ver más abajo), así que este
-// número ya no es una apuesta a ciegas: como la cuenta se hace con el alto
-// que el propio navegador terminó renderizando, nunca se pasa del papel
-// aunque el objetivo esté cerca del límite físico de 14in. Se deja apenas
-// un colchón chico (no la pulgada entera de antes) para usar mejor la hoja.
-const PAGE_HEIGHT_PX = Math.round(13.8 * 96);
-const FOOTER_HEIGHT_PX = 14;
+// Se imprime siempre sobre una hoja troquelada (papel pre-cortado con 8
+// posiciones fijas): a diferencia de PadronSinTroquel, acá NO se puede medir
+// el alto renderizado para decidir cuántos electores entran por hoja — el
+// troquel es un corte físico fijo, y un cálculo dinámico que dé 7 o 9 por
+// cualquier variación de fuente/navegador desalinearía todo el impreso
+// contra el papel. Este número no cambia nunca.
+const ELECTORES_POR_HOJA = 8;
 
 const MESES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -144,12 +144,9 @@ export default function PadronImprimir() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
-  const [porHoja, setPorHoja] = useState(null);
-  const probeRef = useRef(null);
 
   useEffect(() => {
     setData(null);
-    setPorHoja(null);
     setLoading(true);
     get(mesaId)
       .then((r) => setData(r.data))
@@ -158,42 +155,15 @@ export default function PadronImprimir() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mesaId]);
 
-  // Se mide el alto real ya renderizado del encabezado y de una ficha (con
-  // los datos reales, no un valor fijo a ojo) para calcular cuántas fichas
-  // entran por hoja. Así se adapta solo a la fuente/renderizado de cada
-  // navegador en vez de asumir un número que después no coincide.
-  useLayoutEffect(() => {
-    if (!data || porHoja || data.electores.length === 0) return;
-    const encabezado = probeRef.current?.querySelector('.padron-encabezado');
-    const fila = probeRef.current?.querySelector('.padron-fila');
-    if (!encabezado || !fila) return;
-    const encabezadoH = encabezado.getBoundingClientRect().height;
-    const filaH = fila.getBoundingClientRect().height;
-    const disponible = PAGE_HEIGHT_PX - encabezadoH - FOOTER_HEIGHT_PX;
-    setPorHoja(Math.max(1, Math.floor(disponible / filaH)));
-  }, [data, porHoja]);
-
   if (loading) return <div className="spinner" style={{ marginTop: 80 }} />;
   if (error) return <div className="alert alert-danger">{error}</div>;
   if (!data) return null;
 
   const { mesa, municipio, eleccion, electores } = data;
 
-  if (electores.length > 0 && !porHoja) {
-    return (
-      <div ref={probeRef} style={{ position: 'absolute', visibility: 'hidden', left: -9999, top: 0 }}>
-        <div className="padron-hoja">
-          <Encabezado mesa={mesa} municipio={municipio} eleccion={eleccion} />
-          <Ticket elector={electores[0]} mesa={mesa} municipio={municipio} eleccion={eleccion} />
-        </div>
-      </div>
-    );
-  }
-
   const hojas = [];
-  const tamanoHoja = porHoja || 1;
-  for (let i = 0; i < electores.length; i += tamanoHoja) {
-    hojas.push(electores.slice(i, i + tamanoHoja));
+  for (let i = 0; i < electores.length; i += ELECTORES_POR_HOJA) {
+    hojas.push(electores.slice(i, i + ELECTORES_POR_HOJA));
   }
   if (hojas.length === 0) hojas.push([]);
 
