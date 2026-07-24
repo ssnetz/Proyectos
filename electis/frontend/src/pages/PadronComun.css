@@ -4,7 +4,17 @@
    cada una), midiendo el alto ya renderizado en vez de asumir un número fijo
    que después no coincide según impresora/navegador. */
 
-.padron-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.padron-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+
+/* La hoja mide 8.5x14in (oficio/legal). Si al imprimir/guardar como PDF el
+   diálogo del navegador queda en Carta o A4 en vez de Legal, cada hoja se
+   corta a la mitad entre dos páginas físicas y el resto de esa segunda
+   página queda en blanco antes de saltar a la próxima — no es un problema
+   de cálculo de alto, es el tamaño de papel elegido en el diálogo. */
+.padron-aviso-papel {
+  background: #fff7e6; border: 1px solid #f0c674; border-radius: 6px;
+  padding: 6px 10px; font-size: .8rem; color: #7a5a00; margin-bottom: 16px;
+}
 
 .padron-hoja {
   width: 8.5in;
@@ -39,7 +49,7 @@
 
 @media print {
   body * { visibility: hidden; }
-  .padron-toolbar { display: none; }
+  .padron-toolbar, .padron-aviso-papel { display: none; }
   .padron-imprimible, .padron-imprimible * { visibility: visible; }
   .padron-imprimible { position: absolute; left: 0; top: 0; }
   /* Sin margin acá: la hoja ya trae su propio padding interno, pensado
