@@ -8,9 +8,12 @@
 // terminó la 1) de cada elector; es re-ejecutable: cada corrida recalcula
 // todo desde cero según el máximo indicado, sin importar cortes anteriores.
 //
-// Las mesas quedan bajo el establecimiento genérico "Sin asignar" (mismo
-// criterio que la importación de CSV), para repartirlas después a los
-// establecimientos reales desde la pantalla de Mesas.
+// Las mesas nuevas quedan bajo el establecimiento genérico "Sin asignar"
+// (mismo criterio que la importación de CSV), para repartirlas después a
+// los establecimientos reales desde la pantalla de Mesas. Si se vuelve a
+// correr el corte después de esa reasignación manual, reusa esa misma mesa
+// (por número, sin importar el establecimiento en el que haya quedado) en
+// vez de crear una "Sin asignar" duplicada con el mismo número.
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/helpers.php';
@@ -60,8 +63,16 @@ function cortarMesas(PDO $db): void {
         $establecimientoId = (int)$db->lastInsertId();
     }
 
+    // Busca por número en TODA la elección, no solo bajo "Sin asignar": si esa
+    // mesa ya se reasignó a mano a su escuela real (flujo normal después del
+    // primer corte), hay que reusarla ahí, no crear una nueva bajo "Sin
+    // asignar" con el mismo número (quedarían dos mesas "1" duplicadas y la
+    // real quedaría vacía y huérfana). Si hay más de una coincidencia — caso
+    // ya roto por corridas anteriores de este bug — se prefiere la que no sea
+    // "Sin asignar".
     $findMesa = $db->prepare(
-        "SELECT id FROM mesas WHERE municipio_id = ? AND eleccion_id = ? AND establecimiento_id = ? AND numero = ?"
+        "SELECT id FROM mesas WHERE municipio_id = ? AND eleccion_id = ? AND numero = ?
+         ORDER BY (establecimiento_id = ?) ASC LIMIT 1"
     );
     $insertMesa = $db->prepare(
         "INSERT INTO mesas (municipio_id, eleccion_id, establecimiento_id, numero, electores_habilitados) VALUES (?, ?, ?, ?, 0)"
@@ -79,7 +90,7 @@ function cortarMesas(PDO $db): void {
     try {
         foreach (array_chunk($electorIds, $maxPorMesa) as $i => $bloque) {
             $numero = (string)($numeroInicial + $i);
-            $findMesa->execute([$municipioId, $eleccionId, $establecimientoId, $numero]);
+            $findMesa->execute([$municipioId, $eleccionId, $numero, $establecimientoId]);
             $mesaId = $findMesa->fetchColumn();
             if (!$mesaId) {
                 $insertMesa->execute([$municipioId, $eleccionId, $establecimientoId, $numero]);
