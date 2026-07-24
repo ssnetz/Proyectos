@@ -173,6 +173,10 @@ export default function PadronImprimir() {
           Mesa {mesa.numero} — {mesa.establecimiento_nombre} — {electores.length} electores — {hojas.length} hoja{hojas.length === 1 ? '' : 's'}
         </span>
       </div>
+      <div className="padron-aviso-papel">
+        ⚠️ En el diálogo de impresión, elegí tamaño de papel <strong>Legal (Oficio, 8.5 x 14 in)</strong>.
+        Si queda en Carta/A4, cada hoja se corta entre dos páginas y quedan páginas en blanco de más.
+      </div>
 
       <div className="padron-imprimible">
         {hojas.map((grupo, i) => (
