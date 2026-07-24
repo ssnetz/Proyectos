@@ -2,11 +2,15 @@
 // Corte de mesa automático: dado un máximo de electores por mesa, reparte
 // TODO el padrón de la elección actual en mesas, en bloques ordenados
 // alfabéticamente (apellido, nombre) — igual al criterio real de la
-// Justicia Electoral. Reasigna mesa_id y orden (correlativo a lo largo de
-// TODO el padrón, no reinicia en cada mesa: el orden real de la Justicia
-// Electoral numera 1..N sobre el padrón completo, mesa 2 sigue donde
-// terminó la 1) de cada elector; es re-ejecutable: cada corrida recalcula
-// todo desde cero según el máximo indicado, sin importar cortes anteriores.
+// Justicia Electoral. Reasigna mesa_id y orden de cada elector; es
+// re-ejecutable: cada corrida recalcula todo desde cero según el máximo
+// indicado, sin importar cortes anteriores.
+//
+// El orden puede ser correlativo a lo largo de TODO el padrón (default:
+// mesa 2 sigue donde terminó la 1) o reiniciar en 1 en cada mesa, según el
+// checkbox "Reiniciar el orden en 1 en cada mesa" de la pantalla de
+// Configuración (parámetro reiniciar_orden). No se guarda como preferencia:
+// se elige en cada corrida.
 //
 // Las mesas nuevas quedan bajo el establecimiento genérico "Sin asignar"
 // (mismo criterio que la importación de CSV), para repartirlas después a
@@ -42,6 +46,8 @@ function cortarMesas(PDO $db): void {
 
     $numeroInicial = (int)($data['numero_inicial'] ?? 1);
     if ($numeroInicial < 1) jsonError('El número de mesa inicial debe ser mayor a 0', 400);
+
+    $reiniciarOrden = !empty($data['reiniciar_orden']);
 
     $stmt = $db->prepare(
         "SELECT id FROM electores WHERE municipio_id = ? AND eleccion_id = ? ORDER BY apellido, nombre, id"
@@ -99,6 +105,7 @@ function cortarMesas(PDO $db): void {
             }
             $mesaIdsUsados[] = $mesaId;
 
+            if ($reiniciarOrden) $orden = 0;
             foreach ($bloque as $electorId) {
                 $orden++;
                 $updateElector->execute([$mesaId, $orden, $electorId]);
@@ -148,5 +155,6 @@ function cortarMesas(PDO $db): void {
         'max_por_mesa'     => $maxPorMesa,
         'numero_inicial'   => $numeroInicial,
         'numero_final'     => $numeroInicial + $totalMesas - 1,
+        'reiniciar_orden'  => $reiniciarOrden,
     ]);
 }
